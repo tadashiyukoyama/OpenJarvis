@@ -76,9 +76,7 @@ class BaseAgent(ABC):
             try:
                 descriptor = AgentRegistry.descriptor(getattr(self, "agent_id", ""))
             except KeyError as exc:
-                raise TypeError(
-                    "ENGINE_REQUIRED_FOR_SELECTED_AGENT"
-                ) from exc
+                raise TypeError("ENGINE_REQUIRED_FOR_SELECTED_AGENT") from exc
             if descriptor.execution_mode is not AgentExecutionMode.EXTERNAL:
                 raise TypeError("ENGINE_REQUIRED_FOR_SELECTED_AGENT")
 
