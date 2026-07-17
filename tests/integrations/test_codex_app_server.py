@@ -27,6 +27,7 @@ from openjarvis.integrations.codex_protocol import (
 )
 
 
+# fmt: off
 FAKE_SERVER = r"""
 import json
 import os
@@ -153,7 +154,8 @@ for raw in sys.stdin:
 if MODE == "ignore-close":
     while True:
         time.sleep(1)
-"""  # fmt: skip
+"""
+# fmt: on
 
 
 def _write_fake_server(tmp_path: Path) -> tuple[Path, Path]:
