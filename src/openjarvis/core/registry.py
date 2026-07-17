@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from openjarvis.tools.storage._stubs import MemoryBackend
 
 T = TypeVar("T")
+_MISSING = object()
 
 
 class AgentExecutionMode(str, Enum):
@@ -307,9 +308,9 @@ class AgentRegistry(RegistryBase[Type["BaseAgent"]]):
         external_runtime: Optional[str],
         descriptor: Optional[AgentDescriptor],
     ) -> None:
-        entries = cls._entries()
-        if key in entries:
-            raise ValueError(f"{cls.__name__} already has an entry for '{key}'")
+        # Build and validate all metadata before touching either storage or the
+        # class. Registration is one logical operation even though the two
+        # stores remain deliberately simple process-local dictionaries.
         agent_descriptor = cls._make_descriptor(
             key,
             execution_mode=execution_mode,
@@ -318,10 +319,54 @@ class AgentRegistry(RegistryBase[Type["BaseAgent"]]):
             external_runtime=external_runtime,
             descriptor=descriptor,
         )
-        if not getattr(entry, "agent_id", None):
-            setattr(entry, "agent_id", key)
-        entries[key] = entry
-        cls._descriptors()[key] = agent_descriptor
+        entries = cls._entries()
+        descriptors = cls._descriptors()
+        entry_exists = key in entries
+        descriptor_exists = key in descriptors
+        if entry_exists or descriptor_exists:
+            raise ValueError(
+                f"{cls.__name__} already has an entry or descriptor for '{key}'"
+            )
+
+        entry_namespace = vars(entry)
+        had_own_agent_id = "agent_id" in entry_namespace
+        previous_agent_id = getattr(entry, "agent_id", _MISSING)
+        agent_id_mutated = False
+
+        try:
+            if not getattr(entry, "agent_id", None):
+                # Mark this before setattr so a descriptor/metaclass that
+                # raises after mutating still enters the restoration path.
+                agent_id_mutated = True
+                setattr(entry, "agent_id", key)
+            entries[key] = entry
+            descriptors[key] = agent_descriptor
+        except BaseException:
+            # The key was absent from both stores before the transaction, so
+            # removing it is safe and cannot overwrite pre-existing state.
+            # Cleanup errors must never replace the original write failure.
+            try:
+                if key in descriptors:
+                    del descriptors[key]
+            except BaseException:
+                pass
+            try:
+                if key in entries:
+                    del entries[key]
+            except BaseException:
+                pass
+
+            if agent_id_mutated:
+                try:
+                    if had_own_agent_id:
+                        setattr(entry, "agent_id", previous_agent_id)
+                    elif "agent_id" in vars(entry):
+                        # Restore the inherited/absent shape, not just its
+                        # value, when registration created the attribute.
+                        delattr(entry, "agent_id")
+                except BaseException:
+                    pass
+            raise
 
     @classmethod
     def descriptor(cls, key: str) -> AgentDescriptor:
