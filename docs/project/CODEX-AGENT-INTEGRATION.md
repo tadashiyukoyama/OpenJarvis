@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -22,8 +23,10 @@ Codex is not an `InferenceEngine`, not a local-model provider and not a public
 runtime→agent two-step experience. A selector may exist only internally while
 composing the selected agent from its descriptor.
 
-Current state: the engine-independent External Agent Contract is implemented
-in OJ3-A on a draft PR; `CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
+Current state: the engine-independent External Agent Contract is merged in
+OJ3-A; OJ3-B-H hardens an isolated `CodexAppServerClient` transport core in
+functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`; PR #4 remains
+draft and its live head/checks must be confirmed on GitHub; `CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
 architectural review approved on 2026-07-17. OJ2-V validated `codex-cli 0.144.3` locally:
 the stable schema was generated without `--experimental`; the stdio handshake,
 sanitized account read and model catalog read passed; no thread, turn, prompt,
@@ -52,8 +55,10 @@ JSON-RPC, isolated behind `CodexAppServerClient`. `ClaudeCodeAgent` remains in
 the project and is neither removed nor renamed.
 
 OJ3-A implements only PR A — External Agent Contract: immutable agent metadata,
-engine-independent composition and fake-external tests. The implementation does
-not include a real Codex subprocess, UI, authentication, Ollama, model,
-installation or production app-server. The draft PR remains subject to its own
-CI/review gate; no CodexAgent implementation or default change is authorized by
-this document.
+engine-independent composition and fake-external tests. OJ3-B-H adds only
+hardening to the explicitly-started, stdlib JSONL process client: per-generation
+lifecycle isolation, fatal protocol shutdown, safe server-response serialization,
+concurrent-close behavior and fake-process tests. It remains disconnected from
+the runtime and does not implement a CodexAgent, UI, authentication, Ollama,
+model selection/download, installation or default change. The draft PR remains
+subject to its current GitHub CI/review gate.

@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -15,32 +16,42 @@ Superseded by: none
 | officialUpstream | open-jarvis/OpenJarvis |
 | officialCodeDownloaded | true |
 | originFork | tadashiyukoyama/OpenJarvis |
-| originMainSha | 5c719de2da9c2f43a46bdf598a3f6d982cd28807 |
+| originMainSha | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
 | upstreamMainSha | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| activeBranch | feat/external-agent-contract |
+| activeBranch | feat/codex-app-server-client-core |
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
-| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_IMPLEMENTED; CodexAgent NOT_IMPLEMENTED |
+| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_MERGED; CODEX_APP_SERVER_CLIENT_CORE_IMPLEMENTED; CodexAgent NOT_IMPLEMENTED |
 | codexVersionValidated | 0.144.3 |
 | codexAppServerValidation | PASS: stable schema, stdio handshake, sanitized account/model reads |
-| pullRequest | OJ3-A draft PR — External Agent Contract; CI pending at commit |
+| pullRequest | OJ3-B-H draft PR #4 — hardening functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`; live head/checks must be confirmed on GitHub |
 | lifecycleAutomation | DISABLED |
-| ci | OJ3-A draft checks pending at commit; local pytest unavailable |
+| ci | OJ3-B-H current CI: not yet available; historical run `29603505953` is not reusable; compileall and manual fake app-server harness PASS; local pytest unavailable |
 | mobileRepository | UNVERIFIED |
 | mobileImplementation | NOT_STARTED |
 | vps | NOT_CONTRACTED |
 | deploy | NOT_STARTED |
 | additionalWorktrees | 0 |
 
-Evidence (2026-07-17 12:46:10 -03:00): OJ2-M revalidated the local baseline, origin/main and upstream main
-live with 40-character refs before approval. The audit branch contains
-documentation-only changes plus ignored local schema/probe evidence. The
-installed `codex-cli 0.144.3` generated a stable schema; a non-interactive
-stdio probe approved handshake, `account/read(refreshToken=false)` and
-`model/list`, then exited without an orphan. OJ3-A adds only immutable agent
-descriptors, agent-first engine/model composition, Optional system dependencies,
-explicit engine-required errors and deterministic fake-external tests. No
-functional CodexAgent, workflow, dependency, model or service was added.
+Evidence (2026-07-17 14:34:44 -03:00): OJ3-A-M revalidated PR #3, merged it by
+squash as `7ff9dbebfb36c74073795ba96b83aa84db7a741e`, synchronized `main`,
+removed the PR branch and retained one canonical worktree. OJ3-B adds only a
+stdlib Codex app-server JSONL transport client and deterministic fake-process
+tests. It is not connected to `CodexAgent`, `AgentRegistry`, `SystemBuilder`,
+the UI or the OpenJarvis runtime. No prompt, conversation thread, turn,
+approval UX, login/logout, model download or credential transfer was added.
+
+Evidence (2026-07-17 15:26:44 -03:00, historical): OJ3-B pre-hardening was an
+open draft PR #4 based on the merged main SHA
+`7ff9dbebfb36c74073795ba96b83aa84db7a741e`; historical CI run `29603505953`
+passed lint/format, Linux tests, Rust, Windows 3.12 and Windows 3.13. That
+run is not the OJ3-B-H gate.
+
+Evidence (2026-07-17 16:03:42 -03:00): OJ3-B-H functional commit
+`523ebb18a805c2dad1cf03fb7649ae27ebbd02f1` hardens per-generation lifecycle
+isolation, fatal protocol shutdown, safe server-response serialization and
+concurrent close. PR #4 remains draft; its current live head and checks must be
+confirmed on GitHub after push. No current CI result is claimed here.
 
 OJ1-H completed the portability and lifecycle-policy correction. The four
 lifecycle scripts remain safe stubs and do not mutate Git or the filesystem.
@@ -57,12 +68,13 @@ Current blockers: thread persistence, streaming/approval UX, sandbox policy,
 production telemetry/concurrency behavior, end-to-end behavior and D-only
 no-Ollama installation remain unimplemented or unproven for production.
 Dependency installation, models, login, UI, default change and later phases
-remain unauthorized. OJ3-A is the authorized PR A contract scope; its draft
-PR has its own CI/review gate.
+remain unauthorized. OJ3-B-H is limited to the transport/client-core draft PR
+and stops after its current CI gate.
 
 OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (CANONICAL).
 
 Human architectural review: approved on 2026-07-17. OJ2 is approved with GO
-only for PR A — External Agent Contract. OJ3-A is draft and stops after CI;
+only for PR A — External Agent Contract. OJ3-A is merged; OJ3-B-H is draft and
+stopped pending the current CI gate;
 threads, reconnection, concurrency, final sandbox, telemetry and end-to-end
-integration remain unproven; OJ3-A does not implement CodexAgent.
+integration remain unproven; OJ3-B does not implement CodexAgent.

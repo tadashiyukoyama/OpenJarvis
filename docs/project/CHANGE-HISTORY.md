@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -77,7 +78,8 @@ Superseded by: none
   Agent Contract; NO-GO for functional CodexAgent, UI, installation and default
   change.
 - Kept thread durability, reconnection, concurrency, final sandbox, telemetry
-  and end-to-end integration explicitly unproven. PR A is not implemented here.
+  and end-to-end integration explicitly unproven. PR A was not implemented in
+  the OJ2-M task itself; it was authorized for the subsequent OJ3-A task.
 
 ## 2026-07-17 12:46:10 -03:00 - OJ3-A External Agent Contract
 
@@ -89,5 +91,41 @@ Superseded by: none
 - Added deterministic fake-external contract tests. No CodexAgent, app-server,
   subprocess, UI, installation, dependency, model, workflow, default or
   credential change was made.
-- OJ3-A is published only as a draft PR and stops after its CI gate; later
-  phases remain unauthorized.
+- OJ3-A was integrated by squash merge as
+  `7ff9dbebfb36c74073795ba96b83aa84db7a741e`; its task branch was removed.
+
+## 2026-07-17 15:26:44 -03:00 - OJ3-B Codex app-server client core
+
+- Added a stdlib-only, explicitly-started Codex app-server JSONL client with
+  typed lifecycle, request correlation, notifications, fail-closed server
+  request handling and sanitized account/model reads.
+- Added a temporary-process fake app-server test suite; no real Codex process,
+  prompt, conversation thread, turn, login/logout, model download or network
+  operation is used by the tests.
+- Kept `CodexAgent`, `AgentRegistry`, `SystemBuilder`, UI, workflows,
+  installers, defaults and runtime connection unchanged.
+- Preserved the primary protocol error on malformed stdout, aligned the two
+  new modules with Ruff, and completed historical CI run `29603505953`
+  successfully across lint/format, Linux, Rust and Windows 3.12/3.13. That
+  run predates OJ3-B-H and is not the current gate.
+- Left PR #4 open as draft; its historical pre-hardening head is recorded only
+  as evidence, and no ready-for-review or merge operation was performed.
+
+## 2026-07-17 16:03:42 -03:00 - OJ3-B-H lifecycle hardening
+
+- Hardened `CodexAppServerClient` with monotonic per-generation lifecycle
+  contexts containing independent process, PID, stop event, queues, pending
+  requests and workers. Old waiters, callbacks and handlers cannot mutate or
+  consume a restarted generation.
+- Added fail-closed shutdown for malformed JSON-RPC after READY, including
+  pending-request failure, bounded process termination, PID clearing and no
+  automatic retry.
+- Added pre-write JSON serialization validation for client requests and
+  server-request results, exact `-32603` invalid-result responses, safe handler
+  exception responses and bounded concurrent close behavior.
+- Removed broad Ruff import and formatter suppressions from the client and its
+  fake-process tests. No `CodexAgent`, runtime connection, frontend, workflow,
+  dependency, model, credential, VPS or deployment change was made.
+- Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`.
+  PR #4 remains draft; current live head and checks must be confirmed on
+  GitHub after push. No current CI result is claimed in this entry.

@@ -3,14 +3,17 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
-OJ2-V validated the installed Codex app-server boundary. OJ3-A implements the
-engine-independent External Agent Contract on a draft PR. The official
-OpenJarvis components are present at the captured SHA; `CodexAgent`
-implementation, UI and default change remain unauthorized.
+OJ2-V validated the installed Codex app-server boundary. OJ3-A merged the
+engine-independent External Agent Contract, and OJ3-B-H hardens an isolated
+stdlib transport client in functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`.
+PR #4 remains draft; its live head and checks must be confirmed on GitHub.
+The official OpenJarvis components are present at the captured baseline;
+`CodexAgent` implementation, UI and default change remain unauthorized.
 
 | Area | Verified project state |
 |---|---|
@@ -37,7 +40,7 @@ implementation, UI and default change remain unauthorized.
 | Runtime state | `OPENJARVIS_HOME` can relocate state, but the fallback is `Path.home()/.openjarvis`; D-only installation must set and verify it. |
 | Codex boundary | Future `CodexAgent` → `CodexAppServerClient` → local `codex app-server` over stdio JSON-RPC; no `InferenceEngine` prerequisite. |
 | Internal selector | `RuntimeSelector`, if needed, is an internal composition detail based on the descriptor, never a public runtime→agent selector. |
-| Local validation | Codex `0.144.3` stable schema, handshake, sanitized `account/read` and `model/list` passed; only the external contract is implemented. |
+| Local validation | Codex `0.144.3` stable schema, handshake, sanitized `account/read` and `model/list` passed; OJ3-B fake-process transport validation passed; runtime connection remains absent. |
 
 For engine-backed agents, the current engine/model/health/list-model behavior
 remains. For registered EXTERNAL agents, composition represents engine/model as
