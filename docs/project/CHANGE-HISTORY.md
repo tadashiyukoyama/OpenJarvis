@@ -38,3 +38,16 @@ Superseded by: none
   exposes no workflow inventory or run for this fork branch.
 - No upstream functional code or workflow was changed, and no installation,
   model, service, VPS or CodexAgent work was performed.
+
+## 2026-07-17 - OJ2 Codex runtime audit (DRAFT)
+
+- Revalidated the local/origin baseline and live upstream main before auditing
+  the runtime, Windows installer, quickstart, storage paths, desktop setup,
+  frontend model gate, server streaming and Claude bridge.
+- Consulted the official Codex app-server protocol documentation in read-only
+  mode and proposed a future stdio JSON-RPC adapter without implementing it.
+- Confirmed that the Windows installer installs Ollama and pulls a starter
+  model, and that the current runtime is engine/model-first; recorded the
+  no-Ollama installation and future PR gates in the DRAFT report.
+- No functional code, workflow, dependency, model, credential, service, VPS,
+  deploy or merge operation was performed.

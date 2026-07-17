@@ -25,6 +25,9 @@ documentation.
 | KNOWN-ISSUES.md | CANONICAL | proven issues and risks | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | ROADMAP.md | CANONICAL | phases and dependencies | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | CHANGE-HISTORY.md | CANONICAL | product foundation changes | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
+| research/OJ2-CODEX-RUNTIME-AUDIT.md | DRAFT | Codex runtime and no-Ollama installation audit | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 
-Upstream documentation is now present in the checkout and remains to be
-indexed semantically during the authorized OJ2 audit.
+Upstream documentation is present in the checkout. OJ2 indexed the relevant
+installation, runtime, frontend, desktop and Claude evidence in the DRAFT
+research report. The report does not override canonical decisions until it is
+reviewed.

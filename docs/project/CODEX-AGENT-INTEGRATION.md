@@ -12,10 +12,16 @@ Requirement:
 OpenJarvis must offer Codex as a selectable external agent without requiring
 a local model or OPENAI_API_KEY for that mode.
 
-Initial state: NOT_IMPLEMENTED.
+Current state: NOT_IMPLEMENTED. OJ2 completed a static audit and recorded its
+findings as DRAFT in
+`docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md`.
 
 The future implementation must preserve authentication, session state,
-streaming, approvals and workspace context. No implementation is authorized
-before the OJ2 audit. Study the existing Claude Code integration as a
-reference, but do not copy it without an audit of the official code. The
-CodexAgent remains unimplemented.
+streaming, approvals and workspace context. The audit verified that the
+current OpenJarvis composition is engine/model-first, so a Codex path cannot be
+added safely by only registering another `BaseAgent`. The proposed transport is
+the installed Codex app-server over local stdio JSON-RPC, but this proposal is
+not yet canonical and no implementation is authorized.
+
+Study the existing Claude Code integration as a reference, but do not copy it
+without an audit of the official code. The CodexAgent remains unimplemented.

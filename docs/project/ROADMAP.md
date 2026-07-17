@@ -11,10 +11,11 @@ Superseded by: none
 |---|---|---|
 | OJ0 - local foundation | none | completed |
 | OJ1 - controlled clone and promotion | OJ0 review and new authorization | completed in this task |
-| OJ2 - upstream audit | OJ1 completed | not authorized |
+| OJ2 - upstream audit | OJ1 completed | completed as DRAFT; review gate pending |
 | OJ3 - controlled D installation | OJ2 audit and authorization | not authorized |
 | OJ4 - CodexAgent | OJ2 audit and specification | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
 | OJ6 - VPS | contracted VPS and approved plan | not authorized |
 
-No later phase is authorized by this OJ1 execution.
+OJ2 produced a DRAFT audit only. No later phase is authorized by this
+execution; OJ3 and OJ4 remain blocked pending explicit review and authorization.

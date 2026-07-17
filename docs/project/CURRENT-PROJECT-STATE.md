@@ -15,13 +15,13 @@ Superseded by: none
 | officialUpstream | open-jarvis/OpenJarvis |
 | officialCodeDownloaded | true |
 | originFork | tadashiyukoyama/OpenJarvis |
-| originMainSha | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
+| originMainSha | e57ac00b1f98b6b9e9db60145b838a5507e2c5fb |
 | upstreamMainSha | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| activeBranch | ops/openjarvis-workspace-foundation |
+| activeBranch | audit/openjarvis-codex-runtime |
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
 | codexAgentIntegration | NOT_IMPLEMENTED |
-| pullRequest | #1 DRAFT |
+| pullRequest | OJ2 draft PR pending creation |
 | lifecycleAutomation | DISABLED |
 | ci | INSUFFICIENT_EVIDENCE |
 | mobileRepository | UNVERIFIED |
@@ -30,10 +30,10 @@ Superseded by: none
 | deploy | NOT_STARTED |
 | additionalWorktrees | 0 |
 
-Evidence: OJ1 captured upstream main live with git ls-remote and verified the
-same 40-character SHA in origin/main and upstream/main. The partial clone was
-promoted to the canonical root and the OJ0 foundation was restored from a
-verified D: staging backup. No functional code was changed.
+Evidence: OJ2 revalidated the local baseline, origin/main and upstream main
+live with 40-character refs before the audit. The audit branch starts at the
+local/origin baseline and contains documentation-only changes. No functional
+code, workflow, dependency, model or service was executed or changed.
 
 OJ1-H completed the portability and lifecycle-policy correction. The four
 lifecycle scripts remain safe stubs and do not mutate Git or the filesystem.
@@ -43,6 +43,10 @@ configured locally for pull requests to `main`; the read-only evidence is
 insufficient to establish a runnable workflow. No installation, model,
 service, VPS or CodexAgent work was performed. OJ2 is not authorized.
 
-Current blockers: upstream architecture, mobile source, VPS and fork CI
-behavior remain unaudited or unverified by design. Dependency installation,
-execution, models and later phases remain unauthorized.
+Current blockers: the Codex app-server account state, versioned protocol
+compatibility, engine-independent runtime contract, thread persistence,
+streaming/approval UX and D-only no-Ollama installation remain unproven for
+implementation. Dependency installation, execution, models, login and later
+phases remain unauthorized.
+
+OJ2 report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (DRAFT).
