@@ -1,8 +1,9 @@
 # OJ2 — Auditoria do runtime Codex e instalação sem Ollama
 
-Status: DRAFT
+Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Data da auditoria: 2026-07-17 (America/Sao_Paulo)
+Revisão arquitetural humana: aprovada em 2026-07-17
 Branch: `audit/openjarvis-codex-runtime`
 Baseline local/origin: `e57ac00b1f98b6b9e9db60145b838a5507e2c5fb`
 Baseline upstream observado: `3000116d181eb69737241c09eaa70d4c65eb80a0`
@@ -464,8 +465,8 @@ instalação, login, execução de app-server, `uv sync` ou qualquer download ag
 
 | Arquivo/área | OJ2 | Próxima PR de implementação |
 |---|---|---|
-| `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` | criado como DRAFT | revisar/aprovar ou corrigir evidências |
-| `docs/project/CODEX-AGENT-INTEGRATION.md` | atualizar somente estado e link para este DRAFT | tornar contrato canônico após aprovação |
+| `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` | CANONICAL após revisão humana | preservar evidências e riscos não provados |
+| `docs/project/CODEX-AGENT-INTEGRATION.md` | contrato arquitetural canônico | PR A requer autorização própria |
 | `docs/project/ARCHITECTURE-MAP.md` | registrar limites verificáveis | atualizar mapa após adapter testado |
 | `docs/project/ROADMAP.md` | fechar OJ2 como auditado, manter OJ3/OJ4 bloqueados | autorizar uma única fase futura |
 | `src/openjarvis/integrations/codex_app_server.py` | não tocar | PR de transporte/protocolo |
@@ -475,7 +476,7 @@ instalação, login, execução de app-server, `uv sync` ou qualquer download ag
 
 Sequência recomendada, cada item com gate próprio:
 
-1. aprovação do DRAFT e validação do protocolo/binário;
+1. revisão humana do relatório e validação do protocolo/binário;
 2. adapter app-server somente com testes offline/fakes;
 3. runtime selector e `CodexAgent` sem alterar a rota local por default;
 4. sessão, streaming e approvals end-to-end em ambiente autorizado;
@@ -499,7 +500,7 @@ Sequência recomendada, cada item com gate próprio:
 - não há prova de que qualquer comando de login deva ser automatizado pelo
   OpenJarvis; a hipótese segura é delegar ao Codex oficial e não tocar tokens.
 
-## 14. Critérios de aceite OJ2
+## 14. Critérios de aceite OJ2/OJ2-V
 
 - [x] auditoria executada no branch dedicado, sem worktree;
 - [x] `origin/main` e upstream main recapturados por refs live de 40 caracteres;
@@ -513,13 +514,14 @@ Sequência recomendada, cada item com gate próprio:
 - [x] `account/read` executado com `refreshToken=false`, sem dados pessoais;
 - [x] `model/list` executado sem prompt, thread, turn ou download de modelo;
 - [x] arquitetura pública congelada como seleção de agente, não runtime→agent;
-- [x] este relatório permanece `DRAFT`;
-- [ ] aprovação humana do relatório e autorização de uma fase posterior — fora
-  do escopo e não autorizada nesta execução.
+- [x] este relatório passa a `CANONICAL` após a revisão humana;
+- [x] revisão arquitetural humana aprovada em 2026-07-17;
+- [x] autorização limitada: GO somente para PR A — External Agent Contract;
+  nenhuma implementação de CodexAgent, UI, instalação ou mudança de default.
 
 ## 15. Veredito
 
-**OJ2-V: GO somente para a PR A — External Agent Contract; NO-GO para
+**OJ2 APROVADA. GO somente para a PR A — External Agent Contract; NO-GO para
 `CodexAgent` funcional, UI, instalação e mudança de default.**
 
 O projeto tem prova local suficiente para iniciar somente a abstração de

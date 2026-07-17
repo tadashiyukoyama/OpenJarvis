@@ -17,13 +17,13 @@ Superseded by: none
 | originFork | tadashiyukoyama/OpenJarvis |
 | originMainSha | e57ac00b1f98b6b9e9db60145b838a5507e2c5fb |
 | upstreamMainSha | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| activeBranch | audit/openjarvis-codex-runtime |
+| activeBranch | main |
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
 | codexAgentIntegration | NOT_IMPLEMENTED |
 | codexVersionValidated | 0.144.3 |
 | codexAppServerValidation | PASS: stable schema, stdio handshake, sanitized account/model reads |
-| pullRequest | #2 DRAFT — OJ2/OJ2-V |
+| pullRequest | #2 MERGED — OJ2/OJ2-V squash |
 | lifecycleAutomation | DISABLED |
 | ci | INSUFFICIENT_EVIDENCE |
 | mobileRepository | UNVERIFIED |
@@ -32,8 +32,8 @@ Superseded by: none
 | deploy | NOT_STARTED |
 | additionalWorktrees | 0 |
 
-Evidence: OJ2-V revalidated the local baseline, origin/main and upstream main
-live with 40-character refs before the validation. The audit branch contains
+Evidence: OJ2-M revalidated the local baseline, origin/main and upstream main
+live with 40-character refs before approval. The audit branch contains
 documentation-only changes plus ignored local schema/probe evidence. The
 installed `codex-cli 0.144.3` generated a stable schema; a non-interactive
 stdio probe approved handshake, `account/read(refreshToken=false)` and
@@ -58,4 +58,9 @@ Dependency installation, models, login, UI, default change and later phases
 remain unauthorized. The only possible future implementation scope identified
 by OJ2-V is PR A — External Agent Contract, requiring its own authorization.
 
-OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (DRAFT).
+OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (CANONICAL).
+
+Human architectural review: approved on 2026-07-17. OJ2 is approved with GO
+only for PR A — External Agent Contract. Threads, reconnection, concurrency,
+final sandbox, telemetry and end-to-end integration remain unproven; PR A does
+not implement CodexAgent.

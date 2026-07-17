@@ -67,3 +67,14 @@ Superseded by: none
   CodexAgent functionality, UI, installation and default change remain blocked.
 - No functional code, workflow, dependency, model, credential, service, VPS,
   deploy, migration, ready-for-review or merge operation was performed.
+
+## 2026-07-17 - OJ2-M human approval and canonicalization
+
+- Human architectural review approved the OJ2/OJ2-V report on 2026-07-17 after
+  the required PR #2 checks completed successfully on the validated HEAD.
+- Promoted the report and Codex contract memory from DRAFT to CANONICAL.
+- Recorded the definitive verdict: OJ2 approved; GO only for PR A — External
+  Agent Contract; NO-GO for functional CodexAgent, UI, installation and default
+  change.
+- Kept thread durability, reconnection, concurrency, final sandbox, telemetry
+  and end-to-end integration explicitly unproven. PR A is not implemented here.

@@ -22,7 +22,8 @@ Codex is not an `InferenceEngine`, not a local-model provider and not a public
 runtime→agent two-step experience. A selector may exist only internally while
 composing the selected agent from its descriptor.
 
-Current state: NOT_IMPLEMENTED. OJ2-V validated `codex-cli 0.144.3` locally:
+Current state: NOT_IMPLEMENTED for `CodexAgent`; OJ2 is CANONICAL after human
+architectural review approved on 2026-07-17. OJ2-V validated `codex-cli 0.144.3` locally:
 the stable schema was generated without `--experimental`; the stdio handshake,
 sanitized account read and model catalog read passed; no thread, turn, prompt,
 approval, login or logout was executed. Evidence is local and ignored under
@@ -49,8 +50,8 @@ The transport contract is a long-lived local `codex app-server` over stdio
 JSON-RPC, isolated behind `CodexAppServerClient`. `ClaudeCodeAgent` remains in
 the project and is neither removed nor renamed.
 
-The only future scope supported by this validation is PR A — External Agent
-Contract: agent metadata, engine-independent composition and fake-external
-tests. It must not include a real Codex subprocess, UI, authentication,
-Ollama, model, installation or production app-server. No implementation or
-default change is authorized by this document.
+The only future scope approved by OJ2 is PR A — External Agent Contract: agent
+metadata, engine-independent composition and fake-external tests. It must not
+include a real Codex subprocess, UI, authentication, Ollama, model, installation
+or production app-server. PR A requires its own review gate; no CodexAgent
+implementation or default change is authorized by this document.
