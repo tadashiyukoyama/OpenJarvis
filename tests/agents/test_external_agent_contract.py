@@ -69,7 +69,11 @@ def test_descriptors_are_immutable_read_only_snapshots() -> None:
     with pytest.raises(TypeError):
         snapshot["other"] = descriptor  # type: ignore[index]
 
-    replacement = AgentDescriptor("fake_external", external_runtime="replacement")
+    replacement = AgentDescriptor(
+        "fake_external",
+        execution_mode=AgentExecutionMode.EXTERNAL,
+        external_runtime="replacement",
+    )
     AgentRegistry._descriptors()["fake_external"] = replacement
     assert snapshot["fake_external"] is descriptor
 
@@ -118,7 +122,11 @@ def test_registry_rejects_descriptor_name_mismatch_and_whitespace_key() -> None:
     class _Candidate:
         pass
 
-    descriptor = AgentDescriptor("other", external_runtime="runtime")
+    descriptor = AgentDescriptor(
+        "other",
+        execution_mode=AgentExecutionMode.EXTERNAL,
+        external_runtime="runtime",
+    )
     with pytest.raises(ValueError, match="match registry key"):
         AgentRegistry.register_value(
             "candidate",
@@ -153,7 +161,11 @@ def test_orphan_descriptor_blocks_registration_without_overwrite() -> None:
     class _Candidate:
         agent_id = "original"
 
-    original = AgentDescriptor("orphan", external_runtime="original-runtime")
+    original = AgentDescriptor(
+        "orphan",
+        execution_mode=AgentExecutionMode.EXTERNAL,
+        external_runtime="original-runtime",
+    )
     AgentRegistry._descriptors()["orphan"] = original
 
     with pytest.raises(ValueError, match="entry or descriptor"):
