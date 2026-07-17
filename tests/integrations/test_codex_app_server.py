@@ -63,7 +63,11 @@ def response(request, delay=0):
         }})
     elif method == "model/list":
         send({"jsonrpc": "2.0", "id": request["id"], "result": {
-            "data": [{"id": "public-model", "displayName": "Public Model", "secret": "drop"}]
+            "data": [{
+                "id": "public-model",
+                "displayName": "Public Model",
+                "secret": "drop",
+            }]
         }})
     elif method == "rpc-error":
         send({
@@ -120,7 +124,12 @@ for raw in sys.stdin:
                 "params": {"secret": "private"},
             })
         elif MODE == "server-request-no-handler":
-            send({"jsonrpc": "2.0", "id": 701, "method": "approval/request", "params": {}})
+            send({
+                "jsonrpc": "2.0",
+                "id": 701,
+                "method": "approval/request",
+                "params": {},
+            })
         elif MODE == "stderr":
             sys.stderr.write("Bearer abc token=secret cookie=private\n")
             sys.stderr.flush()
@@ -133,7 +142,9 @@ for raw in sys.stdin:
     elif "id" in request:
         if MODE == "out-of-order":
             delay = 0.15 if request.get("params", {}).get("order") == "first" else 0.01
-            threading.Thread(target=response, args=(request, delay), daemon=True).start()
+            threading.Thread(
+                target=response, args=(request, delay), daemon=True
+            ).start()
         else:
             threading.Thread(target=response, args=(request,), daemon=True).start()
 
@@ -150,7 +161,9 @@ def _write_fake_server(tmp_path: Path) -> tuple[Path, Path]:
     return script, log
 
 
-def _client(tmp_path: Path, mode: str = "normal", **kwargs: Any) -> CodexAppServerClient:
+def _client(
+    tmp_path: Path, mode: str = "normal", **kwargs: Any
+) -> CodexAppServerClient:
     script, log = _write_fake_server(tmp_path)
     environment = {"FAKE_MODE": mode, "FAKE_LOG": str(log)}
     environment.update(kwargs.pop("environment_overrides", {}))
@@ -165,11 +178,16 @@ def _client(tmp_path: Path, mode: str = "normal", **kwargs: Any) -> CodexAppServ
     return CodexAppServerClient(config)
 
 
-def _wait_for_log(log: Path, predicate: Any, timeout: float = 2) -> list[dict[str, object]]:
+def _wait_for_log(
+    log: Path, predicate: Any, timeout: float = 2
+) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if log.exists():
-            rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+            rows = [
+                json.loads(line)
+                for line in log.read_text(encoding="utf-8").splitlines()
+            ]
             if predicate(rows):
                 return rows
         time.sleep(0.01)
@@ -181,7 +199,9 @@ def _wait_for_log(log: Path, predicate: Any, timeout: float = 2) -> list[dict[st
     return rows
 
 
-def test_constructor_and_import_do_not_start_a_process(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_constructor_and_import_do_not_start_a_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls: list[object] = []
 
     def fail_if_started(*args: object, **kwargs: object) -> None:
@@ -306,7 +326,10 @@ def test_account_read_and_model_list_are_not_automatic(tmp_path: Path) -> None:
         rows = (
             json.loads("[]")
             if not log.exists()
-            else [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+            else [
+                json.loads(line)
+                for line in log.read_text(encoding="utf-8").splitlines()
+            ]
         )
         assert [row.get("method") for row in rows] == ["initialize", "initialized"]
     finally:
@@ -324,17 +347,24 @@ def test_model_list_returns_public_metadata_only(tmp_path: Path) -> None:
         client.close()
 
 
-def test_notifications_preserve_order_and_callback_is_outside_reader(tmp_path: Path) -> None:
+def test_notifications_preserve_order_and_callback_is_outside_reader(
+    tmp_path: Path,
+) -> None:
     client = _client(tmp_path, "notification")
     received: list[int] = []
     callback_event = threading.Event()
     client.set_notification_callback(
-        lambda notification: (received.append(notification.params["index"]), callback_event.set())
+        lambda notification: (
+            received.append(notification.params["index"]),
+            callback_event.set(),
+        )
     )
     client.start()
     try:
         values = [client.get_notification(timeout_seconds=1) for _ in range(3)]
-        assert [value.params["index"] for value in values if value is not None] == [0, 1, 2]
+        assert [
+            value.params["index"] for value in values if value is not None
+        ] == [0, 1, 2]
         assert callback_event.wait(1)
         assert received[0] == 0
     finally:
@@ -365,7 +395,9 @@ def test_server_request_handler_uses_same_id(tmp_path: Path) -> None:
     client.start()
     try:
         log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
-        rows = _wait_for_log(log, lambda values: any("server_response" in v for v in values))
+        rows = _wait_for_log(
+            log, lambda values: any("server_response" in v for v in values)
+        )
         response = next(v["server_response"] for v in rows if "server_response" in v)
         assert response["id"] == 700
         assert response["result"] == {"approved": False}
@@ -378,7 +410,9 @@ def test_server_request_without_handler_fails_closed(tmp_path: Path) -> None:
     client.start()
     try:
         log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
-        rows = _wait_for_log(log, lambda values: any("server_response" in v for v in values))
+        rows = _wait_for_log(
+            log, lambda values: any("server_response" in v for v in values)
+        )
         response = next(v["server_response"] for v in rows if "server_response" in v)
         assert response["id"] == 701
         assert response["error"]["code"] == -32601
@@ -421,7 +455,9 @@ def test_close_is_idempotent_and_clears_owned_pid(tmp_path: Path) -> None:
     assert client.pid is None
 
 
-def test_close_terminates_only_owned_process_when_server_ignores_stdin(tmp_path: Path) -> None:
+def test_close_terminates_only_owned_process_when_server_ignores_stdin(
+    tmp_path: Path,
+) -> None:
     client = _client(tmp_path, "ignore-close", shutdown_timeout_seconds=0.05)
     client.start()
     assert client.pid is not None
@@ -458,7 +494,9 @@ def test_operations_after_close_are_rejected(tmp_path: Path) -> None:
         client.request("echo")
 
 
-def test_config_environment_override_is_not_printed_or_persisted(tmp_path: Path) -> None:
+def test_config_environment_override_is_not_printed_or_persisted(
+    tmp_path: Path,
+) -> None:
     client = _client(tmp_path, environment_overrides={"SAFE_TEST_VALUE": "present"})
     client.start()
     try:

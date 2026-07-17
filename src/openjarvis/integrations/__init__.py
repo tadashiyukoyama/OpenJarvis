@@ -2,10 +2,10 @@
 
 from .codex_app_server import CodexAppServerClient
 from .codex_protocol import (
+    CodexAccountInfo,
     CodexAppServerConfig,
     CodexAppServerError,
     CodexAppServerState,
-    CodexAccountInfo,
     CodexHandshakeInfo,
     CodexInvalidStateError,
     CodexModelInfo,

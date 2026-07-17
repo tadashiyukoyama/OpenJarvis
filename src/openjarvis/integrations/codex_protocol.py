@@ -81,7 +81,9 @@ class CodexAppServerConfig:
 
     def __post_init__(self) -> None:
         command = tuple(self.command)
-        if not command or any(not isinstance(part, str) or not part for part in command):
+        if not command or any(
+            not isinstance(part, str) or not part for part in command
+        ):
             raise ValueError("command must be a non-empty tuple of non-empty strings")
         object.__setattr__(self, "command", command)
         object.__setattr__(
@@ -216,7 +218,11 @@ def parse_jsonrpc_envelope(
             raise CodexProtocolError("invalid JSON-RPC error")
         code = raw_error.get("code")
         message = raw_error.get("message")
-        if not isinstance(code, int) or isinstance(code, bool) or not isinstance(message, str):
+        if (
+            not isinstance(code, int)
+            or isinstance(code, bool)
+            or not isinstance(message, str)
+        ):
             raise CodexProtocolError("invalid JSON-RPC error fields")
         data = raw_error.get("data")
         if data is not None and not isinstance(data, dict):

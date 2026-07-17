@@ -15,7 +15,6 @@ import subprocess
 import threading
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, IO, Mapping, cast
 
 from .codex_protocol import (
@@ -47,7 +46,8 @@ ServerRequestHandler = Callable[[JsonRpcServerRequest], object]
 _REDACTION_PATTERNS = (
     re.compile(r"(?i)(bearer\s+)[^\s,;]+"),
     re.compile(
-        r"(?i)((?:authorization|cookie|set-cookie|api[_-]?key|token|secret)\s*[:=]\s*)[^\s,;]+"
+        r"(?i)((?:authorization|cookie|set-cookie|api[_-]?key|token|secret)"
+        r"\s*[:=]\s*)[^\s,;]+"
     ),
 )
 _SAFE_MODEL_METADATA = frozenset(
@@ -257,7 +257,9 @@ class CodexAppServerClient:
             self._send_notification("initialized", {})
             with self._state_lock:
                 if self._state is not CodexAppServerState.STARTING:
-                    raise CodexProcessExitedError("Codex app-server exited during startup")
+                    raise CodexProcessExitedError(
+                        "Codex app-server exited during startup"
+                    )
                 self._state = CodexAppServerState.READY
         except CodexAppServerError as exc:
             self._set_failure(exc)
@@ -403,7 +405,9 @@ class CodexAppServerClient:
             models.append(CodexModelInfo(model_id=model_id, metadata=metadata))
         return tuple(models)
 
-    def get_notification(self, timeout_seconds: float | None = None) -> JsonRpcNotification | None:
+    def get_notification(
+        self, timeout_seconds: float | None = None
+    ) -> JsonRpcNotification | None:
         """Consume the next retained notification without blocking forever."""
 
         try:
@@ -508,7 +512,9 @@ class CodexAppServerClient:
 
     def _read_stdout(self, stream: IO[str] | None) -> None:
         if stream is None:
-            self._set_failure(CodexProtocolError("Codex app-server stdout is unavailable"))
+            self._set_failure(
+                CodexProtocolError("Codex app-server stdout is unavailable")
+            )
             return
         try:
             for line in stream:
@@ -533,10 +539,14 @@ class CodexAppServerClient:
                     self._queue_server_request(envelope)
         except (OSError, ValueError):
             if not self._stop_event.is_set():
-                self._set_failure(CodexProcessExitedError("Codex app-server stdout closed"))
+                self._set_failure(
+                    CodexProcessExitedError("Codex app-server stdout closed")
+                )
         finally:
             if not self._stop_event.is_set():
-                self._set_failure(CodexProcessExitedError("Codex app-server stdout reached EOF"))
+                self._set_failure(
+                    CodexProcessExitedError("Codex app-server stdout reached EOF")
+                )
 
     def _read_stderr(self, stream: IO[str] | None) -> None:
         if stream is None:
@@ -581,7 +591,9 @@ class CodexAppServerClient:
         try:
             self._server_requests.put_nowait(request)
         except queue.Full:
-            self._send_error_response(request.request_id, -32001, "server request queue full")
+            self._send_error_response(
+                request.request_id, -32001, "server request queue full"
+            )
 
     @staticmethod
     def _bounded_put(
@@ -658,7 +670,9 @@ class CodexAppServerClient:
                 except CodexAppServerError as exc:
                     self._set_failure(exc)
 
-    def _send_error_response(self, request_id: JsonRpcId, code: int, message: str) -> None:
+    def _send_error_response(
+        self, request_id: JsonRpcId, code: int, message: str
+    ) -> None:
         try:
             self._write(
                 {
@@ -694,7 +708,9 @@ class CodexAppServerClient:
             capabilities = tuple(sorted(str(key) for key in capabilities_value))
         return CodexHandshakeInfo(
             codex_home_status=home_status,
-            platform_family=platform_family if isinstance(platform_family, str) else None,
+            platform_family=(
+                platform_family if isinstance(platform_family, str) else None
+            ),
             platform_os=platform_os if isinstance(platform_os, str) else None,
             user_agent_present=isinstance(result.get("userAgent"), str),
             capabilities=capabilities,
