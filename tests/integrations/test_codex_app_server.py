@@ -24,7 +24,6 @@ from openjarvis.integrations.codex_protocol import (
     CodexRequestTimeout,
 )
 
-
 FAKE_SERVER = r"""
 import json
 import os

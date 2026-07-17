@@ -45,7 +45,6 @@ from .codex_protocol import (
     parse_jsonrpc_envelope,
 )
 
-
 NotificationCallback = Callable[[JsonRpcNotification], None]
 ServerRequestHandler = Callable[[JsonRpcServerRequest], object]
 
