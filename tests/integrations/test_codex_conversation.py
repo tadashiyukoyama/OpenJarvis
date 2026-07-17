@@ -201,7 +201,9 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         )
         return thread, outcome, state
 
-    def _emit_completed(self, info, *, text: str | None = None, status: str = "completed"):
+    def _emit_completed(
+        self, info, *, text: str | None = None, status: str = "completed"
+    ):
         items = []
         if text is not None:
             items.append(
@@ -600,7 +602,9 @@ class CodexConversationRuntimeTests(unittest.TestCase):
                 },
             )
         self._emit_completed(info, text="Hello")
-        result = self.runtime.wait_turn(info.thread_id, info.turn_id, timeout_seconds=0.5)
+        result = self.runtime.wait_turn(
+            info.thread_id, info.turn_id, timeout_seconds=0.5
+        )
         self.assertEqual(result.final_content, "Hello")
         self.assertEqual(
             [event.event_type for event in result.public_events],
@@ -649,7 +653,9 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.assertFalse(thread.is_alive())
         self.assertIsInstance(outcome["error"], CodexConversationClientFailed)
 
-    def test_completed_retention_skips_protected_turns_and_removes_later_ones(self) -> None:
+    def test_completed_retention_skips_protected_turns_and_removes_later_ones(
+        self,
+    ) -> None:
         protected = self.runtime.turn_start("thread-protected", "hello")
         self._emit_completed(protected, text="protected")
         protected_state = self.runtime._turns[
