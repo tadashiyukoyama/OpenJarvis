@@ -381,9 +381,11 @@ def test_notifications_preserve_order_and_callback_is_outside_reader(
     client.start()
     try:
         values = [client.get_notification(timeout_seconds=1) for _ in range(3)]
-        assert [
-            value.params["index"] for value in values if value is not None
-        ] == [0, 1, 2]
+        assert [value.params["index"] for value in values if value is not None] == [
+            0,
+            1,
+            2,
+        ]
         assert callback_event.wait(1)
         assert received[0] == 0
     finally:
@@ -652,8 +654,7 @@ def test_nonserializable_request_does_not_orphan_pending_or_kill_process(
         assert lifecycle is not None and not lifecycle.pending
         log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
         rows = [
-            json.loads(line)
-            for line in log.read_text(encoding="utf-8").splitlines()
+            json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()
         ]
         assert not any(row.get("params", {}).get("bad") for row in rows)
         assert client.request("echo", {"after": True}) == {"after": True}
@@ -673,10 +674,9 @@ def test_nonserializable_handler_result_is_jsonrpc_error_and_dispatch_continues(
         log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
         rows = _wait_for_log(
             log,
-            lambda values: len(
-                [value for value in values if "server_response" in value]
-            )
-            >= 2,
+            lambda values: (
+                len([value for value in values if "server_response" in value]) >= 2
+            ),
         )
         responses = {
             value["server_response"]["id"]: value["server_response"]
@@ -709,9 +709,7 @@ def test_handler_exception_is_safe_and_does_not_fail_reader(
             log, lambda values: any("server_response" in value for value in values)
         )
         response = next(
-            value["server_response"]
-            for value in rows
-            if "server_response" in value
+            value["server_response"] for value in rows if "server_response" in value
         )
         assert response["error"] == {
             "code": -32000,

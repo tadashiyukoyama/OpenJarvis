@@ -351,10 +351,14 @@ class CodexAppServerClient:
         wait_for_failure = False
         with self._state_lock:
             lifecycle = self._active_lifecycle
-            if self._state in (
-                CodexAppServerState.NEW,
-                CodexAppServerState.CLOSED,
-            ) or lifecycle is None:
+            if (
+                self._state
+                in (
+                    CodexAppServerState.NEW,
+                    CodexAppServerState.CLOSED,
+                )
+                or lifecycle is None
+            ):
                 return
             if self._state is CodexAppServerState.CLOSING:
                 pass
@@ -626,9 +630,7 @@ class CodexAppServerClient:
         with self._write_lock:
             owned_process = process if process is not None else lifecycle.process
             if owned_process is None or owned_process.stdin is None:
-                raise CodexProcessExitedError(
-                    "Codex app-server stdin is unavailable"
-                )
+                raise CodexProcessExitedError("Codex app-server stdin is unavailable")
             try:
                 owned_process.stdin.write(encoded)
                 owned_process.stdin.flush()
@@ -737,9 +739,7 @@ class CodexAppServerClient:
             )
 
     @staticmethod
-    def _complete_response(
-        lifecycle: _Lifecycle, response: JsonRpcResponse
-    ) -> None:
+    def _complete_response(lifecycle: _Lifecycle, response: JsonRpcResponse) -> None:
         with lifecycle.pending_lock:
             pending = lifecycle.pending.get(response.request_id)
             if pending is None:
@@ -945,9 +945,7 @@ class CodexAppServerClient:
             capabilities=capabilities,
         )
 
-    def _set_failure(
-        self, lifecycle: _Lifecycle, error: CodexAppServerError
-    ) -> None:
+    def _set_failure(self, lifecycle: _Lifecycle, error: CodexAppServerError) -> None:
         should_shutdown = False
         with self._state_lock:
             if self._active_lifecycle is lifecycle:
