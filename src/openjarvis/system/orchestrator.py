@@ -127,13 +127,23 @@ class QueryOrchestrator:
         """Run through an agent."""
         from openjarvis.agents._stubs import AgentContext
         from openjarvis.core.events import EventType
-        from openjarvis.core.registry import AgentExecutionMode, AgentRegistry
+        from openjarvis.core.registry import (
+            AgentDescriptor,
+            AgentExecutionMode,
+            AgentRegistry,
+        )
 
         s = self._system
 
         try:
-            agent_cls = AgentRegistry.get(agent_name)
             descriptor = AgentRegistry.descriptor(agent_name)
+        except KeyError:
+            # Keep direct test doubles and legacy imperative registrations
+            # engine-backed when they predate descriptor metadata.
+            descriptor = AgentDescriptor(name=agent_name)
+
+        try:
+            agent_cls = AgentRegistry.get(agent_name)
         except KeyError:
             return {"content": f"Unknown agent: {agent_name}", "error": True}
 
