@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Functional implementation commit: `91e4330` (OJ3-C primary commit)
 Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
@@ -24,9 +24,12 @@ runtime→agent two-step experience. A selector may exist only internally while
 composing the selected agent from its descriptor.
 
 Current state: the engine-independent External Agent Contract is merged in
-OJ3-A; OJ3-B-H hardens an isolated `CodexAppServerClient` transport core in
-functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`; PR #4 remains
-draft and its live head/checks must be confirmed on GitHub; `CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
+OJ3-A; OJ3-B-H hardens an isolated `CodexAppServerClient` transport core and
+PR #4 was integrated by squash as
+`f37bb5bad35a6ee21ac9920b462f09f24cae5476`. OJ3-C adds only the
+`CodexConversationRuntime` over an already-ready client in primary commit
+`91e4330`; its draft PR live head/checks must be confirmed on GitHub.
+`CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
 architectural review approved on 2026-07-17. OJ2-V validated `codex-cli 0.144.3` locally:
 the stable schema was generated without `--experimental`; the stdio handshake,
 sanitized account read and model catalog read passed; no thread, turn, prompt,
@@ -51,14 +54,19 @@ fallback. The future adapter must preserve Codex-managed authentication,
 threads, streaming, approvals, interrupt, sandbox and D-workspace context.
 
 The transport contract is a long-lived local `codex app-server` over stdio
-JSON-RPC, isolated behind `CodexAppServerClient`. `ClaudeCodeAgent` remains in
-the project and is neither removed nor renamed.
+JSON-RPC, isolated behind `CodexAppServerClient`. The conversation runtime
+adds stable thread/turn contracts, sanitized event routing, public text
+aggregation, interruption and bounded waiting without owning that client.
+`ClaudeCodeAgent` remains in the project and is neither removed nor renamed.
 
 OJ3-A implements only PR A — External Agent Contract: immutable agent metadata,
 engine-independent composition and fake-external tests. OJ3-B-H adds only
 hardening to the explicitly-started, stdlib JSONL process client: per-generation
 lifecycle isolation, fatal protocol shutdown, safe server-response serialization,
-concurrent-close behavior and fake-process tests. It remains disconnected from
-the runtime and does not implement a CodexAgent, UI, authentication, Ollama,
-model selection/download, installation or default change. The draft PR remains
-subject to its current GitHub CI/review gate.
+concurrent-close behavior and fake-process tests; that scope is merged in PR #4.
+OJ3-C adds only stable conversation DTOs, subscriptions, thread/turn lifecycle,
+public event aggregation, timeout/interruption and fake app-server tests. It
+does not implement `CodexAgent`, persistent OpenJarvis-Codex identity,
+approvals UX, HTTP, SSE, frontend, Tauri, authentication, Ollama, model
+selection/download, installation or a default change. The C PR remains draft
+and subject to its current GitHub CI/review gate.

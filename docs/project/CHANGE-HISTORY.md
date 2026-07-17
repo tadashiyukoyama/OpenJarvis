@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Functional implementation commit: `91e4330` (OJ3-C primary commit)
 Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
@@ -127,5 +127,22 @@ Superseded by: none
   fake-process tests. No `CodexAgent`, runtime connection, frontend, workflow,
   dependency, model, credential, VPS or deployment change was made.
 - Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`.
-  PR #4 remains draft; current live head and checks must be confirmed on
-  GitHub after push. No current CI result is claimed in this entry.
+  At this historical stop PR #4 was draft; it was later integrated by the
+  OJ3-B-M entry below. No current CI result is claimed in this entry.
+
+## 2026-07-17 17:12:03 -03:00 - OJ3-B-M merge and OJ3-C conversation core
+
+- Revalidated PR #4 head/base, mergeability, required CI and review threads;
+  marked it ready and integrated it by squash as
+  `f37bb5bad35a6ee21ac9920b462f09f24cae5476`.
+- Synchronized local `main` with `origin/main`, removed only the integrated
+  PR branch locally and remotely, and retained one canonical worktree.
+- Added `CodexConversationRuntime` over an already-ready client, with stable
+  thread/turn operations, subscription multiplexing, sanitized public events,
+  bounded correlation buffers, timeout, interruption and fake app-server tests.
+- Corrected effective `CODEX_HOME` precedence and sanitized Windows path
+  comparison; no path is exposed in handshake results or logs.
+- Did not add `CodexAgent`, AgentRegistry wiring, persistent thread identity,
+  approvals UX, HTTP/SSE, frontend/Tauri, login/logout, installation, Ollama,
+  model download, default changes or real Codex execution. The C PR remains a
+  draft pending its live head and CI gate.
