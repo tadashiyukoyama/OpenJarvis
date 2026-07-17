@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 3000116d181eb69737241c09eaa70d4c65eb80a0
+Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
 Supersedes: none
 Superseded by: none
 
@@ -32,7 +32,7 @@ installation, runtime, frontend, desktop and Claude evidence; OJ2-V added the
 local `codex-cli 0.144.3` schema and sanitized app-server probe evidence in
 ignored `.workspace/local/audit/`. Human architectural review approved the
 report on 2026-07-17; OJ2 is now canonical and freezes Codex as a first-class
-agent (`agent=codex`), with PR A — External Agent Contract as the only approved
-future scope. Thread durability, reconnection, concurrency, final sandbox,
-telemetry and end-to-end integration remain unproven. No functional Codex,
-UI, installation or default change is authorized.
+agent (`agent=codex`), with PR A — External Agent Contract implemented only
+as the OJ3-A draft scope. Thread durability, reconnection, concurrency, final
+sandbox, production telemetry and end-to-end integration remain unproven. No
+functional CodexAgent, UI, installation or default change is authorized.

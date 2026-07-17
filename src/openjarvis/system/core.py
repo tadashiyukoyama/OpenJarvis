@@ -55,9 +55,9 @@ class JarvisSystem:
 
     config: JarvisConfig
     bus: EventBus
-    engine: InferenceEngine
-    engine_key: str
-    model: str
+    engine: Optional[InferenceEngine]
+    engine_key: Optional[str]
+    model: Optional[str]
     agent: Optional[BaseAgent] = None
     agent_name: str = ""
     tools: List[BaseTool] = field(default_factory=list)

@@ -116,8 +116,22 @@ class SystemBuilder:
         config = self._config
         bus = self._bus or get_event_bus()
 
-        engine, engine_key = self._resolve_engine(config)
-        model = self._resolve_model(config, engine)
+        agent_name = self._agent_name or config.agent.default_agent
+        agent_descriptor = self._resolve_agent_descriptor(agent_name)
+        from openjarvis.core.registry import AgentExecutionMode
+
+        external_agent = (
+            agent_descriptor is not None
+            and agent_descriptor.execution_mode is AgentExecutionMode.EXTERNAL
+        )
+
+        if external_agent:
+            engine = None
+            engine_key = None
+            model = None
+        else:
+            engine, engine_key = self._resolve_engine(config)
+            model = self._resolve_model(config, engine)
 
         telemetry_enabled = (
             self._telemetry if self._telemetry is not None else config.telemetry.enabled
@@ -128,7 +142,7 @@ class SystemBuilder:
         config.traces.enabled = traces_enabled
         gpu_monitor = None
         energy_monitor = None
-        if telemetry_enabled and config.telemetry.gpu_metrics:
+        if engine is not None and telemetry_enabled and config.telemetry.gpu_metrics:
             try:
                 from openjarvis.telemetry.energy_monitor import (
                     create_energy_monitor,
@@ -157,7 +171,7 @@ class SystemBuilder:
         sec = setup_security(config, engine, bus)
         engine = sec.engine
 
-        if telemetry_enabled:
+        if engine is not None and telemetry_enabled:
             from openjarvis.telemetry.instrumented_engine import (
                 InstrumentedEngine,
             )
@@ -170,23 +184,26 @@ class SystemBuilder:
             )
 
         telemetry_store = None
-        if telemetry_enabled:
+        if engine is not None and telemetry_enabled:
             telemetry_store = self._setup_telemetry(config, bus)
 
         memory_backend = self._resolve_memory(config)
         channel_backend = self._resolve_channel(config, bus)
-        tool_list = self._resolve_tools(
-            config,
-            engine,
-            model,
-            memory_backend,
-            channel_backend,
-        )
+        if external_agent:
+            tool_list = []
+        else:
+            tool_list = self._resolve_tools(
+                config,
+                engine,
+                model,
+                memory_backend,
+                channel_backend,
+            )
         tool_executor = ToolExecutor(tool_list, bus) if tool_list else None
 
         skill_manager = None
         skill_few_shot_examples: List[str] = []
-        if config.skills.enabled:
+        if config.skills.enabled and not external_agent:
             try:
                 from pathlib import Path
 
@@ -212,14 +229,13 @@ class SystemBuilder:
             except Exception as exc:
                 logger.warning("Failed to initialize skills: %s", exc)
 
-        agent_name = self._agent_name or config.agent.default_agent
         container_runner = self._setup_sandbox(config)
         scheduler_store, task_scheduler = self._setup_scheduler(config, bus)
         workflow_engine = self._setup_workflow(config, bus)
         session_store = self._setup_sessions(config)
 
         trace_store = None
-        if traces_enabled:
+        if traces_enabled and not external_agent:
             try:
                 from openjarvis.traces.store import TraceStore
 
@@ -316,6 +332,23 @@ class SystemBuilder:
         if system.agent_executor is not None:
             system.agent_executor.set_system(system)
         return system
+
+    @staticmethod
+    def _resolve_agent_descriptor(agent_name: Optional[str]):
+        """Resolve the selected agent before any engine or model discovery."""
+
+        if not agent_name or agent_name == "none":
+            return None
+        import openjarvis.agents  # noqa: F401 -- trigger registration
+        from openjarvis.core.registry import AgentRegistry
+
+        try:
+            return AgentRegistry.descriptor(agent_name)
+        except KeyError:
+            # Registry isolation fixtures may clear registrations after the
+            # package import. Preserve the legacy engine-backed build path;
+            # the orchestrator still reports an unknown agent at execution.
+            return None
 
     def _resolve_engine(self, config: JarvisConfig):
         # An explicitly injected engine instance always wins and is never
