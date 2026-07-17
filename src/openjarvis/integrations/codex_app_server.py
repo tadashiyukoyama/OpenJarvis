@@ -546,7 +546,11 @@ class CodexAppServerClient:
                     CodexProcessExitedError("Codex app-server stdout closed")
                 )
         finally:
-            if not self._stop_event.is_set():
+            with self._state_lock:
+                failure_already_recorded = (
+                    self._state is CodexAppServerState.FAILED
+                )
+            if not self._stop_event.is_set() and not failure_already_recorded:
                 self._set_failure(
                     CodexProcessExitedError("Codex app-server stdout reached EOF")
                 )
