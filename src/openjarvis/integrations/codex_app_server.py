@@ -21,7 +21,7 @@ import subprocess
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Callable, IO, Mapping
+from typing import IO, Callable, Mapping
 
 from .codex_protocol import (
     CodexAccountInfo,
