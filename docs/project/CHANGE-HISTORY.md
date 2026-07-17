@@ -24,3 +24,17 @@ Superseded by: none
   only the delimited local-boundaries block to the upstream .gitignore.
 - No dependencies, models, services, worktrees, VPS, deploy, migration or
   functional OpenJarvis execution was performed.
+
+## 2026-07-17 - OJ1-H architectural hardening
+
+- Normalized portable policies and canonical documentation metadata against
+  the upstream foundation baseline.
+- Removed versioned machine-specific paths and retained all project-managed
+  storage on disk D through ignored local configuration.
+- Kept all four lifecycle scripts disabled as neutral safe stubs and added
+  explicit lifecycle policy and state records.
+- CI diagnosis was read-only and classified as `INSUFFICIENT_EVIDENCE`:
+  Actions permission is enabled, the PR trigger is present, but GitHub
+  exposes no workflow inventory or run for this fork branch.
+- No upstream functional code or workflow was changed, and no installation,
+  model, service, VPS or CodexAgent work was performed.

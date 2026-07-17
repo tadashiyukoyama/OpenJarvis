@@ -15,6 +15,7 @@ a local model or OPENAI_API_KEY for that mode.
 Initial state: NOT_IMPLEMENTED.
 
 The future implementation must preserve authentication, session state,
-streaming, approvals and workspace context. It must be based on an audit of
-the official code and its existing Claude Code integration. OJ0 creates no
-implementation and reads no credentials.
+streaming, approvals and workspace context. No implementation is authorized
+before the OJ2 audit. Study the existing Claude Code integration as a
+reference, but do not copy it without an audit of the official code. The
+CodexAgent remains unimplemented.

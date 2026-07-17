@@ -9,6 +9,10 @@ Superseded by: none
 
 This is the only entry point for the canonical project memory.
 
+Applicable SHA values identify the upstream code baseline used by each
+document's factual claims; they do not identify the commit containing the
+documentation.
+
 | Document | Status | Responsibility | Last verified | Applicable SHA |
 |---|---|---|---|---|
 | CURRENT-PROJECT-STATE.md | CANONICAL | factual local state and blockers | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |

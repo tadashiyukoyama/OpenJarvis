@@ -10,8 +10,9 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $scriptDirectory '..\..')).TrimEnd('\')
+$disabledMessage = 'WORKTREE_LIFECYCLE_NOT_ENABLED:' + [Environment]::NewLine + 'o lifecycle de tarefas e worktrees será implementado em uma fase posterior explicitamente autorizada.'
 if (-not (Test-Path -LiteralPath (Join-Path $workspaceRoot '.git') -PathType Container)) {
-    throw "Task close refused: canonical Git root is not established at $workspaceRoot."
+    throw $disabledMessage
 }
 
-throw "OJ0 safety gate: task closing and cleanup are deferred until a later authorized phase."
+throw $disabledMessage

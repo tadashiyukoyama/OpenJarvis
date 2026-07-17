@@ -98,6 +98,9 @@ $rehydrate = Join-Path $scriptsRoot 'rehydrate-project.ps1'
 $diskGuard = Join-Path $scriptsRoot 'disk-guard.ps1'
 $boundaryValidator = Join-Path $scriptsRoot 'validate-local-boundaries.ps1'
 $newTask = Join-Path $scriptsRoot 'new-task.ps1'
+$closeTask = Join-Path $scriptsRoot 'close-task.ps1'
+$registerWorktree = Join-Path $scriptsRoot 'register-worktree.ps1'
+$removeWorktree = Join-Path $scriptsRoot 'remove-worktree.ps1'
 $manifestPath = Join-Path $WorkspaceRoot '.workspace\local\bootstrap-manifest.json'
 
 Run-Test 'all JSON files parse' {
@@ -188,10 +191,21 @@ Run-Test 'local boundary validator passes' {
     Assert-True (($result.Output -join [Environment]::NewLine) -match '"valid"\s*:\s*true') 'Boundary validator did not report valid.'
 }
 
-Run-Test 'new-task remains gated during OJ1' {
+Run-Test 'lifecycle scripts remain disabled' {
     $result = Invoke-PowerShellScript -Path $newTask -Arguments @('-TaskName', 'oj0-test')
     Assert-True ($result.ExitCode -ne 0) 'new-task did not refuse without canonical Git.'
-    Assert-True (($result.Output -join [Environment]::NewLine) -match '(?i)refused|deferred') 'new-task safety refusal was not explicit.'
+    Assert-True (($result.Output -join [Environment]::NewLine) -match 'WORKTREE_LIFECYCLE_NOT_ENABLED') 'new-task safety refusal was not explicit.'
+    $stubCases = @(
+        @{ Name = 'new-task'; Path = $newTask; Arguments = @('-TaskName', 'oj1h-test') },
+        @{ Name = 'close-task'; Path = $closeTask; Arguments = @('-TaskName', 'oj1h-test') },
+        @{ Name = 'register-worktree'; Path = $registerWorktree; Arguments = @('-TaskName', 'oj1h-test', '-Branch', 'oj1h-test') },
+        @{ Name = 'remove-worktree'; Path = $removeWorktree; Arguments = @() }
+    )
+    foreach ($stubCase in $stubCases) {
+        $stubResult = Invoke-PowerShellScript -Path $stubCase.Path -Arguments $stubCase.Arguments
+        Assert-True ($stubResult.ExitCode -ne 0) "$($stubCase.Name) did not remain disabled."
+        Assert-True (($stubResult.Output -join [Environment]::NewLine) -match 'WORKTREE_LIFECYCLE_NOT_ENABLED') "$($stubCase.Name) returned an unexpected refusal."
+    }
 }
 
 Run-Test 'bootstrap manifest hashes are valid' {
@@ -229,7 +243,8 @@ Run-Test 'credentials were not opened or copied into project' {
 
 Run-Test 'no worktree was created' {
     Assert-True (Test-Path -LiteralPath (Join-Path $WorkspaceRoot '.git')) 'Canonical Git root is missing.'
-    Assert-True (-not (Test-Path -LiteralPath 'D:\dev\worktrees\openjarvis')) 'External worktree root exists unexpectedly.'
+    $localConfig = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\project.local.json') -Raw | ConvertFrom-Json
+    Assert-True (-not (Test-Path -LiteralPath ([string]$localConfig.worktreesRoot))) 'External worktree root exists unexpectedly.'
     $ledger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\worktrees.local.json') -Raw | ConvertFrom-Json
     Assert-True ($ledger.worktrees.Count -eq 0) 'Worktree ledger is not empty.'
     $worktreeLines = @(& git -C $WorkspaceRoot worktree list --porcelain 2>$null)

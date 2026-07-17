@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: unknown
+Applies to SHA: 3000116d181eb69737241c09eaa70d4c65eb80a0
 Supersedes: none
 Superseded by: none
 
