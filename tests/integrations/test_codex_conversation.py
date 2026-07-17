@@ -668,9 +668,7 @@ class CodexConversationRuntimeTests(unittest.TestCase):
             info = self.runtime.turn_start(f"thread-{index}", "hello")
             self._emit_completed(info, text=str(index))
 
-        self.assertIn(
-            (protected.thread_id, protected.turn_id), self.runtime._turns
-        )
+        self.assertIn((protected.thread_id, protected.turn_id), self.runtime._turns)
         self.assertLessEqual(len(self.runtime._completed_order), 128)
 
         active = self.runtime.turn_start("thread-active", "hello")

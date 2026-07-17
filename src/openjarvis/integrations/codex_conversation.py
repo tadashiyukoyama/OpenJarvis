@@ -533,9 +533,7 @@ class CodexConversationRuntime:
                         state.condition.notify_all()
                         break
                     remaining = (
-                        None
-                        if deadline is None
-                        else deadline - time.monotonic()
+                        None if deadline is None else deadline - time.monotonic()
                     )
                     if remaining is not None and remaining <= 0:
                         raise CodexConversationTimeout("turn wait timed out")
