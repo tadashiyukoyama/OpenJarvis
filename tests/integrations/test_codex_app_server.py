@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from openjarvis.integrations.codex_app_server import CodexAppServerClient
 from openjarvis.integrations.codex_protocol import (
     CodexAppServerConfig,
@@ -771,15 +770,11 @@ def test_effective_codex_home_precedence_and_sanitization(
 ) -> None:
     monkeypatch.setenv("CODEX_HOME", r"D:\Parent\Codex")
     parent_client = CodexAppServerClient(CodexAppServerConfig())
-    parent_info = parent_client._sanitize_handshake(
-        {"codexHome": "d:/parent/codex"}
-    )
+    parent_info = parent_client._sanitize_handshake({"codexHome": "d:/parent/codex"})
     assert parent_info.codex_home_status is CodexHomeStatus.EXPECTED
 
     override_client = CodexAppServerClient(
-        CodexAppServerConfig(
-            environment_overrides={"CODEX_HOME": "D:/Override/Codex"}
-        )
+        CodexAppServerConfig(environment_overrides={"CODEX_HOME": "D:/Override/Codex"})
     )
     override_info = override_client._sanitize_handshake(
         {"codexHome": r"d:\override\CODEX"}
@@ -789,9 +784,7 @@ def test_effective_codex_home_precedence_and_sanitization(
 
     monkeypatch.delenv("CODEX_HOME")
     override_only = CodexAppServerClient(
-        CodexAppServerConfig(
-            environment_overrides={"CODEX_HOME": "D:/Override/Only"}
-        )
+        CodexAppServerConfig(environment_overrides={"CODEX_HOME": "D:/Override/Only"})
     )
     override_only_info = override_only._sanitize_handshake(
         {"codexHome": "D:/Override/Only"}
@@ -801,9 +794,7 @@ def test_effective_codex_home_precedence_and_sanitization(
     divergent = CodexAppServerClient(
         CodexAppServerConfig(environment_overrides={"CODEX_HOME": "D:/expected"})
     )
-    divergent_info = divergent._sanitize_handshake(
-        {"codexHome": "D:/different/codex"}
-    )
+    divergent_info = divergent._sanitize_handshake({"codexHome": "D:/different/codex"})
     assert divergent_info.codex_home_status is CodexHomeStatus.UNEXPECTED
 
     absent = divergent._sanitize_handshake({})

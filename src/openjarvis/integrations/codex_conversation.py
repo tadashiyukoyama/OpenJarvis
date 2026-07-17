@@ -509,9 +509,7 @@ class CodexConversationRuntime:
         if state is None:
             raise CodexConversationProtocolError("unknown turn")
         deadline = (
-            None
-            if timeout_seconds is None
-            else time.monotonic() + timeout_seconds
+            None if timeout_seconds is None else time.monotonic() + timeout_seconds
         )
         with state.condition:
             state.waiters += 1
@@ -534,16 +532,12 @@ class CodexConversationRuntime:
                         )
                         state.condition.notify_all()
                         break
-                    remaining = (
-                        None
-                        if deadline is None
-                        else deadline - time.monotonic()
-                    )
-                    if remaining is not None and remaining <= 0:
-                        raise CodexConversationTimeout("turn wait timed out")
-                    state.condition.wait(
-                        timeout=0.1 if remaining is None else min(remaining, 0.1)
-                    )
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise CodexConversationTimeout("turn wait timed out")
+                state.condition.wait(
+                    timeout=0.1 if remaining is None else min(remaining, 0.1)
+                )
                 if state.wait_error is not None:
                     raise state.wait_error
                 return self._turn_result(state)
@@ -654,9 +648,7 @@ class CodexConversationRuntime:
         self, thread_id: str, result: object
     ) -> tuple[CodexTurnInfo, _TurnState]:
         if not isinstance(result, dict) or not isinstance(result.get("turn"), dict):
-            raise CodexConversationProtocolError(
-                "turn response does not contain turn"
-            )
+            raise CodexConversationProtocolError("turn response does not contain turn")
         turn = result["turn"]
         turn_id = _optional_string(turn.get("id"))
         if turn_id is None:
@@ -788,9 +780,7 @@ class CodexConversationRuntime:
         elif method == "turn/started":
             event_type = "turn_started"
             terminal_status = (
-                _turn_status(turn.get("status"))
-                if isinstance(turn, dict)
-                else None
+                _turn_status(turn.get("status")) if isinstance(turn, dict) else None
             )
         elif method == "turn/completed":
             event_type = "turn_completed"
@@ -810,20 +800,12 @@ class CodexConversationRuntime:
         elif method == "item/started":
             event_type = "item_started"
             item = _item_from_params(params)
-            item_id = (
-                item_id or _optional_string(item.get("id"))
-                if item
-                else item_id
-            )
+            item_id = item_id or _optional_string(item.get("id")) if item else item_id
             action_summary = _item_summary(item)
         elif method == "item/completed":
             event_type = "item_completed"
             item = _item_from_params(params)
-            item_id = (
-                item_id or _optional_string(item.get("id"))
-                if item
-                else item_id
-            )
+            item_id = item_id or _optional_string(item.get("id")) if item else item_id
             action_summary = _item_summary(item)
             final_candidate = _message_text(item)
         elif "status" in method.lower():
@@ -859,11 +841,7 @@ class CodexConversationRuntime:
             terminal_status=(
                 terminal_status
                 if _is_terminal(terminal_status or CodexTurnStatus.UNKNOWN)
-                else (
-                    CodexTurnStatus.UNKNOWN
-                    if method == "turn/completed"
-                    else None
-                )
+                else (CodexTurnStatus.UNKNOWN if method == "turn/completed" else None)
             ),
             error_code=error_code,
             error_message=error_message,
