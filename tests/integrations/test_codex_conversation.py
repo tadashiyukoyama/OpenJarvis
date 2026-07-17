@@ -118,9 +118,7 @@ class FakeConversationClient:
             }
         if method == "thread/list":
             return {
-                "data": [
-                    {"id": "thread-1", "status": "idle", "cwd": "D:/project"}
-                ],
+                "data": [{"id": "thread-1", "status": "idle", "cwd": "D:/project"}],
                 "nextCursor": "next-1",
             }
         if method == "turn/start":
@@ -358,9 +356,7 @@ class CodexConversationRuntimeTests(unittest.TestCase):
             "turn/status/changed",
             {"threadId": "thread-a", "status": "inProgress"},
         )
-        self.assertEqual(
-            self.runtime.get_event(timeout_seconds=0.01), None
-        )
+        self.assertEqual(self.runtime.get_event(timeout_seconds=0.01), None)
         self.client.emit(
             "item/agentMessage/delta",
             {"turnId": first.turn_id, "delta": "unique"},
