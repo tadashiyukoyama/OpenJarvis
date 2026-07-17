@@ -1,3 +1,4 @@
+# fmt: off
 # ruff: noqa: I001
 
 """Fake-process tests for the Codex app-server transport boundary."""
@@ -27,7 +28,6 @@ from openjarvis.integrations.codex_protocol import (
 )
 
 
-# fmt: off
 FAKE_SERVER = r"""
 import json
 import os
@@ -155,7 +155,6 @@ if MODE == "ignore-close":
     while True:
         time.sleep(1)
 """
-# fmt: on
 
 
 def _write_fake_server(tmp_path: Path) -> tuple[Path, Path]:
