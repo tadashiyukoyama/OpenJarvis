@@ -6,7 +6,21 @@ own isolated storage so registrations in one registry never leak into another.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Tuple, Type, TypeVar
+from dataclasses import dataclass
+from enum import Enum
+from types import MappingProxyType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 if TYPE_CHECKING:
     from openjarvis.agents._stubs import BaseAgent
@@ -15,6 +29,68 @@ if TYPE_CHECKING:
     from openjarvis.tools.storage._stubs import MemoryBackend
 
 T = TypeVar("T")
+
+
+class AgentExecutionMode(str, Enum):
+    """Execution boundary selected for a registered agent."""
+
+    ENGINE = "engine"
+    EXTERNAL = "external"
+
+
+@dataclass(frozen=True)
+class AgentDescriptor:
+    """Immutable execution metadata for one registered agent."""
+
+    name: str
+    execution_mode: AgentExecutionMode | str = AgentExecutionMode.ENGINE
+    requires_engine: Optional[bool] = None
+    requires_model: Optional[bool] = None
+    external_runtime: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("AgentDescriptor.name must be nonempty")
+        name = self.name.strip()
+        try:
+            mode = (
+                self.execution_mode
+                if isinstance(self.execution_mode, AgentExecutionMode)
+                else AgentExecutionMode(str(self.execution_mode).lower())
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported agent execution mode: {self.execution_mode!r}"
+            ) from exc
+
+        if mode is AgentExecutionMode.ENGINE:
+            if self.requires_engine is not None and not self.requires_engine:
+                raise ValueError("ENGINE agents require an engine")
+            if self.external_runtime is not None:
+                raise ValueError("ENGINE agents cannot declare external_runtime")
+            requires_engine = True
+            requires_model = (
+                True if self.requires_model is None else self.requires_model
+            )
+        else:
+            if self.requires_engine:
+                raise ValueError("EXTERNAL agents cannot require an engine")
+            if self.requires_model:
+                raise ValueError("EXTERNAL agents cannot require a model")
+            if (
+                not isinstance(self.external_runtime, str)
+                or not self.external_runtime.strip()
+            ):
+                raise ValueError("EXTERNAL agents require external_runtime")
+            requires_engine = False
+            requires_model = False
+
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "execution_mode", mode)
+        object.__setattr__(self, "requires_engine", requires_engine)
+        object.__setattr__(self, "requires_model", requires_model)
+        if self.external_runtime is not None:
+            object.__setattr__(self, "external_runtime", self.external_runtime.strip())
 
 
 class RegistryBase(Generic[T]):
@@ -117,6 +193,160 @@ class FactStoreRegistry(RegistryBase[Type["FactStore"]]):
 class AgentRegistry(RegistryBase[Type["BaseAgent"]]):
     """Registry for agent implementations."""
 
+    @classmethod
+    def _descriptors(cls) -> Dict[str, AgentDescriptor]:
+        attr_name = "_agent_descriptors"
+        storage = getattr(cls, attr_name, None)
+        if storage is None:
+            storage: Dict[str, AgentDescriptor] = {}
+            setattr(cls, attr_name, storage)
+        return storage
+
+    @classmethod
+    def _make_descriptor(
+        cls,
+        key: str,
+        *,
+        execution_mode: AgentExecutionMode | str | None = None,
+        requires_engine: Optional[bool] = None,
+        requires_model: Optional[bool] = None,
+        external_runtime: Optional[str] = None,
+        descriptor: Optional[AgentDescriptor] = None,
+    ) -> AgentDescriptor:
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("AgentRegistry key must be nonempty")
+        if key != key.strip():
+            raise ValueError("AgentRegistry key cannot have surrounding whitespace")
+        if descriptor is not None:
+            if any(
+                value is not None
+                for value in (
+                    execution_mode,
+                    requires_engine,
+                    requires_model,
+                    external_runtime,
+                )
+            ):
+                raise ValueError("descriptor cannot be combined with metadata")
+            if descriptor.name != key:
+                raise ValueError("AgentDescriptor.name must match registry key")
+            return descriptor
+        return AgentDescriptor(
+            name=key,
+            execution_mode=(
+                execution_mode
+                if execution_mode is not None
+                else AgentExecutionMode.ENGINE
+            ),
+            requires_engine=requires_engine,
+            requires_model=requires_model,
+            external_runtime=external_runtime,
+        )
+
+    @classmethod
+    def register(
+        cls,
+        key: str,
+        *,
+        execution_mode: AgentExecutionMode | str | None = None,
+        requires_engine: Optional[bool] = None,
+        requires_model: Optional[bool] = None,
+        external_runtime: Optional[str] = None,
+        descriptor: Optional[AgentDescriptor] = None,
+    ) -> Callable[[Type["BaseAgent"]], Type["BaseAgent"]]:
+        """Decorator that registers an agent and its execution metadata."""
+
+        def decorator(entry: Type["BaseAgent"]) -> Type["BaseAgent"]:
+            cls._register_agent(
+                key,
+                entry,
+                execution_mode=execution_mode,
+                requires_engine=requires_engine,
+                requires_model=requires_model,
+                external_runtime=external_runtime,
+                descriptor=descriptor,
+            )
+            return entry
+
+        return decorator
+
+    @classmethod
+    def register_value(
+        cls,
+        key: str,
+        value: Type["BaseAgent"],
+        *,
+        execution_mode: AgentExecutionMode | str | None = None,
+        requires_engine: Optional[bool] = None,
+        requires_model: Optional[bool] = None,
+        external_runtime: Optional[str] = None,
+        descriptor: Optional[AgentDescriptor] = None,
+    ) -> Type["BaseAgent"]:
+        """Imperatively register an agent and its execution metadata."""
+
+        cls._register_agent(
+            key,
+            value,
+            execution_mode=execution_mode,
+            requires_engine=requires_engine,
+            requires_model=requires_model,
+            external_runtime=external_runtime,
+            descriptor=descriptor,
+        )
+        return value
+
+    @classmethod
+    def _register_agent(
+        cls,
+        key: str,
+        entry: Type["BaseAgent"],
+        *,
+        execution_mode: AgentExecutionMode | str | None,
+        requires_engine: Optional[bool],
+        requires_model: Optional[bool],
+        external_runtime: Optional[str],
+        descriptor: Optional[AgentDescriptor],
+    ) -> None:
+        entries = cls._entries()
+        if key in entries:
+            raise ValueError(f"{cls.__name__} already has an entry for '{key}'")
+        agent_descriptor = cls._make_descriptor(
+            key,
+            execution_mode=execution_mode,
+            requires_engine=requires_engine,
+            requires_model=requires_model,
+            external_runtime=external_runtime,
+            descriptor=descriptor,
+        )
+        if not getattr(entry, "agent_id", None):
+            setattr(entry, "agent_id", key)
+        entries[key] = entry
+        cls._descriptors()[key] = agent_descriptor
+
+    @classmethod
+    def descriptor(cls, key: str) -> AgentDescriptor:
+        """Return immutable metadata for *key*."""
+
+        try:
+            return cls._descriptors()[key]
+        except KeyError as exc:
+            raise KeyError(
+                f"{cls.__name__} does not have a descriptor for '{key}'"
+            ) from exc
+
+    @classmethod
+    def descriptors(cls) -> Mapping[str, AgentDescriptor]:
+        """Return a read-only snapshot of all agent descriptors."""
+
+        return MappingProxyType(dict(cls._descriptors()))
+
+    @classmethod
+    def clear(cls) -> None:
+        """Remove agent classes and their metadata."""
+
+        super().clear()
+        cls._descriptors().clear()
+
 
 class ToolRegistry(RegistryBase[Any]):
     """Registry for tool specifications."""
@@ -169,6 +399,8 @@ class MinerRegistry(RegistryBase[Any]):
 
 
 __all__ = [
+    "AgentDescriptor",
+    "AgentExecutionMode",
     "AgentRegistry",
     "BenchmarkRegistry",
     "ChannelRegistry",

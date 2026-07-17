@@ -25,9 +25,9 @@ class OrchestratorDeps(Protocol):
 
     config: JarvisConfig
     bus: EventBus
-    engine: InferenceEngine
-    engine_key: str
-    model: str
+    engine: Optional[InferenceEngine]
+    engine_key: Optional[str]
+    model: Optional[str]
     agent_name: str
     tools: List[BaseTool]
     memory_backend: Optional[MemoryBackend]

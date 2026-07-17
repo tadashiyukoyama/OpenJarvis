@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from openjarvis.core.events import EventBus
+from openjarvis.engine._stubs import InferenceEngine
 from openjarvis.security._stubs import BaseScanner
 from openjarvis.security.audit import AuditLogger
 from openjarvis.security.file_policy import (
@@ -33,14 +34,14 @@ logger = logging.getLogger(__name__)
 class SecurityContext:
     """Result of setup_security() — wrapped engine, policy, audit."""
 
-    engine: Any
+    engine: Optional[InferenceEngine]
     capability_policy: Any = None
     audit_logger: Any = None
 
 
 def setup_security(
     config: Any,
-    engine: Any,
+    engine: Optional[InferenceEngine],
     bus: Optional[EventBus] = None,
 ) -> SecurityContext:
     """Apply security guardrails to an engine based on config.
@@ -58,7 +59,7 @@ def setup_security(
         if config.security.pii_scanner:
             scanners.append(PIIScanner())
 
-        if scanners:
+        if scanners and engine is not None:
             mode = RedactionMode(config.security.mode)
             engine = GuardrailsEngine(
                 engine,

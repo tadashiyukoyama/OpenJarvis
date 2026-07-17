@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 3000116d181eb69737241c09eaa70d4c65eb80a0
+Applies to SHA: 5c719de2da9c2f43a46bdf598a3f6d982cd28807
 Supersedes: none
 Superseded by: none
 
@@ -78,3 +78,16 @@ Superseded by: none
   change.
 - Kept thread durability, reconnection, concurrency, final sandbox, telemetry
   and end-to-end integration explicitly unproven. PR A is not implemented here.
+
+## 2026-07-17 12:46:10 -03:00 - OJ3-A External Agent Contract
+
+- Added immutable `AgentDescriptor` and `AgentExecutionMode` metadata to the
+  existing `AgentRegistry`; legacy registrations remain ENGINE-backed.
+- Added engine-independent composition for registered EXTERNAL agents, with
+  Optional system engine/model fields, capability/audit security without an
+  engine wrapper, and an explicit `ENGINE_REQUIRED_FOR_SELECTED_AGENT` error.
+- Added deterministic fake-external contract tests. No CodexAgent, app-server,
+  subprocess, UI, installation, dependency, model, workflow, default or
+  credential change was made.
+- OJ3-A is published only as a draft PR and stops after its CI gate; later
+  phases remain unauthorized.

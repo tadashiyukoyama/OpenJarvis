@@ -79,6 +79,9 @@ class QueryOrchestrator:
                 prior_messages=prior_messages,
             )
 
+        if s.engine is None or s.model is None:
+            return self._engine_required_error()
+
         result = s.engine.generate(
             messages,
             model=s.model,
@@ -124,17 +127,22 @@ class QueryOrchestrator:
         """Run through an agent."""
         from openjarvis.agents._stubs import AgentContext
         from openjarvis.core.events import EventType
-        from openjarvis.core.registry import AgentRegistry
+        from openjarvis.core.registry import AgentExecutionMode, AgentRegistry
 
         s = self._system
 
         try:
             agent_cls = AgentRegistry.get(agent_name)
+            descriptor = AgentRegistry.descriptor(agent_name)
         except KeyError:
             return {"content": f"Unknown agent: {agent_name}", "error": True}
 
-        agent_tools = s.tools
-        if tool_names:
+        external_agent = descriptor.execution_mode is AgentExecutionMode.EXTERNAL
+        if descriptor.requires_engine and (s.engine is None or s.model is None):
+            return self._engine_required_error()
+
+        agent_tools = [] if external_agent else s.tools
+        if tool_names and not external_agent:
             agent_tools = self._build_tools(tool_names)
 
         ctx = AgentContext()
@@ -193,26 +201,31 @@ class QueryOrchestrator:
             existing = agent_kwargs.get("tools", [])
             agent_kwargs["tools"] = digest_tools + list(existing)
 
-        try:
-            ag = agent_cls(s.engine, s.model, **agent_kwargs)
-        except TypeError:
+        if external_agent:
+            ag = agent_cls(**agent_kwargs)
+        else:
             try:
-                ag = agent_cls(s.engine, s.model)
+                ag = agent_cls(s.engine, s.model, **agent_kwargs)
             except TypeError:
-                ag = agent_cls()
+                try:
+                    ag = agent_cls(s.engine, s.model)
+                except TypeError:
+                    ag = agent_cls()
 
         telemetry_events: List[Dict[str, Any]] = []
 
         def _on_inference_end(event: Any) -> None:
             telemetry_events.append(event.data if hasattr(event, "data") else event)
 
-        s.bus.subscribe(EventType.INFERENCE_END, _on_inference_end)
+        collect_telemetry = not external_agent
+        if collect_telemetry:
+            s.bus.subscribe(EventType.INFERENCE_END, _on_inference_end)
 
         # Check trace_store (set at build time) instead of config.traces.enabled
         # because the shared config singleton can be mutated by other SystemBuilder
         # instances (e.g. the judge backend).
         try:
-            if s.trace_store is not None:
+            if s.trace_store is not None and not external_agent:
                 from openjarvis.traces.collector import TraceCollector
 
                 collector = TraceCollector(
@@ -225,7 +238,8 @@ class QueryOrchestrator:
             else:
                 result = ag.run(query, context=ctx)
         finally:
-            s.bus.unsubscribe(EventType.INFERENCE_END, _on_inference_end)
+            if collect_telemetry:
+                s.bus.unsubscribe(EventType.INFERENCE_END, _on_inference_end)
 
         _telemetry: Dict[str, Any] = {}
         if telemetry_events:
@@ -304,6 +318,8 @@ class QueryOrchestrator:
 
                     tools.append(RetrievalTool(s.memory_backend))
                 elif name == "llm":
+                    if s.engine is None or s.model is None:
+                        continue
                     from openjarvis.tools.llm_tool import LLMTool
 
                     tools.append(LLMTool(s.engine, model=s.model))
@@ -312,3 +328,13 @@ class QueryOrchestrator:
             except Exception as exc:
                 logger.warning("Failed to build tool %r: %s", name, exc)
         return tools
+
+    @staticmethod
+    def _engine_required_error() -> Dict[str, Any]:
+        """Return the stable error used for engine-backed routes without one."""
+
+        return {
+            "content": "ENGINE_REQUIRED_FOR_SELECTED_AGENT",
+            "error": True,
+            "error_code": "ENGINE_REQUIRED_FOR_SELECTED_AGENT",
+        }

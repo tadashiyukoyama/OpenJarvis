@@ -60,14 +60,28 @@ class BaseAgent(ABC):
 
     def __init__(
         self,
-        engine: InferenceEngine,
-        model: str,
+        engine: Optional[InferenceEngine] = None,
+        model: Optional[str] = None,
         *,
         bus: Optional[EventBus] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         prompt_builder: Optional[Any] = None,
     ) -> None:
+        if (engine is None) != (model is None):
+            raise TypeError("engine and model must be provided together")
+        if engine is None:
+            from openjarvis.core.registry import AgentExecutionMode, AgentRegistry
+
+            try:
+                descriptor = AgentRegistry.descriptor(getattr(self, "agent_id", ""))
+            except KeyError as exc:
+                raise TypeError(
+                    "ENGINE_REQUIRED_FOR_SELECTED_AGENT"
+                ) from exc
+            if descriptor.execution_mode is not AgentExecutionMode.EXTERNAL:
+                raise TypeError("ENGINE_REQUIRED_FOR_SELECTED_AGENT")
+
         self._engine = engine
         self._model = model
         self._bus = bus
@@ -185,6 +199,9 @@ class BaseAgent(ABC):
         Publishes INFERENCE_START/END events on the bus when the engine
         does not publish its own (i.e. non-instrumented engines).
         """
+        if self._engine is None or self._model is None:
+            raise RuntimeError("ENGINE_REQUIRED_FOR_SELECTED_AGENT")
+
         if self._bus and not getattr(self._engine, "_publishes_events", False):
             engine_id = getattr(self._engine, "engine_id", "")
             self._bus.publish(
@@ -310,8 +327,8 @@ class ToolUsingAgent(BaseAgent):
 
     def __init__(
         self,
-        engine: InferenceEngine,
-        model: str,
+        engine: Optional[InferenceEngine] = None,
+        model: Optional[str] = None,
         *,
         tools: Optional[List["BaseTool"]] = None,  # noqa: F821
         bus: Optional[EventBus] = None,
@@ -374,4 +391,35 @@ class ToolUsingAgent(BaseAgent):
             pass
 
 
-__all__ = ["AgentContext", "AgentResult", "BaseAgent", "ToolUsingAgent"]
+class ExternalAgent(BaseAgent):
+    """Abstract base for agents whose runtime is outside this process.
+
+    The base deliberately provides no transport. An external adapter owns its
+    own runtime contract and must return an :class:`AgentResult` directly.
+    """
+
+    def __init__(
+        self,
+        *,
+        bus: Optional[EventBus] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        prompt_builder: Optional[Any] = None,
+    ) -> None:
+        super().__init__(
+            None,
+            None,
+            bus=bus,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            prompt_builder=prompt_builder,
+        )
+
+
+__all__ = [
+    "AgentContext",
+    "AgentResult",
+    "BaseAgent",
+    "ExternalAgent",
+    "ToolUsingAgent",
+]
