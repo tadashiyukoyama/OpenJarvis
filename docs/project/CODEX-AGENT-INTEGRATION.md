@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 7ff9dbebfb36c74073795ba96b83aa84db7a741e
+Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
 Supersedes: none
 Superseded by: none
 
@@ -24,7 +24,7 @@ composing the selected agent from its descriptor.
 
 Current state: the engine-independent External Agent Contract is merged in
 OJ3-A; OJ3-B implements an isolated `CodexAppServerClient` transport core on a
-draft PR; `CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
+draft PR with final CI PASS; `CodexAgent` remains NOT_IMPLEMENTED. OJ2 is CANONICAL after human
 architectural review approved on 2026-07-17. OJ2-V validated `codex-cli 0.144.3` locally:
 the stable schema was generated without `--experimental`; the stdio handshake,
 sanitized account read and model catalog read passed; no thread, turn, prompt,

@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 7ff9dbebfb36c74073795ba96b83aa84db7a741e
+Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
 Supersedes: none
 Superseded by: none
 
@@ -93,7 +93,7 @@ Superseded by: none
 - OJ3-A was integrated by squash merge as
   `7ff9dbebfb36c74073795ba96b83aa84db7a741e`; its task branch was removed.
 
-## 2026-07-17 14:34:44 -03:00 - OJ3-B Codex app-server client core
+## 2026-07-17 15:26:44 -03:00 - OJ3-B Codex app-server client core
 
 - Added a stdlib-only, explicitly-started Codex app-server JSONL client with
   typed lifecycle, request correlation, notifications, fail-closed server
@@ -103,3 +103,9 @@ Superseded by: none
   operation is used by the tests.
 - Kept `CodexAgent`, `AgentRegistry`, `SystemBuilder`, UI, workflows,
   installers, defaults and runtime connection unchanged.
+- Preserved the primary protocol error on malformed stdout, aligned the two
+  new modules with Ruff, and completed final CI run `29603505953` successfully
+  across lint/format, Linux, Rust and Windows 3.12/3.13.
+- Left PR #4 open as draft at
+  `960facfea7fe64558bba021a3b5645deda107af8`; no ready-for-review or merge
+  operation was performed.

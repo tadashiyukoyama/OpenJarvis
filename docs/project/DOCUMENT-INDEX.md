@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 7ff9dbebfb36c74073795ba96b83aa84db7a741e
+Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
 Supersedes: none
 Superseded by: none
 
@@ -15,16 +15,16 @@ documentation.
 
 | Document | Status | Responsibility | Last verified | Applicable SHA |
 |---|---|---|---|---|
-| CURRENT-PROJECT-STATE.md | CANONICAL | factual local state and blockers | 2026-07-17 | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
-| ARCHITECTURE-MAP.md | CANONICAL | component and boundary map | 2026-07-17 | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
+| CURRENT-PROJECT-STATE.md | CANONICAL | factual local state and blockers | 2026-07-17 | 960facfea7fe64558bba021a3b5645deda107af8 |
+| ARCHITECTURE-MAP.md | CANONICAL | component and boundary map | 2026-07-17 | 960facfea7fe64558bba021a3b5645deda107af8 |
 | REPOSITORY-MAP.md | CANONICAL | Git, remotes and synchronization | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| CODEX-AGENT-INTEGRATION.md | CANONICAL | Codex agent requirement and state | 2026-07-17 | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
+| CODEX-AGENT-INTEGRATION.md | CANONICAL | Codex agent requirement and state | 2026-07-17 | 960facfea7fe64558bba021a3b5645deda107af8 |
 | MOBILE-STRATEGY.md | CANONICAL | mobile evidence and decision gate | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | VPS-READINESS.md | CANONICAL | future VPS preparation | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | DECISIONS.md | CANONICAL | approved decisions only | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | KNOWN-ISSUES.md | CANONICAL | proven issues and risks | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| ROADMAP.md | CANONICAL | phases and dependencies | 2026-07-17 | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
-| CHANGE-HISTORY.md | CANONICAL | product foundation changes | 2026-07-17 | 7ff9dbebfb36c74073795ba96b83aa84db7a741e |
+| ROADMAP.md | CANONICAL | phases and dependencies | 2026-07-17 | 960facfea7fe64558bba021a3b5645deda107af8 |
+| CHANGE-HISTORY.md | CANONICAL | product foundation changes | 2026-07-17 | 960facfea7fe64558bba021a3b5645deda107af8 |
 | research/OJ2-CODEX-RUNTIME-AUDIT.md | CANONICAL | OJ2/OJ2-V Codex runtime, installed app-server proof and no-Ollama audit | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 
 Upstream documentation is present in the checkout. OJ2 indexed the relevant

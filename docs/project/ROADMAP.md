@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 7ff9dbebfb36c74073795ba96b83aa84db7a741e
+Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
 Supersedes: none
 Superseded by: none
 
@@ -14,7 +14,7 @@ Superseded by: none
 | OJ2 - upstream audit | OJ1 completed | completed; canonical approved |
 | OJ2-V - installed Codex contract validation | OJ2 | completed; canonical approved; GO only for PR A contract scope |
 | PR A - External Agent Contract | OJ2-V validation and explicit authorization | merged by squash as `7ff9dbebfb36c74073795ba96b83aa84db7a741e` |
-| PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | implemented on current draft branch; CI/review pending; runtime disconnected |
+| PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | implemented on current draft branch; final CI passed; draft/review pending; runtime disconnected |
 | OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
 | OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |

@@ -3,13 +3,13 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 7ff9dbebfb36c74073795ba96b83aa84db7a741e
+Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
 Supersedes: none
 Superseded by: none
 
 OJ2-V validated the installed Codex app-server boundary. OJ3-A merged the
 engine-independent External Agent Contract, and OJ3-B implements an isolated
-stdlib transport client on a draft PR. The official OpenJarvis components are
+stdlib transport client on a draft PR whose final CI passed. The official OpenJarvis components are
 present at the captured SHA; `CodexAgent` implementation, UI and default
 change remain unauthorized.
 
