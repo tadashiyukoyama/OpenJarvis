@@ -15,7 +15,7 @@ import subprocess
 import threading
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, IO, Mapping, cast
+from typing import Callable, IO, Mapping
 
 from .codex_protocol import (
     CodexAccountInfo,
@@ -31,11 +31,11 @@ from .codex_protocol import (
     CodexProtocolError,
     CodexRequestError,
     CodexRequestTimeout,
+    encode_jsonrpc,
     JsonRpcId,
     JsonRpcNotification,
     JsonRpcResponse,
     JsonRpcServerRequest,
-    encode_jsonrpc,
     parse_jsonrpc_envelope,
 )
 
@@ -365,8 +365,9 @@ class CodexAppServerClient:
             auth_mode = None
         account = result.get("account")
         if isinstance(account, dict):
-            if auth_mode is None and isinstance(account.get("type"), str):
-                auth_mode = cast(str, account["type"])
+            account_type = account.get("type")
+            if auth_mode is None and isinstance(account_type, str):
+                auth_mode = account_type
             plan_present = "planType" in account
         else:
             plan_present = False
