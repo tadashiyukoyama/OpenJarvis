@@ -130,3 +130,17 @@ learning.db
 minion_logs/
 *.oj-debug.json
 oj-debug.*.json
+
+# BEGIN CESAR OPENJARVIS LOCAL BOUNDARIES
+.workspace/local/
+.private/
+.runtime/
+.artifacts/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+# END CESAR OPENJARVIS LOCAL BOUNDARIES

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openjarvis.local/schemas/project-local.schema.json",
+  "title": "OpenJarvis local project configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workspaceRoot",
+    "worktreesRoot",
+    "runtimeRoot",
+    "cacheRoot",
+    "modelsRoot",
+    "artifactsRoot",
+    "toolchainsRoot",
+    "codexHome",
+    "diskC",
+    "diskD",
+    "existingGitStatus",
+    "existingCodexDirectoryStatus",
+    "auditedAt",
+    "canonicalGitRoot",
+    "origin",
+    "upstream",
+    "activeBranch",
+    "originMainSha",
+    "upstreamMainSha",
+    "workspaceFoundation",
+    "officialCodeDownloaded",
+    "dependenciesInstalled",
+    "modelsDownloaded",
+    "codexAgentIntegration",
+    "mobileImplementation",
+    "vps",
+    "additionalWorktrees"
+  ],
+  "properties": {
+    "workspaceRoot": { "type": "string", "minLength": 1 },
+    "worktreesRoot": { "type": "string", "minLength": 1 },
+    "runtimeRoot": { "type": "string", "minLength": 1 },
+    "cacheRoot": { "type": "string", "minLength": 1 },
+    "modelsRoot": { "type": "string", "minLength": 1 },
+    "artifactsRoot": { "type": "string", "minLength": 1 },
+    "toolchainsRoot": { "type": "string", "minLength": 1 },
+    "codexHome": { "type": "string", "minLength": 1 },
+    "diskC": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "totalBytes", "freeBytes" ],
+      "properties": {
+        "totalBytes": { "type": "integer", "minimum": 0 },
+        "freeBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diskD": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "totalBytes", "freeBytes" ],
+      "properties": {
+        "totalBytes": { "type": "integer", "minimum": 0 },
+        "freeBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "existingGitStatus": { "type": "string", "enum": [ "NOT_PRESENT", "PRESENT" ] },
+    "existingCodexDirectoryStatus": {
+      "type": "string",
+      "enum": [ "NOT_PRESENT_IN_WORKSPACE", "PRESENT_IN_WORKSPACE" ]
+    },
+    "auditedAt": { "type": "string", "format": "date-time" }
+    ,
+    "canonicalGitRoot": { "type": "string", "minLength": 1 },
+    "origin": { "type": "string", "minLength": 1 },
+    "upstream": { "type": "string", "minLength": 1 },
+    "activeBranch": { "type": "string", "minLength": 1 },
+    "originMainSha": { "type": "string", "pattern": "^[A-Fa-f0-9]{40}$" },
+    "upstreamMainSha": { "type": "string", "pattern": "^[A-Fa-f0-9]{40}$" },
+    "workspaceFoundation": { "type": "string", "enum": [ "LOCAL_STAGING", "ESTABLISHED" ] },
+    "officialCodeDownloaded": { "type": "boolean" },
+    "dependenciesInstalled": { "type": "boolean" },
+    "modelsDownloaded": { "type": "boolean" },
+    "codexAgentIntegration": { "type": "string" },
+    "mobileImplementation": { "type": "string" },
+    "vps": { "type": "string" },
+    "additionalWorktrees": { "type": "integer", "minimum": 0, "maximum": 2 }
+  }
+}
