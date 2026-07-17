@@ -658,9 +658,7 @@ class CodexConversationRuntimeTests(unittest.TestCase):
     ) -> None:
         protected = self.runtime.turn_start("thread-protected", "hello")
         self._emit_completed(protected, text="protected")
-        protected_state = self.runtime._turns[
-            (protected.thread_id, protected.turn_id)
-        ]
+        protected_state = self.runtime._turns[(protected.thread_id, protected.turn_id)]
         with protected_state.condition:
             protected_state.waiters = 1
 
