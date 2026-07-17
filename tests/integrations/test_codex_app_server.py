@@ -1,6 +1,3 @@
-# fmt: off
-# ruff: noqa: I001
-
 """Fake-process tests for the Codex app-server transport boundary."""
 
 from __future__ import annotations
@@ -48,6 +45,11 @@ def send(value):
     with WRITE_LOCK:
         sys.stdout.write(json.dumps(value, separators=(",", ":")) + "\n")
         sys.stdout.flush()
+
+def delayed_malformed():
+    time.sleep(0.1)
+    sys.stdout.write("not-json\n")
+    sys.stdout.flush()
 
 def response(request, delay=0):
     if delay:
@@ -116,6 +118,8 @@ for raw in sys.stdin:
         if MODE == "notification":
             for index in range(3):
                 send({"jsonrpc": "2.0", "method": "event", "params": {"index": index}})
+        elif MODE == "malformed-after-ready":
+            threading.Thread(target=delayed_malformed, daemon=True).start()
         elif MODE == "overflow":
             for index in range(105):
                 send({"jsonrpc": "2.0", "method": "event", "params": {"index": index}})
@@ -125,6 +129,19 @@ for raw in sys.stdin:
                 "id": 700,
                 "method": "approval/request",
                 "params": {"secret": "private"},
+            })
+        elif MODE == "server-request-double":
+            send({
+                "jsonrpc": "2.0",
+                "id": 700,
+                "method": "approval/request",
+                "params": {},
+            })
+            send({
+                "jsonrpc": "2.0",
+                "id": 701,
+                "method": "approval/request",
+                "params": {},
             })
         elif MODE == "server-request-no-handler":
             send({
@@ -487,6 +504,246 @@ def test_pending_request_fails_when_process_exits(tmp_path: Path) -> None:
     worker.join(1)
     assert error
     assert isinstance(error[0], CodexProcessExitedError)
+
+
+def test_generation_contexts_have_private_events_queues_and_pending(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path)
+    client.start()
+    first = client._active_lifecycle
+    assert first is not None
+    first_generation = client.generation_id
+    client.close()
+
+    client.start()
+    second = client._active_lifecycle
+    try:
+        assert second is not None
+        assert client.generation_id == first_generation + 1
+        assert first is not second
+        assert first.stop_event is not second.stop_event
+        assert first.notifications is not second.notifications
+        assert first.callback_notifications is not second.callback_notifications
+        assert first.server_requests is not second.server_requests
+        assert first.pending is not second.pending
+    finally:
+        client.close()
+
+
+def test_old_waiter_cannot_fail_a_new_generation(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    client.start()
+    client.close()
+    client.start()
+    try:
+        time.sleep(0.2)
+        assert client.state is CodexAppServerState.READY
+        assert client.request("echo", {"generation": 2}) == {"generation": 2}
+    finally:
+        client.close()
+
+
+def test_old_notification_queue_and_callback_cannot_consume_new_generation(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path, "notification", shutdown_timeout_seconds=0.05)
+    entered = threading.Event()
+    release = threading.Event()
+    new_generation_values: list[int] = []
+
+    def callback(notification: Any) -> None:
+        if not entered.is_set():
+            entered.set()
+            release.wait(1)
+        else:
+            new_generation_values.append(notification.params["index"])
+
+    client.set_notification_callback(callback)
+    client.start()
+    assert entered.wait(1)
+    first = client._active_lifecycle
+    assert first is not None
+    client.close()
+
+    client.start()
+    try:
+        second = client._active_lifecycle
+        assert second is not None and second is not first
+        value = client.get_notification(timeout_seconds=1)
+        assert value is not None and value.params["index"] == 0
+        release.set()
+        deadline = time.monotonic() + 1
+        while time.monotonic() < deadline and not new_generation_values:
+            time.sleep(0.01)
+        assert new_generation_values
+    finally:
+        release.set()
+        client.close()
+
+
+def test_old_handler_cannot_answer_new_generation(tmp_path: Path) -> None:
+    client = _client(tmp_path, "server-request", shutdown_timeout_seconds=0.05)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def handler(request: Any) -> object:
+        if not entered.is_set():
+            entered.set()
+            release.wait(1)
+            return {"generation": "old"}
+        return {"generation": "new"}
+
+    client.set_server_request_handler(handler)
+    client.start()
+    assert entered.wait(1)
+    client.close()
+    client.start()
+    try:
+        release.set()
+        log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
+        rows = _wait_for_log(
+            log,
+            lambda values: any(
+                v.get("server_response", {}).get("result") == {"generation": "new"}
+                for v in values
+            ),
+        )
+        assert any(
+            v.get("server_response", {}).get("result") == {"generation": "new"}
+            for v in rows
+        )
+        assert client.state is CodexAppServerState.READY
+    finally:
+        release.set()
+        client.close()
+
+
+def test_malformed_protocol_after_ready_fails_closed_without_retry(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path, "malformed-after-ready")
+    client.start()
+    try:
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            if client.state is CodexAppServerState.FAILED:
+                break
+            time.sleep(0.01)
+        assert client.state is CodexAppServerState.FAILED
+        assert client.pid is None
+        assert client.last_error == "invalid JSON-RPC JSON"
+        with pytest.raises(CodexInvalidStateError):
+            client.request("echo")
+    finally:
+        client.close()
+    assert client.state is CodexAppServerState.CLOSED
+
+
+def test_nonserializable_request_does_not_orphan_pending_or_kill_process(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path)
+    client.start()
+    try:
+        with pytest.raises(CodexProtocolError, match="not JSON serializable"):
+            client.request("echo", {"bad": object()})
+        assert client.state is CodexAppServerState.READY
+        lifecycle = client._active_lifecycle
+        assert lifecycle is not None and not lifecycle.pending
+        log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
+        rows = [
+            json.loads(line)
+            for line in log.read_text(encoding="utf-8").splitlines()
+        ]
+        assert not any(row.get("params", {}).get("bad") for row in rows)
+        assert client.request("echo", {"after": True}) == {"after": True}
+    finally:
+        client.close()
+
+
+def test_nonserializable_handler_result_is_jsonrpc_error_and_dispatch_continues(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path, "server-request-double")
+    client.set_server_request_handler(
+        lambda request: object() if request.request_id == 700 else {"approved": False}
+    )
+    client.start()
+    try:
+        log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
+        rows = _wait_for_log(
+            log,
+            lambda values: len(
+                [value for value in values if "server_response" in value]
+            )
+            >= 2,
+        )
+        responses = {
+            value["server_response"]["id"]: value["server_response"]
+            for value in rows
+            if "server_response" in value
+        }
+        assert responses[700]["error"] == {
+            "code": -32603,
+            "message": "server request handler returned an invalid result",
+        }
+        assert responses[701]["result"] == {"approved": False}
+        assert client.state is CodexAppServerState.READY
+    finally:
+        client.close()
+
+
+def test_handler_exception_is_safe_and_does_not_fail_reader(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path, "server-request")
+
+    def handler(request: Any) -> object:
+        raise RuntimeError("private handler details")
+
+    client.set_server_request_handler(handler)
+    client.start()
+    try:
+        log = next(path for path in tmp_path.iterdir() if path.name.endswith(".log"))
+        rows = _wait_for_log(
+            log, lambda values: any("server_response" in value for value in values)
+        )
+        response = next(
+            value["server_response"]
+            for value in rows
+            if "server_response" in value
+        )
+        assert response["error"] == {
+            "code": -32000,
+            "message": "server request handler failed",
+        }
+        assert "private handler details" not in json.dumps(response)
+        assert client.state is CodexAppServerState.READY
+    finally:
+        client.close()
+
+
+def test_concurrent_close_waits_for_one_generation_and_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    client = _client(tmp_path, "ignore-close", shutdown_timeout_seconds=0.05)
+    client.start()
+    barrier = threading.Barrier(2)
+
+    def close_client() -> None:
+        barrier.wait()
+        client.close()
+
+    callers = [threading.Thread(target=close_client) for _ in range(2)]
+    for caller in callers:
+        caller.start()
+    for caller in callers:
+        caller.join(2)
+    assert all(not caller.is_alive() for caller in callers)
+    assert client.state is CodexAppServerState.CLOSED
+    assert client.pid is None
+    client.close()
 
 
 def test_operations_after_close_are_rejected(tmp_path: Path) -> None:
