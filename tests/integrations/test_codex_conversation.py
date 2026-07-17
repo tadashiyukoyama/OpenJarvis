@@ -22,7 +22,6 @@ from openjarvis.integrations import (
     JsonRpcNotification,
 )
 
-
 FAKE_CONVERSATION_SERVER = r"""
 import json
 import sys
