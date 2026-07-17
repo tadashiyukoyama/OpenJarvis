@@ -70,3 +70,12 @@ does not implement `CodexAgent`, persistent OpenJarvis-Codex identity,
 approvals UX, HTTP, SSE, frontend, Tauri, authentication, Ollama, model
 selection/download, installation or a default change. The C PR remains draft
 and subject to its current GitHub CI/review gate.
+
+OJ3-C-H hardens only the conversation runtime: `wait_turn` performs bounded
+condition waits inside its state loop, close and client failure release all
+waiters, terminal events release multiple waiters, public final text is
+reconciled without duplication, reasoning remains non-public, and completed
+turn retention skips states with active waiters. Validation uses deterministic
+threading events, bounded joins and the existing fake app-server; no
+CodexAgent, prompt, real conversation, model, installation or later-phase
+integration is included.

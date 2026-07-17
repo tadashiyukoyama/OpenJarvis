@@ -21,12 +21,12 @@ Superseded by: none
 | activeBranch | feat/codex-conversation-runtime-core |
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
-| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_MERGED; CODEX_APP_SERVER_CLIENT_CORE_MERGED; CODEX_CONVERSATION_RUNTIME_CORE_DRAFT; CodexAgent NOT_IMPLEMENTED |
+| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_MERGED; CODEX_APP_SERVER_CLIENT_CORE_MERGED; CODEX_CONVERSATION_RUNTIME_CORE_HARDENED_DRAFT; CodexAgent NOT_IMPLEMENTED |
 | codexVersionValidated | 0.144.3 |
 | codexAppServerValidation | PASS: stable schema, stdio handshake, sanitized account/model reads |
-| pullRequest | PR #4 MERGED by squash as `f37bb5bad35a6ee21ac9920b462f09f24cae5476`; OJ3-C draft PR is pending live head/check confirmation |
+| pullRequest | PR #4 MERGED by squash as `f37bb5bad35a6ee21ac9920b462f09f24cae5476`; PR #5 remains OPEN and draft for OJ3-C-H |
 | lifecycleAutomation | DISABLED |
-| ci | PR #4 final CI `29608853924` PASS; OJ3-C local compile/fake harness PASS; local pytest and Ruff unavailable; draft PR CI pending |
+| ci | PR #4 final CI `29608853924` PASS; OJ3-C-H local stubbed unittest, compile and fake harness PASS; local pytest and Ruff unavailable; new PR #5 CI pending |
 | mobileRepository | UNVERIFIED |
 | mobileImplementation | NOT_STARTED |
 | vps | NOT_CONTRACTED |
@@ -54,6 +54,13 @@ worktree remains. OJ3-C primary commit `91e4330` adds only the conversation
 runtime core over an already-ready client. Its live draft PR head and checks
 must be confirmed on GitHub.
 
+Evidence (2026-07-17 19:35:36 -03:00): OJ3-C-H corrected the conversation
+runtime wait loop, bounded timeout/close behavior, multi-waiter release,
+public final-text reconciliation and completed-turn retention. The local
+deterministic suite passed 19 unittest cases plus the fake-process harness;
+validation used a temporary namespace stub because project dependencies are
+not installed. The new PR #5 CI run remains the final remote gate.
+
 OJ1-H completed the portability and lifecycle-policy correction. The four
 lifecycle scripts remain safe stubs and do not mutate Git or the filesystem.
 The fork CI has no execution recorded. Actions permission is enabled, but the
@@ -71,13 +78,13 @@ no-Ollama installation remain unimplemented or unproven for production. The
 conversation runtime intentionally does not add HTTP/SSE, frontend/Tauri,
 login/logout, installation, Ollama, model download or a default change.
 Dependency installation, models, login, UI, default change and later phases
-remain unauthorized. OJ3-C is limited to the conversation runtime draft PR and
-stops after its current CI gate.
+remain unauthorized. OJ3-C-H is limited to the conversation runtime draft PR
+and stops after its new CI gate.
 
 OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (CANONICAL).
 
 Human architectural review: approved on 2026-07-17. OJ2 is approved with GO
-only for PR A — External Agent Contract. OJ3-A and OJ3-B are merged; OJ3-C is
-draft and stopped pending its current CI gate. Persistent identity,
+only for PR A — External Agent Contract. OJ3-A and OJ3-B are merged; OJ3-C-H
+is draft and stopped pending its new CI gate. Persistent identity,
 reconnection, production concurrency, approvals UX, telemetry and end-to-end
 integration remain unproven; `CodexAgent` is not implemented.

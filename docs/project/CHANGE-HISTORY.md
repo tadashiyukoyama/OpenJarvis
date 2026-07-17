@@ -146,3 +146,20 @@ Superseded by: none
   approvals UX, HTTP/SSE, frontend/Tauri, login/logout, installation, Ollama,
   model download, default changes or real Codex execution. The C PR remains a
   draft pending its live head and CI gate.
+
+## 2026-07-17 19:35:36 -03:00 - OJ3-C-H conversation runtime hardening
+
+- Corrected `wait_turn` so the condition wait and bounded timeout remain inside
+  the state loop; client failure, runtime close, terminal notification and
+  multiple waiters now converge through the same notification path.
+- Reconciled streamed and final public text without duplicate final content;
+  reasoning notifications remain absent from public events and final text is
+  authoritative for prefix, shorter-prefix and divergent cases.
+- Preserved completed turns with active waiters while removing other eligible
+  completed states under the retention bound.
+- Added deterministic bounded concurrency, timeout, close, late-terminal,
+  multi-waiter, reconciliation and retention tests, plus the existing fake
+  app-server flow. No real Codex prompt, thread, turn, model, dependency,
+  credential, VPS, deployment or scope expansion was performed.
+- OJ3-C-H is limited to the current draft PR #5 and its new CI gate; no
+  ready-for-review transition, merge or later phase is authorized.

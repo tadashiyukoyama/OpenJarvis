@@ -148,9 +148,86 @@ class CodexConversationRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = FakeConversationClient()
         self.runtime = CodexConversationRuntime(self.client)
+        self.waiter_threads: list[threading.Thread] = []
 
     def tearDown(self) -> None:
-        self.runtime.close()
+        closed = threading.Event()
+
+        def close() -> None:
+            self.runtime.close()
+            closed.set()
+
+        closer = threading.Thread(target=close, daemon=True)
+        closer.start()
+        self.assertTrue(closed.wait(timeout=1))
+        for thread in self.waiter_threads:
+            thread.join(timeout=1)
+            self.assertFalse(thread.is_alive())
+
+    def _wait_for(self, predicate, timeout_seconds: float = 1) -> bool:
+        deadline = time.monotonic() + timeout_seconds
+        pulse = threading.Event()
+        while time.monotonic() < deadline:
+            if predicate():
+                return True
+            pulse.wait(0.005)
+        return predicate()
+
+    def _start_waiter(
+        self, info, timeout_seconds: float | None = None, expected_waiters: int = 1
+    ):
+        state = self.runtime._turns[(info.thread_id, info.turn_id)]
+        started = threading.Event()
+        outcome: dict[str, object] = {}
+
+        def wait() -> None:
+            started.set()
+            try:
+                outcome["result"] = self.runtime.wait_turn(
+                    info.thread_id,
+                    info.turn_id,
+                    timeout_seconds=timeout_seconds,
+                )
+            except BaseException as exc:
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=wait, daemon=True)
+        self.waiter_threads.append(thread)
+        thread.start()
+        self.assertTrue(started.wait(timeout=1))
+        self.assertTrue(
+            self._wait_for(lambda: state.waiters >= expected_waiters),
+            "waiter did not enter the condition",
+        )
+        return thread, outcome, state
+
+    def _emit_completed(self, info, *, text: str | None = None, status: str = "completed"):
+        items = []
+        if text is not None:
+            items.append(
+                {"type": "agentMessage", "phase": "final_answer", "text": text}
+            )
+        self.client.emit(
+            "turn/completed",
+            {
+                "threadId": info.thread_id,
+                "turn": {"id": info.turn_id, "status": status, "items": items},
+            },
+        )
+
+    def _emit_item_completed(self, info, text: str) -> None:
+        self.client.emit(
+            "item/completed",
+            {
+                "threadId": info.thread_id,
+                "turnId": info.turn_id,
+                "item": {
+                    "id": "item-final",
+                    "type": "agentMessage",
+                    "text": text,
+                },
+            },
+        )
 
     def test_thread_start_uses_stable_fields_and_fail_closed_defaults(self) -> None:
         info = self.runtime.thread_start(cwd="D:\\Project", model=None)
@@ -245,6 +322,61 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.runtime.turn_start("thread-1", "one")
         with self.assertRaises(CodexConcurrentTurnError):
             self.runtime.turn_start("thread-1", "two")
+
+    def test_wait_turn_blocks_and_notification_thread_can_complete_it(self) -> None:
+        info = self.runtime.turn_start("thread-1", "hello")
+        waiter, outcome, state = self._start_waiter(info)
+        completed = threading.Event()
+
+        def notify() -> None:
+            self._emit_completed(info, text="done")
+            completed.set()
+
+        notifier = threading.Thread(target=notify, daemon=True)
+        notifier.start()
+        self.assertTrue(completed.wait(timeout=1))
+        notifier.join(timeout=1)
+        self.assertFalse(notifier.is_alive())
+        waiter.join(timeout=1)
+        self.assertFalse(waiter.is_alive())
+        self.assertNotIn("error", outcome)
+        self.assertEqual(outcome["result"].final_content, "done")
+        self.assertTrue(state.done)
+
+    def test_wait_timeout_is_bounded_and_does_not_complete_or_interrupt(self) -> None:
+        info = self.runtime.turn_start("thread-1", "hello")
+        started = time.monotonic()
+        with self.assertRaises(CodexConversationTimeout):
+            self.runtime.wait_turn("thread-1", info.turn_id, timeout_seconds=0.05)
+        self.assertLess(time.monotonic() - started, 0.5)
+        state = self.runtime._turns[(info.thread_id, info.turn_id)]
+        self.assertFalse(state.done)
+        self.assertEqual(state.waiters, 0)
+        self.assertFalse(any(call[0] == "turn/interrupt" for call in self.client.calls))
+
+    def test_late_terminal_event_allows_a_later_waiter_to_finish(self) -> None:
+        info = self.runtime.turn_start("thread-1", "hello")
+        with self.assertRaises(CodexConversationTimeout):
+            self.runtime.wait_turn("thread-1", info.turn_id, timeout_seconds=0.01)
+        self.assertFalse(self.runtime._turns[(info.thread_id, info.turn_id)].done)
+        self._emit_completed(info, text="late")
+        result = self.runtime.wait_turn("thread-1", info.turn_id, timeout_seconds=0.5)
+        self.assertEqual(result.final_content, "late")
+
+    def test_two_waiters_are_released_by_one_terminal_event(self) -> None:
+        info = self.runtime.turn_start("thread-1", "hello")
+        first, first_outcome, state = self._start_waiter(info)
+        second, second_outcome, _ = self._start_waiter(info, expected_waiters=2)
+        self.assertTrue(self._wait_for(lambda: state.waiters == 2))
+        self._emit_completed(info, text="done")
+        first.join(timeout=1)
+        second.join(timeout=1)
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertNotIn("error", first_outcome)
+        self.assertNotIn("error", second_outcome)
+        self.assertEqual(first_outcome["result"].final_content, "done")
+        self.assertEqual(second_outcome["result"].final_content, "done")
 
     def test_interrupt_is_exact_and_never_kills_process(self) -> None:
         info = self.runtime.turn_start("thread-1", "hello")
@@ -410,35 +542,133 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.assertNotIn(private_fragment, repr(result.public_events))
         self.assertEqual(
             [event.event_type for event in result.public_events],
-            ["reasoning", "text_delta", "turn_completed"],
+            ["text_delta", "turn_completed"],
+        )
+
+    def test_final_text_reconciliation_never_duplicates_public_stream(self) -> None:
+        cases = (
+            (("Hel", "lo"), "Hello", None, "Hello"),
+            (("Hel",), "Hello world", "lo world", "Hello world"),
+            (("rascunho",), "resposta", None, "resposta"),
+            ((), "Hello", "Hello", "Hello"),
+        )
+        for deltas, final_text, expected_delta, expected_final in cases:
+            with self.subTest(deltas=deltas, final_text=final_text):
+                client = FakeConversationClient()
+                runtime = CodexConversationRuntime(client)
+                try:
+                    info = runtime.turn_start("thread-text", "hello")
+                    for delta in deltas:
+                        client.emit(
+                            "item/agentMessage/delta",
+                            {
+                                "threadId": info.thread_id,
+                                "turnId": info.turn_id,
+                                "delta": delta,
+                            },
+                        )
+                    client.emit(
+                        "item/completed",
+                        {
+                            "threadId": info.thread_id,
+                            "turnId": info.turn_id,
+                            "item": {
+                                "type": "agentMessage",
+                                "text": final_text,
+                            },
+                        },
+                    )
+                    self._emit_completed_for(client, info)
+                    result = runtime.wait_turn(
+                        info.thread_id, info.turn_id, timeout_seconds=0.5
+                    )
+                    self.assertEqual(result.final_content, expected_final)
+                    self.assertEqual(
+                        result.public_events[-2].public_text_delta, expected_delta
+                    )
+                finally:
+                    runtime.close()
+
+        info = self.runtime.turn_start("thread-turn-final", "hello")
+        for delta in ("Hel", "lo"):
+            self.client.emit(
+                "item/agentMessage/delta",
+                {
+                    "threadId": info.thread_id,
+                    "turnId": info.turn_id,
+                    "delta": delta,
+                },
+            )
+        self._emit_completed(info, text="Hello")
+        result = self.runtime.wait_turn(info.thread_id, info.turn_id, timeout_seconds=0.5)
+        self.assertEqual(result.final_content, "Hello")
+        self.assertEqual(
+            [event.event_type for event in result.public_events],
+            ["text_delta", "text_delta", "turn_completed"],
+        )
+        self.assertIsNone(result.public_events[-1].public_text_delta)
+
+    @staticmethod
+    def _emit_completed_for(client, info) -> None:
+        client.emit(
+            "turn/completed",
+            {
+                "threadId": info.thread_id,
+                "turn": {
+                    "id": info.turn_id,
+                    "status": "completed",
+                    "items": [],
+                },
+            },
         )
 
     def test_close_releases_waiter_without_closing_client(self) -> None:
         info = self.runtime.turn_start("thread-1", "hello")
-        errors: list[BaseException] = []
+        thread, outcome, _ = self._start_waiter(info, timeout_seconds=2)
+        closed = threading.Event()
 
-        def wait() -> None:
-            try:
-                self.runtime.wait_turn("thread-1", info.turn_id, timeout_seconds=2)
-            except BaseException as exc:
-                errors.append(exc)
+        def close() -> None:
+            self.runtime.close()
+            closed.set()
 
-        thread = threading.Thread(target=wait)
-        thread.start()
-        time.sleep(0.05)
-        self.runtime.close()
+        closer = threading.Thread(target=close, daemon=True)
+        closer.start()
+        self.assertTrue(closed.wait(timeout=1))
+        closer.join(timeout=1)
+        self.assertFalse(closer.is_alive())
         thread.join(timeout=1)
         self.assertFalse(thread.is_alive())
-        self.assertIsInstance(errors[0], CodexConversationClosed)
+        self.assertIsInstance(outcome["error"], CodexConversationClosed)
         self.assertTrue(self.client.is_ready)
 
     def test_client_failure_releases_waiter(self) -> None:
         info = self.runtime.turn_start("thread-1", "hello")
+        thread, outcome, _ = self._start_waiter(info, timeout_seconds=1)
         self.client.state = CodexAppServerState.FAILED
-        with self.assertRaises(Exception) as context:
-            self.runtime.wait_turn("thread-1", info.turn_id, timeout_seconds=1)
-        self.assertIn("client failed", str(context.exception))
-        self.assertIsInstance(context.exception, CodexConversationClientFailed)
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+        self.assertIsInstance(outcome["error"], CodexConversationClientFailed)
+
+    def test_completed_retention_skips_protected_turns_and_removes_later_ones(self) -> None:
+        protected = self.runtime.turn_start("thread-protected", "hello")
+        self._emit_completed(protected, text="protected")
+        protected_state = self.runtime._turns[
+            (protected.thread_id, protected.turn_id)
+        ]
+        with protected_state.condition:
+            protected_state.waiters = 1
+
+        for index in range(128):
+            info = self.runtime.turn_start(f"thread-{index}", "hello")
+            self._emit_completed(info, text=str(index))
+
+        self.assertIn(
+            (protected.thread_id, protected.turn_id), self.runtime._turns
+        )
+        self.assertLessEqual(len(self.runtime._completed_order), 128)
+
+        active = self.runtime.turn_start("thread-active", "hello")
+        self.assertIn((active.thread_id, active.turn_id), self.runtime._turns)
 
 
 def test_fake_app_server_covers_stable_thread_and_turn_flow(tmp_path: Path) -> None:

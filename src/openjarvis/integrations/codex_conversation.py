@@ -532,12 +532,16 @@ class CodexConversationRuntime:
                         )
                         state.condition.notify_all()
                         break
-                remaining = None if deadline is None else deadline - time.monotonic()
-                if remaining is not None and remaining <= 0:
-                    raise CodexConversationTimeout("turn wait timed out")
-                state.condition.wait(
-                    timeout=0.1 if remaining is None else min(remaining, 0.1)
-                )
+                    remaining = (
+                        None
+                        if deadline is None
+                        else deadline - time.monotonic()
+                    )
+                    if remaining is not None and remaining <= 0:
+                        raise CodexConversationTimeout("turn wait timed out")
+                    state.condition.wait(
+                        timeout=0.1 if remaining is None else min(remaining, 0.1)
+                    )
                 if state.wait_error is not None:
                     raise state.wait_error
                 return self._turn_result(state)
@@ -772,7 +776,7 @@ class CodexConversationRuntime:
         usage = _public_usage(params)
         metadata: dict[str, object] = {}
         if "reasoning" in method.lower():
-            event_type = "reasoning"
+            return None
         elif method == "item/agentMessage/delta":
             event_type = "text_delta"
             value = params.get("delta")
@@ -858,24 +862,14 @@ class CodexConversationRuntime:
                 return
             event = parsed.event
             if event.public_text_delta:
-                delta, resulting = self._reconcile_text(
-                    state.public_text, event.public_text_delta
-                )
-                state.public_text = resulting
-                if delta != event.public_text_delta:
-                    event = replace(event, public_text_delta=delta or None)
+                state.public_text += event.public_text_delta
             if parsed.final_candidate is not None:
+                existing_public_text = state.public_text
                 state.final_candidate = parsed.final_candidate
-                _, state.public_text = self._reconcile_text(
-                    state.public_text, parsed.final_candidate
+                delta, state.public_text = self._reconcile_text(
+                    existing_public_text, parsed.final_candidate
                 )
                 if event.event_type == "item_completed":
-                    delta, _ = self._reconcile_text(
-                        state.public_text
-                        if state.public_text != parsed.final_candidate
-                        else "",
-                        parsed.final_candidate,
-                    )
                     event = replace(event, public_text_delta=delta or None)
             state.events.append(event)
             state.usage.update(parsed.usage)
@@ -899,18 +893,25 @@ class CodexConversationRuntime:
 
     def _trim_completed_locked(self) -> None:
         while len(self._completed_order) > _MAX_COMPLETED_TURNS:
-            key = self._completed_order[0]
-            state = self._turns.get(key)
-            if state is None:
-                self._completed_order.popleft()
-                continue
-            with state.condition:
-                if not state.done or state.waiters:
+            removed = False
+            for key in tuple(self._completed_order):
+                state = self._turns.get(key)
+                if state is None:
+                    self._completed_order.remove(key)
+                    removed = True
                     break
-            self._completed_order.popleft()
-            self._turns.pop(key, None)
-            if self._turn_by_id.get(key[1]) == key:
-                self._turn_by_id.pop(key[1], None)
+                with state.condition:
+                    eligible = state.done and not state.waiters
+                if not eligible:
+                    continue
+                self._completed_order.remove(key)
+                self._turns.pop(key, None)
+                if self._turn_by_id.get(key[1]) == key:
+                    self._turn_by_id.pop(key[1], None)
+                removed = True
+                break
+            if not removed:
+                break
 
     @staticmethod
     def _reconcile_text(existing: str, candidate: str) -> tuple[str, str]:
@@ -923,15 +924,19 @@ class CodexConversationRuntime:
         if candidate.startswith(existing):
             return candidate[len(existing) :], candidate
         if existing.startswith(candidate):
-            return "", existing
+            return "", candidate
         # A completed item is authoritative when it does not share a prefix
         # with deltas; it replaces the partial aggregate deterministically.
-        return candidate, candidate
+        return "", candidate
 
     @staticmethod
     def _turn_result(state: _TurnState) -> CodexTurnResult:
         status = state.terminal_status or state.info.status
-        final_content = state.final_candidate or state.public_text
+        final_content = (
+            state.final_candidate
+            if state.final_candidate is not None
+            else state.public_text
+        )
         return CodexTurnResult(
             thread_id=state.info.thread_id,
             turn_id=state.info.turn_id,

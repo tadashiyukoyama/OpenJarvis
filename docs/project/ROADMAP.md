@@ -16,7 +16,7 @@ Superseded by: none
 | OJ2-V - installed Codex contract validation | OJ2 | completed; canonical approved; GO only for PR A contract scope |
 | PR A - External Agent Contract | OJ2-V validation and explicit authorization | merged by squash as `7ff9dbebfb36c74073795ba96b83aa84db7a741e` |
 | PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | merged by squash as `f37bb5bad35a6ee21ac9920b462f09f24cae5476`; transport remains disconnected from runtime |
-| PR C - Codex Conversation Runtime Core | PR B merge, stable schema confirmation and explicit sequential authorization | primary commit `91e4330`; draft PR; live head/checks must be confirmed; no CodexAgent or persistent identity |
+| PR C - Codex Conversation Runtime Core | PR B merge, stable schema confirmation and explicit sequential authorization | OJ3-C-H hardening on current branch; PR #5 remains draft pending new CI; no CodexAgent or persistent identity |
 | OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
 | OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
@@ -27,7 +27,10 @@ OJ2-M approved the OJ2/OJ2-V audit after human architectural review on
 handshake are proven. The public architecture is
 agent selection (`agent=codex`); GO is limited to PR A — External Agent
 Contract, which is now merged. OJ3-C implements only stable conversation
-contracts, routing and sanitized public aggregation over the client.
+contracts, routing and sanitized public aggregation over the client. OJ3-C-H
+additionally hardens bounded waiting, close/failure release, multi-waiter
+notification, final-text reconciliation and completed-turn retention with
+deterministic tests. The current PR remains draft pending its new CI gate.
 Persistent identity, reconnection, concurrency, approvals UX, telemetry and
 end-to-end integration remain unproven. The C PR is draft and its current CI
 gate must complete before any later action. No OJ3 installation, OJ4, UI,
