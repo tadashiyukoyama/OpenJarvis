@@ -115,6 +115,27 @@ class CodexHomeStatus(str, Enum):
     UNVERIFIED = "UNVERIFIED"
 
 
+class CodexCwdStatus(str, Enum):
+    """Sanitized classification of a thread working directory."""
+
+    EXPECTED = "EXPECTED"
+    UNEXPECTED = "UNEXPECTED"
+    ABSENT = "ABSENT"
+    UNVERIFIED = "UNVERIFIED"
+
+
+class CodexTurnStatus(str, Enum):
+    """Stable public turn lifecycle states."""
+
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    INTERRUPTED = "INTERRUPTED"
+    CANCELLED = "CANCELLED"
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass(frozen=True, slots=True)
 class JsonRpcError:
     """A JSON-RPC error without retaining an untrusted raw envelope."""
@@ -177,6 +198,105 @@ class CodexModelInfo:
 
     model_id: str
     metadata: JsonObject
+
+
+@dataclass(frozen=True, slots=True)
+class CodexThreadInfo:
+    """Sanitized public metadata for one Codex thread."""
+
+    thread_id: str
+    status: str | None = None
+    model_id: str | None = None
+    cwd_status: CodexCwdStatus = CodexCwdStatus.UNVERIFIED
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True, slots=True)
+class CodexThreadListResult:
+    """One schema-defined page returned by ``thread/list``."""
+
+    threads: tuple[CodexThreadInfo, ...]
+    next_cursor: str | None = None
+    backwards_cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CodexTurnInfo:
+    """Sanitized public metadata for one Codex turn."""
+
+    thread_id: str
+    turn_id: str
+    status: CodexTurnStatus
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True, slots=True)
+class CodexConversationEvent:
+    """Allowlisted public event data; raw JSON-RPC params are never retained."""
+
+    method: str
+    thread_id: str | None = None
+    turn_id: str | None = None
+    item_id: str | None = None
+    event_type: str = "other"
+    public_text_delta: str | None = None
+    public_action_summary: str | None = None
+    terminal_status: CodexTurnStatus | None = None
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True, slots=True)
+class CodexTurnResult:
+    """Sanitized terminal result for one turn."""
+
+    thread_id: str
+    turn_id: str
+    status: CodexTurnStatus
+    final_content: str = ""
+    public_events: tuple[CodexConversationEvent, ...] = ()
+    public_usage: Mapping[str, object] = field(default_factory=dict)
+    error_code: int | None = None
+    error_message: str | None = None
+    started_at: float | None = None
+    duration_seconds: float | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "public_usage", MappingProxyType(dict(self.public_usage))
+        )
+
+    @property
+    def public_content(self) -> str:
+        """Compatibility alias for callers that call the final text content."""
+
+        return self.final_content
+
+    @property
+    def content(self) -> str:
+        """Short alias for the sanitized final public content."""
+
+        return self.final_content
+
+    @property
+    def events(self) -> tuple[CodexConversationEvent, ...]:
+        """Short alias for sanitized public events."""
+
+        return self.public_events
+
+    @property
+    def usage(self) -> Mapping[str, object]:
+        """Short alias for sanitized public usage."""
+
+        return self.public_usage
 
 
 def parse_jsonrpc_envelope(
@@ -242,6 +362,8 @@ __all__ = [
     "CodexAppServerConfig",
     "CodexAppServerError",
     "CodexAppServerState",
+    "CodexConversationEvent",
+    "CodexCwdStatus",
     "CodexHandshakeInfo",
     "CodexHomeStatus",
     "CodexInvalidStateError",
@@ -251,6 +373,11 @@ __all__ = [
     "CodexProtocolError",
     "CodexRequestError",
     "CodexRequestTimeout",
+    "CodexThreadInfo",
+    "CodexThreadListResult",
+    "CodexTurnInfo",
+    "CodexTurnResult",
+    "CodexTurnStatus",
     "DEFAULT_CODEX_COMMAND",
     "JsonRpcError",
     "JsonRpcNotification",

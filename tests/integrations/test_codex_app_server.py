@@ -240,7 +240,10 @@ def test_default_command_is_typed_and_shell_safe() -> None:
     assert config.cwd is None
 
 
-def test_handshake_order_and_ready(tmp_path: Path) -> None:
+def test_handshake_order_and_ready(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CODEX_HOME", raising=False)
     client = _client(tmp_path)
     client.start()
     try:
@@ -761,3 +764,47 @@ def test_config_environment_override_is_not_printed_or_persisted(
         assert all("SAFE_TEST_VALUE" not in line for line in client.stderr_tail)
     finally:
         client.close()
+
+
+def test_effective_codex_home_precedence_and_sanitization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CODEX_HOME", r"D:\Parent\Codex")
+    parent_client = CodexAppServerClient(CodexAppServerConfig())
+    parent_info = parent_client._sanitize_handshake(
+        {"codexHome": "d:/parent/codex"}
+    )
+    assert parent_info.codex_home_status is CodexHomeStatus.EXPECTED
+
+    override_client = CodexAppServerClient(
+        CodexAppServerConfig(
+            environment_overrides={"CODEX_HOME": "D:/Override/Codex"}
+        )
+    )
+    override_info = override_client._sanitize_handshake(
+        {"codexHome": r"d:\override\CODEX"}
+    )
+    assert override_info.codex_home_status is CodexHomeStatus.EXPECTED
+    assert "Override" not in repr(override_info)
+
+    monkeypatch.delenv("CODEX_HOME")
+    override_only = CodexAppServerClient(
+        CodexAppServerConfig(
+            environment_overrides={"CODEX_HOME": "D:/Override/Only"}
+        )
+    )
+    override_only_info = override_only._sanitize_handshake(
+        {"codexHome": "D:/Override/Only"}
+    )
+    assert override_only_info.codex_home_status is CodexHomeStatus.EXPECTED
+
+    divergent = CodexAppServerClient(
+        CodexAppServerConfig(environment_overrides={"CODEX_HOME": "D:/expected"})
+    )
+    divergent_info = divergent._sanitize_handshake(
+        {"codexHome": "D:/different/codex"}
+    )
+    assert divergent_info.codex_home_status is CodexHomeStatus.UNEXPECTED
+
+    absent = divergent._sanitize_handshake({})
+    assert absent.codex_home_status is CodexHomeStatus.ABSENT
