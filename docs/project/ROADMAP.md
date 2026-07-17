@@ -11,11 +11,16 @@ Superseded by: none
 |---|---|---|
 | OJ0 - local foundation | none | completed |
 | OJ1 - controlled clone and promotion | OJ0 review and new authorization | completed in this task |
-| OJ2 - upstream audit | OJ1 completed | completed as DRAFT; review gate pending |
-| OJ3 - controlled D installation | OJ2 audit and authorization | not authorized |
-| OJ4 - CodexAgent | OJ2 audit and specification | not authorized |
+| OJ2 - upstream audit | OJ1 completed | completed as DRAFT |
+| OJ2-V - installed Codex contract validation | OJ2 DRAFT | validated; GO only for PR A contract scope |
+| PR A - External Agent Contract | OJ2-V validation and explicit authorization | possible next scope; not executed |
+| OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
+| OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
 | OJ6 - VPS | contracted VPS and approved plan | not authorized |
 
-OJ2 produced a DRAFT audit only. No later phase is authorized by this
-execution; OJ3 and OJ4 remain blocked pending explicit review and authorization.
+OJ2-V proved the installed `codex-cli 0.144.3` schema and basic app-server
+handshake without changing functional code. It freezes the public architecture
+as agent selection (`agent=codex`) and permits only preparation of PR A —
+External Agent Contract. PR A itself was not executed or authorized by this
+run. No OJ3, OJ4, installation, UI or default change is authorized.

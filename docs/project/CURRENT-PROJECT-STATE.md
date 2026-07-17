@@ -21,7 +21,9 @@ Superseded by: none
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
 | codexAgentIntegration | NOT_IMPLEMENTED |
-| pullRequest | OJ2 draft PR pending creation |
+| codexVersionValidated | 0.144.3 |
+| codexAppServerValidation | PASS: stable schema, stdio handshake, sanitized account/model reads |
+| pullRequest | #2 DRAFT — OJ2/OJ2-V |
 | lifecycleAutomation | DISABLED |
 | ci | INSUFFICIENT_EVIDENCE |
 | mobileRepository | UNVERIFIED |
@@ -30,10 +32,13 @@ Superseded by: none
 | deploy | NOT_STARTED |
 | additionalWorktrees | 0 |
 
-Evidence: OJ2 revalidated the local baseline, origin/main and upstream main
-live with 40-character refs before the audit. The audit branch starts at the
-local/origin baseline and contains documentation-only changes. No functional
-code, workflow, dependency, model or service was executed or changed.
+Evidence: OJ2-V revalidated the local baseline, origin/main and upstream main
+live with 40-character refs before the validation. The audit branch contains
+documentation-only changes plus ignored local schema/probe evidence. The
+installed `codex-cli 0.144.3` generated a stable schema; a non-interactive
+stdio probe approved handshake, `account/read(refreshToken=false)` and
+`model/list`, then exited without an orphan. No functional code, workflow,
+dependency, model or service was changed.
 
 OJ1-H completed the portability and lifecycle-policy correction. The four
 lifecycle scripts remain safe stubs and do not mutate Git or the filesystem.
@@ -41,12 +46,16 @@ The fork CI has no execution recorded. Actions permission is enabled, but the
 GitHub workflow inventory is empty even though `ci.yml` is present and
 configured locally for pull requests to `main`; the read-only evidence is
 insufficient to establish a runnable workflow. No installation, model,
-service, VPS or CodexAgent work was performed. OJ2 is not authorized.
+service, VPS or CodexAgent work was performed. The public architecture is
+agent-first: future selection is `agent=codex`, while any engine decision is
+internal and descriptor-driven. `CodexAgent` is not an InferenceEngine and is
+not implemented.
 
-Current blockers: the Codex app-server account state, versioned protocol
-compatibility, engine-independent runtime contract, thread persistence,
-streaming/approval UX and D-only no-Ollama installation remain unproven for
-implementation. Dependency installation, execution, models, login and later
-phases remain unauthorized.
+Current blockers: the engine-independent agent contract, thread persistence,
+streaming/approval UX, sandbox policy, end-to-end behavior and D-only
+no-Ollama installation remain unimplemented or unproven for production.
+Dependency installation, models, login, UI, default change and later phases
+remain unauthorized. The only possible future implementation scope identified
+by OJ2-V is PR A — External Agent Contract, requiring its own authorization.
 
-OJ2 report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (DRAFT).
+OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (DRAFT).

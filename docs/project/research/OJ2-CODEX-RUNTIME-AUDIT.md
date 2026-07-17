@@ -28,19 +28,24 @@ O instalador Windows baixa e executa o instalador do Ollama e puxa
 `qwen3.5:2b` (`deploy/windows/install.ps1:298-380`). O quickstart instala
 dependências, Ollama, modelo, backend e frontend (`scripts/quickstart.sh:69-182`).
 
-A integração futura correta para a decisão do projeto é um `CodexAgent` que
-converse com um processo local já instalado do `codex app-server`, autenticado
-por uma conta Codex/ChatGPT selecionada pelo usuário. A documentação oficial
-descreve JSON-RPC bidirecional, `stdio` como transporte padrão, threads/turns,
-streaming por notificações e aprovações server→client. O protocolo tem superfície
-experimental e deve ser encapsulado atrás de um adapter versionado; não é seguro
-copiar a ponte Claude nem fingir que o engine local atual é o runtime Codex.
+A integração correta para a decisão do projeto é um `CodexAgent` de primeira
+classe no `AgentRegistry`, no mesmo nível de `claude_code`, `opencode`,
+`simple`, `orchestrator` e `react`. A seleção pública permanece seleção de
+agente: `[agent] default_agent = "codex"`. O agente conversa com um processo
+local já instalado do `codex app-server`, autenticado por uma conta Codex/ChatGPT
+selecionada pelo usuário. Um selector interno de composição pode decidir se o
+descriptor exige `InferenceEngine`, mas não é uma experiência pública
+runtime→agent.
 
-Veredito desta fase: **NO-GO para implementação funcional**. O audit está
-suficiente para planejar as próximas PRs, mas ainda faltam contrato de seleção
-de runtime, adapter desacoplado do engine, persistência segura de thread IDs,
-UX de login/estado de conta e testes de aprovação/sandbox/streaming. O OJ3 e o
-OJ4 continuam não autorizados.
+A documentação oficial descreve JSON-RPC bidirecional, `stdio` como transporte
+padrão, threads/turns, streaming por notificações e aprovações server→client.
+O schema estável e o probe local da versão `0.144.3` confirmaram handshake,
+`account/read(refreshToken=false)`, `model/list`, approvals, streaming e os
+campos de workspace/sandbox sem prompt ou thread.
+
+Veredito OJ2-V: **GO somente para a futura PR A — External Agent Contract**.
+Continua **NO-GO** para `CodexAgent` funcional, UI, instalação sem Ollama e
+mudança de default. O OJ3 e o OJ4 continuam não autorizados.
 
 ## 2. Baseline e limites observados
 
@@ -212,11 +217,13 @@ O fluxo verificável é:
    (`src/openjarvis/server/session_store.py:18-55`); isso não é ainda um
    armazenamento de thread Codex.
 
-O ponto exato de bloqueio da integração é a fronteira engine-first em
+O ponto exato de bloqueio da implementação atual é a fronteira engine-first em
 `SystemBuilder._resolve_engine()`/`Jarvis._ensure_engine()`, reforçada pelo
 gate de modelo na UI. Um `CodexAgent` isolado poderia não usar um engine saudável,
 mas o caminho integrado atual não consegue chegar à construção do agente sem
-resolver um engine.
+resolver um engine. A PR A deve inverter a composição: resolver primeiro o
+descriptor do agente e somente depois resolver engine/model quando o descriptor
+for engine-backed.
 
 ## 7. Auditoria do ClaudeCodeAgent
 
@@ -329,20 +336,23 @@ Fatos relevantes para o desenho:
 
 ```text
 Chat/API/UI
-    │ provider=codex, conversation_id
+    │ agent=codex (seleção pública)
     ▼
-RuntimeSelector ─────── provider=local → InferenceEngine (existente)
+AgentRegistry → AgentDescriptor
     │
-    └────────────────── provider=codex → CodexAgent
-                                      └→ CodexAppServerClient
-                                          └→ codex app-server (stdio JSON-RPC)
+    ├─ engine-backed → resolve InferenceEngine → resolve model → Agent
+    │
+    └─ external      → CodexAgent → CodexAppServerClient
+                                      └→ codex app-server (stdio JSON-RPC)
 ```
 
-O selector deve escolher exatamente um runtime antes de construir o executor.
-O ramo Codex não deve chamar `get_engine()`, `list_models()` de Ollama ou
-`InferenceEngine.health()`. O adapter deve expor um resultado normalizado para
-o OpenJarvis (`content`, `thread_id`, `usage`, `items`, `approval state`, erro),
-mas manter o protocolo Codex bruto isolado no módulo próprio.
+O `AgentRegistry` deve resolver o agente antes de qualquer engine. Para agentes
+engine-backed, o comportamento atual permanece: resolver engine, resolver model
+e manter health/list_models. Para `CodexAgent`, a composição não deve chamar
+`_resolve_engine()`, `_resolve_model()`, `engine.health()`, `engine.list_models()`
+nem procurar Ollama ou fazer fallback para engine local. O adapter deve expor um
+resultado normalizado para o OpenJarvis (`content`, `thread_id`, `usage`,
+`items`, `approval state`, erro), mantendo o protocolo Codex bruto isolado.
 
 ### Arquivos backend futuros
 
@@ -351,8 +361,8 @@ mas manter o protocolo Codex bruto isolado no módulo próprio.
   handshake, request correlation, notifications e process lifecycle;
 - `src/openjarvis/integrations/codex_models.py`: DTOs versionados e allowlist de
   eventos/approvals;
-- `src/openjarvis/core/runtime.py` ou equivalente: selector provider/runtime,
-  ainda a ser escolhido após teste de compatibilidade;
+- `src/openjarvis/core/runtime.py` ou equivalente: composição interna baseada no
+  `AgentDescriptor`, sem selector público runtime→agent;
 - `src/openjarvis/server/codex_routes.py`: status/account/thread e approval
   somente após definir a superfície auth e a política de exposição local;
 - store futuro em D para `conversation_id ↔ threadId`, sem tokens.
@@ -374,13 +384,16 @@ Não criar `config.toml` funcional nesta fase. O desenho futuro deve ter apenas
 configuração declarativa e segura, por exemplo:
 
 ```toml
-[runtime]
-default = "codex"
+[agent]
+default_agent = "codex"
 
-[runtime.codex]
+[agent.codex]
 enabled = true
+execution_mode = "external"
+requires_engine = false
+requires_model = false
+external_runtime = "codex_app_server"
 transport = "stdio"
-binary = "codex"
 approval_policy = "user"
 sandbox_profile = "workspace"
 workspace_root = "D:/..."
@@ -472,10 +485,10 @@ Sequência recomendada, cada item com gate próprio:
 
 ## 13. Riscos e questões sem prova
 
-- compatibilidade exata entre `codex-cli 0.144.3` instalado e o protocolo oficial
-  observado no repositório upstream no momento da implementação;
-- disponibilidade do fluxo de conta já autenticada neste usuário, não verificada
-  por não acessar status/credenciais;
+- compatibilidade além do contrato básico entre `codex-cli 0.144.3` instalado e
+  o protocolo que será usado na implementação end-to-end;
+- disponibilidade e permissões da conta foram observadas apenas de forma
+  sanitizada (`chatgpt` autenticado); nenhum identificador pessoal foi registrado;
 - formato e durabilidade do `threadId` quando o app-server reinicia;
 - comportamento de approval quando a conexão stdio é interrompida;
 - política final de sandbox no Windows e tradução de `workspace`/roots;
@@ -495,19 +508,96 @@ Sequência recomendada, cada item com gate próprio:
 - [x] Codex app-server consultado em fontes oficiais somente leitura;
 - [x] proposta sem Ollama/modelos/API key como requisito primário;
 - [x] nenhuma implementação funcional ou workflow alterado;
-- [x] este relatório criado como `DRAFT`;
+- [x] schema estável da versão instalada gerado sem `--experimental`;
+- [x] handshake `stdio` e encerramento sem órfão comprovados por probe local;
+- [x] `account/read` executado com `refreshToken=false`, sem dados pessoais;
+- [x] `model/list` executado sem prompt, thread, turn ou download de modelo;
+- [x] arquitetura pública congelada como seleção de agente, não runtime→agent;
+- [x] este relatório permanece `DRAFT`;
 - [ ] aprovação humana do relatório e autorização de uma fase posterior — fora
   do escopo e não autorizada nesta execução.
 
 ## 15. Veredito
 
-**OJ2: NO-GO para implementação funcional; GO somente para revisão deste
-relatório DRAFT.**
+**OJ2-V: GO somente para a PR A — External Agent Contract; NO-GO para
+`CodexAgent` funcional, UI, instalação e mudança de default.**
 
-O projeto tem informação suficiente para uma implementação futura controlada,
-mas não tem ainda evidência de compatibilidade operacional da conta Codex,
-contrato de runtime sem engine, UX de approvals e política de armazenamento.
-Não iniciar OJ3, OJ4, instalação, login, execução do app-server, download,
-deploy ou merge como consequência deste documento.
+O projeto tem prova local suficiente para iniciar somente a abstração de
+contrato da PR A. Ainda não há autorização para subprocess Codex em produção,
+UI, instalação, login, mudança de default ou qualquer fase posterior.
+
+## 16. OJ2-V — prova local e contrato congelado
+
+### Prova da versão instalada
+
+- versão: `codex-cli 0.144.3`;
+- schema: gerado pelo comando estável publicado no próprio help, sem
+  `--experimental`, em `.workspace/local/audit/codex-app-server-0.144.3-schema`;
+- arquivos do schema: 267, com manifesto SHA-256 em
+  `.workspace/local/audit/codex-app-server-0.144.3-schema-manifest.json`;
+- métodos mínimos: `initialize`, `initialized`, `account/read`, `model/list`,
+  `thread/start`, `thread/resume`, `thread/read`, `thread/list`, `turn/start`
+  e `turn/interrupt` classificados como `STABLE`;
+- classificação explícita: `STABLE` contém todos os mínimos acima;
+  `EXPERIMENTAL` não foi gerado porque o comando não recebeu
+  `--experimental`; `ABSENT_IN_0.144.3` não contém nenhum dos mínimos exigidos;
+  nenhum método ausente foi tratado como suportado;
+- approvals de command/fileChange, streaming `item/agentMessage/delta` e
+  `turn/*`, e campos `cwd`, `approvalPolicy` e `sandboxPolicy` classificados
+  como `STABLE`; schema experimental não foi gerado;
+- probe: `codex app-server --listen stdio://`, clientInfo
+  `openjarvis_codex_audit`, handshake aprovado em 1.036,86 ms;
+- `codexHome`: somente comparação sanitizada com `CODEX_HOME`, resultado
+  `EXPECTED`; `platformFamily=windows`, `platformOs=windows`;
+- `account/read`: aprovado com `refreshToken=false`, `authenticated=true`,
+  `authMode=chatgpt`, `planType` presente, rate limits ausentes; e-mail,
+  account ID, token e demais identificadores não foram registrados;
+- `model/list`: aprovado, seis IDs públicos, sem seleção, download ou prompt;
+- encerramento: PID do probe terminou com código 0, sem processo app-server
+  órfão e sem alteração de outros processos Codex.
+
+### Contrato público obrigatório
+
+```text
+[agent]
+default_agent = "codex"
+
+AgentDescriptor(
+    name="codex",
+    execution_mode="external",
+    requires_engine=false,
+    requires_model=false,
+    external_runtime="codex_app_server",
+)
+```
+
+`Codex` é um agente de primeira classe e permanece lado a lado com
+`claude_code`, `opencode`, `simple`, `orchestrator` e `react`. O seletor visual
+principal é “Agente”. `RuntimeSelector`, se implementado, é detalhe interno da
+composição e recebe o descriptor; não é uma seleção pública separada.
+
+`SystemBuilder` deverá resolver o descriptor do agente antes do engine. O ramo
+engine-backed mantém engine/model/health/list_models. O ramo Codex não chama
+`_resolve_engine()`, `_resolve_model()`, `engine.health()`,
+`engine.list_models()`, Ollama ou fallback local. `ClaudeCodeAgent` permanece
+intacto e não será apagado nem renomeado.
+
+### PR A — External Agent Contract
+
+A única PR futura que este resultado permite preparar é a PR A de contratos,
+sem implementar o CodexAgent:
+
+- metadata de agente e distinção engine-backed versus external;
+- resolução do agent antes do engine;
+- engine/model opcionais somente onde necessários;
+- testes com agente externo fake;
+- nenhum subprocess Codex real, interface, Ollama, modelo, autenticação ou
+  app-server em produção;
+- nenhum `NoOpEngine`, `DummyEngine`, `FakeEngine` produtivo ou modelo fictício.
+
+Critérios da PR A: selecionar `fake_external` não chama `get_engine`,
+`engine.health` ou `list_models`; agentes atuais continuam usando engine/model;
+nenhuma alteração do comportamento default antes da escolha explícita; CI
+completo aprovado. A PR A ainda requer autorização própria para execução.
 
 **Próxima fase autorizada: NENHUMA.**

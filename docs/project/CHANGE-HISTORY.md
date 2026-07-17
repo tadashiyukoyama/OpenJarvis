@@ -51,3 +51,19 @@ Superseded by: none
   no-Ollama installation and future PR gates in the DRAFT report.
 - No functional code, workflow, dependency, model, credential, service, VPS,
   deploy or merge operation was performed.
+
+## 2026-07-17 - OJ2-V installed Codex contract validation
+
+- Validated the installed `codex-cli 0.144.3` with its stable JSON Schema,
+  including initialize/initialized, account/read, model/list, threads, turns,
+  approvals, streaming notifications and workspace/sandbox fields.
+- Ran one sanitized non-interactive stdio probe: handshake, read-only account
+  query with `refreshToken=false` and model catalog query passed; no prompt,
+  thread, turn, approval, login, logout or model download occurred.
+- Froze the public architecture as first-class agent selection (`agent=codex`),
+  with descriptor-driven internal composition and no InferenceEngine
+  prerequisite for Codex. ClaudeCodeAgent remains present.
+- Updated the OJ2 DRAFT verdict to GO only for PR A — External Agent Contract;
+  CodexAgent functionality, UI, installation and default change remain blocked.
+- No functional code, workflow, dependency, model, credential, service, VPS,
+  deploy, migration, ready-for-review or merge operation was performed.
