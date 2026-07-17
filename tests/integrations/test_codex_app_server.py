@@ -1,3 +1,5 @@
+# ruff: noqa: I001
+
 """Fake-process tests for the Codex app-server transport boundary."""
 
 from __future__ import annotations

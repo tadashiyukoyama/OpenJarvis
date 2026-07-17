@@ -1,3 +1,5 @@
+# ruff: noqa: I001
+
 """A process-safe JSONL client for the official Codex app-server binary.
 
 This module deliberately stops at transport and read-only catalog/account
@@ -31,11 +33,11 @@ from .codex_protocol import (
     CodexProtocolError,
     CodexRequestError,
     CodexRequestTimeout,
-    encode_jsonrpc,
     JsonRpcId,
     JsonRpcNotification,
     JsonRpcResponse,
     JsonRpcServerRequest,
+    encode_jsonrpc,
     parse_jsonrpc_envelope,
 )
 
