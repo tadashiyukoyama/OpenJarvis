@@ -1,0 +1,15 @@
+{
+  "workspaceRoot": "D:\\dev\\workspaces\\openjarvis",
+  "worktreesRoot": "D:\\dev\\worktrees\\openjarvis",
+  "runtimeRoot": "D:\\dev\\runtime\\openjarvis",
+  "cacheRoot": "D:\\dev\\caches\\openjarvis",
+  "modelsRoot": "D:\\dev\\models\\openjarvis",
+  "artifactsRoot": "D:\\dev\\artifacts\\openjarvis",
+  "toolchainsRoot": "D:\\dev\\toolchains",
+  "codexHome": "D:\\dev\\codex-home\\.codex",
+  "diskC": { "totalBytes": 0, "freeBytes": 0 },
+  "diskD": { "totalBytes": 0, "freeBytes": 0 },
+  "existingGitStatus": "NOT_PRESENT",
+  "existingCodexDirectoryStatus": "NOT_PRESENT_IN_WORKSPACE",
+  "auditedAt": "1970-01-01T00:00:00.0000000Z"
+}

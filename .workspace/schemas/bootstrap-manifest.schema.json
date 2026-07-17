@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openjarvis.local/schemas/bootstrap-manifest.schema.json",
+  "title": "OpenJarvis OJ0 bootstrap manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [ "schemaVersion", "workspaceRoot", "generatedAt", "files" ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "workspaceRoot": { "type": "string" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "phase": { "type": "string", "enum": [ "OJ0", "OJ1" ] },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstreamMainSha", "originMainSha", "branch", "gitRoot",
+        "oj0BaselineManifestSha256", "stagingRoot", "promotedAt"
+      ],
+      "properties": {
+        "upstreamMainSha": { "type": "string", "pattern": "^[A-Fa-f0-9]{40}$" },
+        "originMainSha": { "type": "string", "pattern": "^[A-Fa-f0-9]{40}$" },
+        "branch": { "type": "string" },
+        "gitRoot": { "type": "string" },
+        "oj0BaselineManifestSha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+        "stagingRoot": { "type": "string" },
+        "promotedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "baselines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "name", "manifestSha256", "capturedAt", "backupRoot" ],
+        "properties": {
+          "name": { "type": "string" },
+          "manifestSha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+          "capturedAt": { "type": "string", "format": "date-time" },
+          "backupRoot": { "type": "string" }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "path", "sha256", "sizeBytes", "classification", "createdAt" ],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "classification": { "type": "string", "enum": [ "portable", "local" ] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

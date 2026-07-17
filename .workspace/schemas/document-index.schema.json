@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openjarvis.local/schemas/document-index.schema.json",
+  "title": "OpenJarvis document index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [ "schemaVersion", "documents" ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document", "status", "responsibility", "lastVerified",
+          "appliesToSha"
+        ],
+        "properties": {
+          "document": { "type": "string" },
+          "status": { "type": "string", "enum": [ "CANONICAL", "DRAFT", "ARCHIVED" ] },
+          "responsibility": { "type": "string" },
+          "lastVerified": { "type": "string" },
+          "appliesToSha": { "type": "string" }
+        }
+      }
+    }
+  }
+}
