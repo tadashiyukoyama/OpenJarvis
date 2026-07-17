@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -14,7 +15,7 @@ Superseded by: none
 | OJ2 - upstream audit | OJ1 completed | completed; canonical approved |
 | OJ2-V - installed Codex contract validation | OJ2 | completed; canonical approved; GO only for PR A contract scope |
 | PR A - External Agent Contract | OJ2-V validation and explicit authorization | merged by squash as `7ff9dbebfb36c74073795ba96b83aa84db7a741e` |
-| PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | implemented on current draft branch; final CI passed; draft/review pending; runtime disconnected |
+| PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | OJ3-B-H functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`; PR #4 remains draft; live head/checks must be confirmed on GitHub; runtime disconnected |
 | OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
 | OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
@@ -28,6 +29,7 @@ Contract, which is now merged. OJ3-B implements only the isolated client core
 and does not connect it to the runtime.
 Thread
 durability, reconnection, concurrency, final sandbox, telemetry and
-end-to-end integration remain unproven. OJ3-B is limited to its draft PR CI;
+end-to-end integration remain unproven. OJ3-B-H is limited to the current draft PR
+CI gate;
 no OJ3 installation, OJ4, UI or default change is authorized by this
 documentation.

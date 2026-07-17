@@ -3,15 +3,17 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
 OJ2-V validated the installed Codex app-server boundary. OJ3-A merged the
-engine-independent External Agent Contract, and OJ3-B implements an isolated
-stdlib transport client on a draft PR whose final CI passed. The official OpenJarvis components are
-present at the captured SHA; `CodexAgent` implementation, UI and default
-change remain unauthorized.
+engine-independent External Agent Contract, and OJ3-B-H hardens an isolated
+stdlib transport client in functional commit `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`.
+PR #4 remains draft; its live head and checks must be confirmed on GitHub.
+The official OpenJarvis components are present at the captured baseline;
+`CodexAgent` implementation, UI and default change remain unauthorized.
 
 | Area | Verified project state |
 |---|---|

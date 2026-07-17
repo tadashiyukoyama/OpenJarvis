@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-07-17
-Applies to SHA: 960facfea7fe64558bba021a3b5645deda107af8
+Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -104,8 +105,27 @@ Superseded by: none
 - Kept `CodexAgent`, `AgentRegistry`, `SystemBuilder`, UI, workflows,
   installers, defaults and runtime connection unchanged.
 - Preserved the primary protocol error on malformed stdout, aligned the two
-  new modules with Ruff, and completed final CI run `29603505953` successfully
-  across lint/format, Linux, Rust and Windows 3.12/3.13.
-- Left PR #4 open as draft at
-  `960facfea7fe64558bba021a3b5645deda107af8`; no ready-for-review or merge
-  operation was performed.
+  new modules with Ruff, and completed historical CI run `29603505953`
+  successfully across lint/format, Linux, Rust and Windows 3.12/3.13. That
+  run predates OJ3-B-H and is not the current gate.
+- Left PR #4 open as draft; its historical pre-hardening head is recorded only
+  as evidence, and no ready-for-review or merge operation was performed.
+
+## 2026-07-17 16:03:42 -03:00 - OJ3-B-H lifecycle hardening
+
+- Hardened `CodexAppServerClient` with monotonic per-generation lifecycle
+  contexts containing independent process, PID, stop event, queues, pending
+  requests and workers. Old waiters, callbacks and handlers cannot mutate or
+  consume a restarted generation.
+- Added fail-closed shutdown for malformed JSON-RPC after READY, including
+  pending-request failure, bounded process termination, PID clearing and no
+  automatic retry.
+- Added pre-write JSON serialization validation for client requests and
+  server-request results, exact `-32603` invalid-result responses, safe handler
+  exception responses and bounded concurrent close behavior.
+- Removed broad Ruff import and formatter suppressions from the client and its
+  fake-process tests. No `CodexAgent`, runtime connection, frontend, workflow,
+  dependency, model, credential, VPS or deployment change was made.
+- Functional implementation commit: `523ebb18a805c2dad1cf03fb7649ae27ebbd02f1`.
+  PR #4 remains draft; current live head and checks must be confirmed on
+  GitHub after push. No current CI result is claimed in this entry.
