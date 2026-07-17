@@ -37,11 +37,11 @@ from .codex_protocol import (
     CodexProtocolError,
     CodexRequestError,
     CodexRequestTimeout,
-    encode_jsonrpc,
     JsonRpcId,
     JsonRpcNotification,
     JsonRpcResponse,
     JsonRpcServerRequest,
+    encode_jsonrpc,
     parse_jsonrpc_envelope,
 )
 
@@ -106,6 +106,7 @@ class _Lifecycle:
     threads: list[threading.Thread] = field(default_factory=list)
     shutdown_lock: threading.Lock = field(default_factory=threading.Lock)
     shutdown_started: bool = False
+    failure_started: bool = False
     initialize_sent: bool = False
     handshake_info: CodexHandshakeInfo | None = None
     last_error: str | None = None
@@ -495,7 +496,12 @@ class CodexAppServerClient:
 
     def _require_ready(self) -> None:
         with self._state_lock:
-            if self._state is not CodexAppServerState.READY:
+            lifecycle = self._active_lifecycle
+            if (
+                self._state is not CodexAppServerState.READY
+                or lifecycle is None
+                or lifecycle.failure_started
+            ):
                 raise CodexInvalidStateError(
                     f"operation requires READY, current state is {self._state.value}"
                 )
@@ -515,10 +521,17 @@ class CodexAppServerClient:
         allow_starting: bool,
     ) -> object:
         with self._state_lock:
-            allowed = self._state is CodexAppServerState.READY or (
-                allow_starting and self._state is CodexAppServerState.STARTING
-            )
             lifecycle = self._active_lifecycle
+            allowed = (
+                self._state is CodexAppServerState.READY
+                and lifecycle is not None
+                and not lifecycle.failure_started
+            ) or (
+                allow_starting
+                and self._state is CodexAppServerState.STARTING
+                and lifecycle is not None
+                and not lifecycle.failure_started
+            )
             if not allowed or lifecycle is None:
                 raise CodexInvalidStateError(
                     f"cannot request in state {self._state.value}"
@@ -573,10 +586,17 @@ class CodexAppServerClient:
         allow_starting: bool,
     ) -> None:
         with self._state_lock:
-            allowed = self._state is CodexAppServerState.READY or (
-                allow_starting and self._state is CodexAppServerState.STARTING
-            )
             lifecycle = self._active_lifecycle
+            allowed = (
+                self._state is CodexAppServerState.READY
+                and lifecycle is not None
+                and not lifecycle.failure_started
+            ) or (
+                allow_starting
+                and self._state is CodexAppServerState.STARTING
+                and lifecycle is not None
+                and not lifecycle.failure_started
+            )
             if not allowed or lifecycle is None:
                 raise CodexInvalidStateError(
                     f"cannot notify in state {self._state.value}"
@@ -936,9 +956,9 @@ class CodexAppServerClient:
                     CodexAppServerState.CLOSING,
                     CodexAppServerState.CLOSED,
                 ):
-                    self._state = CodexAppServerState.FAILED
                     lifecycle.last_error = _sanitize_text(str(error))
-                should_shutdown = self._state is CodexAppServerState.FAILED
+                    lifecycle.failure_started = True
+                    should_shutdown = True
             else:
                 lifecycle.stop_event.set()
         self._fail_pending(lifecycle, error)
