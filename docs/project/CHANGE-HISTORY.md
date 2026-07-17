@@ -38,3 +38,43 @@ Superseded by: none
   exposes no workflow inventory or run for this fork branch.
 - No upstream functional code or workflow was changed, and no installation,
   model, service, VPS or CodexAgent work was performed.
+
+## 2026-07-17 - OJ2 Codex runtime audit (DRAFT)
+
+- Revalidated the local/origin baseline and live upstream main before auditing
+  the runtime, Windows installer, quickstart, storage paths, desktop setup,
+  frontend model gate, server streaming and Claude bridge.
+- Consulted the official Codex app-server protocol documentation in read-only
+  mode and proposed a future stdio JSON-RPC adapter without implementing it.
+- Confirmed that the Windows installer installs Ollama and pulls a starter
+  model, and that the current runtime is engine/model-first; recorded the
+  no-Ollama installation and future PR gates in the DRAFT report.
+- No functional code, workflow, dependency, model, credential, service, VPS,
+  deploy or merge operation was performed.
+
+## 2026-07-17 - OJ2-V installed Codex contract validation
+
+- Validated the installed `codex-cli 0.144.3` with its stable JSON Schema,
+  including initialize/initialized, account/read, model/list, threads, turns,
+  approvals, streaming notifications and workspace/sandbox fields.
+- Ran one sanitized non-interactive stdio probe: handshake, read-only account
+  query with `refreshToken=false` and model catalog query passed; no prompt,
+  thread, turn, approval, login, logout or model download occurred.
+- Froze the public architecture as first-class agent selection (`agent=codex`),
+  with descriptor-driven internal composition and no InferenceEngine
+  prerequisite for Codex. ClaudeCodeAgent remains present.
+- Updated the OJ2 DRAFT verdict to GO only for PR A — External Agent Contract;
+  CodexAgent functionality, UI, installation and default change remain blocked.
+- No functional code, workflow, dependency, model, credential, service, VPS,
+  deploy, migration, ready-for-review or merge operation was performed.
+
+## 2026-07-17 - OJ2-M human approval and canonicalization
+
+- Human architectural review approved the OJ2/OJ2-V report on 2026-07-17 after
+  the required PR #2 checks completed successfully on the validated HEAD.
+- Promoted the report and Codex contract memory from DRAFT to CANONICAL.
+- Recorded the definitive verdict: OJ2 approved; GO only for PR A — External
+  Agent Contract; NO-GO for functional CodexAgent, UI, installation and default
+  change.
+- Kept thread durability, reconnection, concurrency, final sandbox, telemetry
+  and end-to-end integration explicitly unproven. PR A is not implemented here.

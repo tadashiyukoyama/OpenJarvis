@@ -7,11 +7,12 @@ Applies to SHA: 3000116d181eb69737241c09eaa70d4c65eb80a0
 Supersedes: none
 Superseded by: none
 
-OJ1 establishes the checkout boundary only. The official OpenJarvis
-components are present at the captured SHA, but their full architecture
-audit remains deferred to OJ2.
+OJ2-V validated the installed Codex app-server boundary without changing
+functional code. The official OpenJarvis components are present at the
+captured SHA. The Codex contract below is frozen only for the future PR A;
+`CodexAgent` implementation, UI and default change remain unauthorized.
 
-| Area | OJ0 state |
+| Area | Verified OJ2 state |
 |---|---|
 | Canonical Git root | OPENJARVIS_WORKSPACE_ROOT |
 | Official OpenJarvis source | Checked out at captured SHA |
@@ -26,5 +27,24 @@ audit remains deferred to OJ2.
 | Future infrastructure | infra |
 | Workspace automation | scripts/workspace |
 
-The actual engines, agents, Claude Code integration, frontend, desktop, API,
-memory and security boundaries are deferred to OJ2.
+| Runtime composition | `SystemBuilder` resolves a healthy inference engine and model before constructing `JarvisSystem`. |
+| Public agent selection | The public selector remains “Agente”; the future contract is `[agent] default_agent = "codex"`. |
+| Agent registry metadata | Codex descriptor: `execution_mode=external`, `requires_engine=false`, `requires_model=false`, `external_runtime=codex_app_server`. |
+| Composition order | Resolve `AgentDescriptor` first; resolve engine/model only for engine-backed agents. |
+| External agent boundary | `ClaudeCodeAgent` is a Python→Node subprocess bridge and is not a Codex contract. |
+| Desktop startup | Tauri reports Ollama/model/server readiness and can run `uv sync`; this is not a no-Ollama Codex path. |
+| Chat transport | Backend exposes OpenAI-compatible HTTP/SSE; agent streaming is bridged from synchronous execution. |
+| Runtime state | `OPENJARVIS_HOME` can relocate state, but the fallback is `Path.home()/.openjarvis`; D-only installation must set and verify it. |
+| Codex boundary | Future `CodexAgent` → `CodexAppServerClient` → local `codex app-server` over stdio JSON-RPC; no `InferenceEngine` prerequisite. |
+| Internal selector | `RuntimeSelector`, if needed, is an internal composition detail based on the descriptor, never a public runtime→agent selector. |
+| Local validation | Codex `0.144.3` stable schema, handshake, sanitized `account/read` and `model/list` passed; no functional implementation. |
+
+For engine-backed agents, the current engine/model/health/list-model behavior
+remains. For `CodexAgent`, composition must not call `_resolve_engine()`,
+`_resolve_model()`, `engine.health()`, `engine.list_models()`, Ollama discovery
+or local-engine fallback. `ClaudeCodeAgent` remains unchanged in name and
+availability. Codex becomes a future default only after end-to-end tests and
+explicit authorization.
+
+Detailed evidence and the no-Ollama installation proposal are in
+`docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md`.

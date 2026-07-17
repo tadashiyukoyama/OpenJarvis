@@ -11,10 +11,19 @@ Superseded by: none
 |---|---|---|
 | OJ0 - local foundation | none | completed |
 | OJ1 - controlled clone and promotion | OJ0 review and new authorization | completed in this task |
-| OJ2 - upstream audit | OJ1 completed | not authorized |
-| OJ3 - controlled D installation | OJ2 audit and authorization | not authorized |
-| OJ4 - CodexAgent | OJ2 audit and specification | not authorized |
+| OJ2 - upstream audit | OJ1 completed | completed; canonical approved |
+| OJ2-V - installed Codex contract validation | OJ2 | completed; canonical approved; GO only for PR A contract scope |
+| PR A - External Agent Contract | OJ2-V validation and explicit authorization | possible next scope; not executed |
+| OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
+| OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
 | OJ6 - VPS | contracted VPS and approved plan | not authorized |
 
-No later phase is authorized by this OJ1 execution.
+OJ2-M approved the OJ2/OJ2-V audit after human architectural review on
+2026-07-17. The installed `codex-cli 0.144.3` schema and basic app-server
+handshake are proven without functional changes. The public architecture is
+agent selection (`agent=codex`); GO is limited to PR A — External Agent
+Contract. PR A requires its own gate and was not implemented here. Thread
+durability, reconnection, concurrency, final sandbox, telemetry and
+end-to-end integration remain unproven. No OJ3, OJ4, installation, UI or
+default change is authorized by this documentation.

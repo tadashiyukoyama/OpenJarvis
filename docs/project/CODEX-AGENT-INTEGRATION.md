@@ -9,13 +9,49 @@ Superseded by: none
 
 Requirement:
 
-OpenJarvis must offer Codex as a selectable external agent without requiring
-a local model or OPENAI_API_KEY for that mode.
+OpenJarvis must offer Codex as a first-class selectable external agent, at the
+same architectural level as `claude_code`, `opencode`, `simple`,
+`orchestrator` and `react`. The public selection remains selection of an agent:
 
-Initial state: NOT_IMPLEMENTED.
+```toml
+[agent]
+default_agent = "codex"
+```
 
-The future implementation must preserve authentication, session state,
-streaming, approvals and workspace context. No implementation is authorized
-before the OJ2 audit. Study the existing Claude Code integration as a
-reference, but do not copy it without an audit of the official code. The
-CodexAgent remains unimplemented.
+Codex is not an `InferenceEngine`, not a local-model provider and not a public
+runtime→agent two-step experience. A selector may exist only internally while
+composing the selected agent from its descriptor.
+
+Current state: NOT_IMPLEMENTED for `CodexAgent`; OJ2 is CANONICAL after human
+architectural review approved on 2026-07-17. OJ2-V validated `codex-cli 0.144.3` locally:
+the stable schema was generated without `--experimental`; the stdio handshake,
+sanitized account read and model catalog read passed; no thread, turn, prompt,
+approval, login or logout was executed. Evidence is local and ignored under
+`.workspace/local/audit/`.
+
+The future `AgentRegistry` descriptor is:
+
+| Field | Codex value |
+|---|---|
+| `name` | `codex` |
+| `execution_mode` | `external` |
+| `requires_engine` | `false` |
+| `requires_model` | `false` |
+| `external_runtime` | `codex_app_server` |
+
+`SystemBuilder` must resolve the selected agent before resolving an engine.
+Engine-backed agents continue to resolve engine, model and health as today.
+`CodexAgent` must not call `_resolve_engine()`, `_resolve_model()`,
+`engine.health()`, `engine.list_models()`, Ollama discovery or local-engine
+fallback. The future adapter must preserve Codex-managed authentication,
+threads, streaming, approvals, interrupt, sandbox and D-workspace context.
+
+The transport contract is a long-lived local `codex app-server` over stdio
+JSON-RPC, isolated behind `CodexAppServerClient`. `ClaudeCodeAgent` remains in
+the project and is neither removed nor renamed.
+
+The only future scope approved by OJ2 is PR A — External Agent Contract: agent
+metadata, engine-independent composition and fake-external tests. It must not
+include a real Codex subprocess, UI, authentication, Ollama, model, installation
+or production app-server. PR A requires its own review gate; no CodexAgent
+implementation or default change is authorized by this document.
