@@ -8,6 +8,9 @@ import time
 import unittest
 from pathlib import Path
 
+from openjarvis.integrations.codex_app_server import (
+    CodexAppServerClient,
+)
 from openjarvis.integrations.codex_conversation import (
     CodexConcurrentTurnError,
     CodexConversationClientFailed,
@@ -15,7 +18,6 @@ from openjarvis.integrations.codex_conversation import (
     CodexConversationRuntime,
     CodexConversationTimeout,
 )
-from openjarvis.integrations.codex_app_server import CodexAppServerClient
 from openjarvis.integrations.codex_protocol import (
     CodexAppServerConfig,
     CodexAppServerState,
