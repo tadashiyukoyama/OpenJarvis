@@ -713,10 +713,7 @@ class CodexConversationRuntimeTests(unittest.TestCase):
                     waiter_data.append(self._start_waiter(info))
                 self.assertTrue(
                     self._wait_for(
-                        lambda: all(
-                            state.waiters == 1
-                            for _, _, state in waiter_data
-                        )
+                        lambda: all(state.waiters == 1 for _, _, state in waiter_data)
                     )
                 )
 
