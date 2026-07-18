@@ -97,10 +97,7 @@ class ConversationIdentity:
         _required_text(self.scope_id, "scope_id", MAX_SCOPE_ID_LENGTH)
 
     def __repr__(self) -> str:
-        return (
-            "ConversationIdentity(conversation_id=<redacted>, "
-            "scope_id=<redacted>)"
-        )
+        return "ConversationIdentity(conversation_id=<redacted>, scope_id=<redacted>)"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -512,9 +509,7 @@ class SQLiteConversationBindingStore(ConversationBindingStore):
     ) -> ExternalConversationBinding:
         key = self._validate_key(key)
         owner_token = self._validate_owner(owner_token)
-        external_conversation_id = self._validate_external_id(
-            external_conversation_id
-        )
+        external_conversation_id = self._validate_external_id(external_conversation_id)
         current_time = _timestamp(now, "now")
 
         with self._connection() as connection:
