@@ -84,8 +84,12 @@ class JarvisSystem:
     agent_executor: Optional[AgentExecutor] = None
     speech_backend: Optional[SpeechBackend] = None
     skill_manager: Optional[SkillManager] = None
+    codex_client: Optional[Any] = None
+    codex_runtime: Optional[Any] = None
+    conversation_binding_store: Optional[Any] = None
     _learning_orchestrator: Optional[LearningOrchestrator] = None
     _mcp_clients: List[MCPClient] = field(default_factory=list)
+    _codex_lifecycle_closed: bool = field(default=False, init=False, repr=False)
 
     @property
     def security(self) -> SecurityContext:
@@ -142,6 +146,7 @@ class JarvisSystem:
         system_prompt: Optional[str] = None,
         operator_id: Optional[str] = None,
         prior_messages: Optional[List[Message]] = None,
+        conversation_identity: Any = None,
     ) -> Dict[str, Any]:
         return self._get_orchestrator().ask(
             query,
@@ -153,6 +158,7 @@ class JarvisSystem:
             system_prompt=system_prompt,
             operator_id=operator_id,
             prior_messages=prior_messages,
+            conversation_identity=conversation_identity,
         )
 
     def _detect_agent_intent(self, query: str) -> Optional[str]:
@@ -173,6 +179,7 @@ class JarvisSystem:
         system_prompt=None,
         operator_id=None,
         prior_messages=None,
+        conversation_identity=None,
     ) -> Dict[str, Any]:
         return self._get_orchestrator()._run_agent(
             query,
@@ -184,6 +191,7 @@ class JarvisSystem:
             system_prompt=system_prompt,
             operator_id=operator_id,
             prior_messages=prior_messages,
+            conversation_identity=conversation_identity,
         )
 
     def wire_channel(self, channel_bridge: Any) -> None:
@@ -318,6 +326,14 @@ class JarvisSystem:
             self.agent_manager.close()
         if self.agent_scheduler is not None:
             self.agent_scheduler.stop()
+        if not self._codex_lifecycle_closed:
+            self._codex_lifecycle_closed = True
+            try:
+                if self.codex_runtime is not None:
+                    self.codex_runtime.close()
+            finally:
+                if self.codex_client is not None:
+                    self.codex_client.close()
         self._close_mcp_clients()
 
     def __enter__(self) -> JarvisSystem:

@@ -30,6 +30,7 @@ class QueryOrchestrator:
         system_prompt: Optional[str] = None,
         operator_id: Optional[str] = None,
         prior_messages: Optional[List[Message]] = None,
+        conversation_identity: Any = None,
     ) -> Dict[str, Any]:
         """Execute a query through the system and return a result dict."""
         s = self._system
@@ -77,6 +78,7 @@ class QueryOrchestrator:
                 system_prompt=system_prompt,
                 operator_id=operator_id,
                 prior_messages=prior_messages,
+                conversation_identity=conversation_identity,
             )
 
         if s.engine is None or s.model is None:
@@ -123,6 +125,7 @@ class QueryOrchestrator:
         system_prompt=None,
         operator_id=None,
         prior_messages=None,
+        conversation_identity=None,
     ) -> Dict[str, Any]:
         """Run through an agent."""
         from openjarvis.agents._stubs import AgentContext
@@ -155,7 +158,7 @@ class QueryOrchestrator:
         if tool_names and not external_agent:
             agent_tools = self._build_tools(tool_names)
 
-        ctx = AgentContext()
+        ctx = AgentContext(conversation_identity=conversation_identity)
 
         if prior_messages:
             for msg in prior_messages:
@@ -211,7 +214,10 @@ class QueryOrchestrator:
             existing = agent_kwargs.get("tools", [])
             agent_kwargs["tools"] = digest_tools + list(existing)
 
-        if external_agent:
+        prebuilt_agent = getattr(s, "agent", None)
+        if external_agent and getattr(prebuilt_agent, "agent_id", None) == agent_name:
+            ag = prebuilt_agent
+        elif external_agent:
             ag = agent_cls(**agent_kwargs)
         else:
             try:
