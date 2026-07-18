@@ -10,6 +10,7 @@ from openjarvis.agents._stubs import (
     BaseAgent,
     ToolUsingAgent,
 )
+from openjarvis.core.conversation_identity import ConversationIdentity
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.types import Conversation, Message, Role, ToolCall, ToolResult
 from openjarvis.tools._stubs import BaseTool, ToolSpec
@@ -325,3 +326,14 @@ class TestToolUsingAgent:
 
         assert result.success is True
         confirm.assert_called_once()
+
+
+class TestAgentContextConversationIdentity:
+    def test_legacy_context_constructor_remains_compatible(self):
+        context = AgentContext()
+        assert context.conversation_identity is None
+
+    def test_context_accepts_provider_neutral_identity(self):
+        identity = ConversationIdentity("conversation-a", "scope-a")
+        context = AgentContext(conversation_identity=identity)
+        assert context.conversation_identity == identity

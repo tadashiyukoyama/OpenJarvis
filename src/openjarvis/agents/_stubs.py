@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from openjarvis.core.config import load_config
+from openjarvis.core.conversation_identity import ConversationIdentity
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.types import Conversation, Message, Role, ToolResult
 from openjarvis.engine._stubs import InferenceEngine
@@ -27,6 +28,7 @@ class AgentContext:
     tools: List[str] = field(default_factory=list)
     memory_results: List[Any] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    conversation_identity: Optional[ConversationIdentity] = None
 
 
 @dataclass(slots=True)

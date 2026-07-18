@@ -2,9 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-17
-Functional implementation commit: `91e4330` (OJ3-C primary commit)
-Current live PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-07-18
+Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
+Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
+Current draft PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -16,17 +17,17 @@ Superseded by: none
 | officialUpstream | open-jarvis/OpenJarvis |
 | officialCodeDownloaded | true |
 | originFork | tadashiyukoyama/OpenJarvis |
-| originMainSha | f37bb5bad35a6ee21ac9920b462f09f24cae5476 |
+| originMainSha | d487c428a48f50163ba4fb08387e3545ee6607a3 |
 | upstreamMainSha | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| activeBranch | feat/codex-conversation-runtime-core |
+| activeBranch | feat/persistent-conversation-identity |
 | dependenciesInstalled | false |
 | modelsDownloaded | false |
-| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_MERGED; CODEX_APP_SERVER_CLIENT_CORE_MERGED; CODEX_CONVERSATION_RUNTIME_CORE_HARDENED_DRAFT; CodexAgent NOT_IMPLEMENTED |
+| codexAgentIntegration | EXTERNAL_AGENT_CONTRACT_MERGED; CODEX_APP_SERVER_CLIENT_CORE_MERGED; CODEX_CONVERSATION_RUNTIME_CORE_MERGED; PERSISTENT_IDENTITY_CONTRACT_DRAFT; CodexAgent NOT_IMPLEMENTED |
 | codexVersionValidated | 0.144.3 |
 | codexAppServerValidation | PASS: stable schema, stdio handshake, sanitized account/model reads |
-| pullRequest | PR #4 MERGED by squash as `f37bb5bad35a6ee21ac9920b462f09f24cae5476`; PR #5 remains OPEN and draft for OJ3-C-H |
+| pullRequest | PR #5 MERGED by squash; PR #6 MERGED by squash as `d487c428a48f50163ba4fb08387e3545ee6607a3`; OJ5-A draft PR is the current change |
 | lifecycleAutomation | DISABLED |
-| ci | PR #4 final CI `29608853924` PASS; OJ3-C-H local stubbed unittest, compile and fake harness PASS; local pytest and Ruff unavailable; new PR #5 CI pending |
+| ci | Main CI `29627657626` PASS; main docs build `29627657610` PASS with Pages HTTP 404; auto-tag `29627657623` failed without a reachable release tag; OJ5-A local stdlib harness PASS |
 | mobileRepository | UNVERIFIED |
 | mobileImplementation | NOT_STARTED |
 | vps | NOT_CONTRACTED |
@@ -72,19 +73,21 @@ agent-first: future selection is `agent=codex`, while any engine decision is
 internal and descriptor-driven. `CodexAgent` is not an InferenceEngine and is
 not implemented.
 
-Current blockers: persistent OpenJarvis-Codex thread identity, approvals UX,
-production telemetry/concurrency behavior, end-to-end behavior and D-only
-no-Ollama installation remain unimplemented or unproven for production. The
-conversation runtime intentionally does not add HTTP/SSE, frontend/Tauri,
-login/logout, installation, Ollama, model download or a default change.
+Current blockers: provider propagation, approvals UX, production
+telemetry/concurrency behavior, end-to-end behavior and D-only no-Ollama
+installation remain unimplemented or unproven for production. OJ5-A adds only
+the provider-neutral persistent identity contract and optional AgentContext
+carrier; it intentionally does not add HTTP/SSE, frontend/Tauri, login/logout,
+installation, Ollama, model download, CodexAgent wiring or a default change.
 Dependency installation, models, login, UI, default change and later phases
-remain unauthorized. OJ3-C-H is limited to the conversation runtime draft PR
-and stops after its new CI gate.
+remain unauthorized. Pages HTTP 404 and auto-tag without a reachable release
+tag remain external operational pendencies.
 
 OJ2/OJ2-V report: `docs/project/research/OJ2-CODEX-RUNTIME-AUDIT.md` (CANONICAL).
 
 Human architectural review: approved on 2026-07-17. OJ2 is approved with GO
 only for PR A — External Agent Contract. OJ3-A and OJ3-B are merged; OJ3-C-H
-is draft and stopped pending its new CI gate. Persistent identity,
+was integrated before OJ4-A; OJ5-A is the current draft for persistent identity.
+The provider-neutral contract is not connected to HTTP, UI or CodexAgent.
 reconnection, production concurrency, approvals UX, telemetry and end-to-end
 integration remain unproven; `CodexAgent` is not implemented.

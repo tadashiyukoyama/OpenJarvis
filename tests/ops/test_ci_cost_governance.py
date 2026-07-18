@@ -122,6 +122,122 @@ class CiCostGovernanceTests(unittest.TestCase):
         self.assertIn("tests/ops/test_ci_cost_governance.py", roots)
         self.assertNotIn("tests/deleted.py", roots)
 
+    def test_same_domain_source_uses_changed_test_file_only(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "src/openjarvis/core/conversation_identity.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(roots, ["tests/core/test_conversation_identity.py"])
+
+    def test_multiple_changed_tests_are_exact_and_deterministic(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "tests/core/test_conversation_identity.py",
+                "tests/agents/test_base_agent.py",
+                "src/openjarvis/core/conversation_identity.py",
+                "src/openjarvis/agents/_stubs.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(
+            roots,
+            [
+                "tests/agents/test_base_agent.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+        )
+
+    def test_source_without_changed_tests_uses_existing_domain_directory(self) -> None:
+        roots = targeted_test_roots(
+            ["src/openjarvis/cli/main.py"],
+            ROOT,
+        )
+        self.assertEqual(roots, ["tests/cli"])
+
+    def test_test_only_changes_use_exact_existing_files(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "tests/agents/test_base_agent.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(
+            roots,
+            [
+                "tests/agents/test_base_agent.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+        )
+
+    def test_deleted_test_changes_never_become_roots(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "src/openjarvis/core/removed.py",
+                "tests/core/removed.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(roots, ["tests/core"])
+        self.assertNotIn("tests/core/removed.py", roots)
+
+    def test_mixed_domains_route_each_domain_independently(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "src/openjarvis/agents/_stubs.py",
+                "tests/agents/test_base_agent.py",
+                "src/openjarvis/core/conversation_identity.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(
+            roots,
+            [
+                "tests/agents/test_base_agent.py",
+                "tests/core",
+            ],
+        )
+
+    def test_representative_pr_change_set_has_only_two_exact_roots(self) -> None:
+        roots = targeted_test_roots(
+            [
+                "src/openjarvis/agents/_stubs.py",
+                "src/openjarvis/core/__init__.py",
+                "src/openjarvis/core/conversation_identity.py",
+                "tests/agents/test_base_agent.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+            ROOT,
+        )
+        self.assertEqual(
+            roots,
+            [
+                "tests/agents/test_base_agent.py",
+                "tests/core/test_conversation_identity.py",
+            ],
+        )
+
+    def test_parent_roots_are_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir)
+            (repo_root / "tests" / "sample").mkdir(parents=True)
+            (repo_root / "tests" / "sample" / "test_one.py").write_text(
+                "pass\n",
+                encoding="utf-8",
+            )
+            roots = targeted_test_roots(
+                [
+                    "src/openjarvis/sample/module.py",
+                    "tests/sample/test_one.py",
+                    "tests/sample",
+                ],
+                repo_root,
+            )
+            self.assertEqual(roots, ["tests/sample/test_one.py"])
+
     def test_changed_paths_includes_deleted_relevant_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_root = pathlib.Path(temp_dir)

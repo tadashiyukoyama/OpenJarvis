@@ -2,9 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-17
-Functional implementation commit: `91e4330` (OJ3-C primary commit)
-Current live PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-07-18
+Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
+Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
+Current draft PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -16,7 +17,9 @@ Superseded by: none
 | OJ2-V - installed Codex contract validation | OJ2 | completed; canonical approved; GO only for PR A contract scope |
 | PR A - External Agent Contract | OJ2-V validation and explicit authorization | merged by squash as `7ff9dbebfb36c74073795ba96b83aa84db7a741e` |
 | PR B - Codex App Server Client Core | PR A merge and explicit sequential authorization | merged by squash as `f37bb5bad35a6ee21ac9920b462f09f24cae5476`; transport remains disconnected from runtime |
-| PR C - Codex Conversation Runtime Core | PR B merge, stable schema confirmation and explicit sequential authorization | OJ3-C-H hardening on current branch; PR #5 remains draft pending new CI; no CodexAgent or persistent identity |
+| PR C - Codex Conversation Runtime Core | PR B merge, stable schema confirmation and explicit sequential authorization | merged by squash in PR #5; no CodexAgent or persistent identity |
+| OJ4-A - Actions cost governance | OJ3-C merge and explicit sequential authorization | merged by squash in PR #6 as `d487c428a48f50163ba4fb08387e3545ee6607a3` |
+| OJ5-A - Persistent conversation identity contract | OJ4-A merge and explicit sequential authorization | current draft branch/PR; no CodexAgent or provider propagation |
 | OJ3 - controlled D installation | PR A and separate installation authorization | not authorized |
 | OJ4 - CodexAgent | PR A, end-to-end tests and explicit authorization | not authorized |
 | OJ5 - mobile | verified source and technology decision | not authorized |
@@ -30,8 +33,10 @@ Contract, which is now merged. OJ3-C implements only stable conversation
 contracts, routing and sanitized public aggregation over the client. OJ3-C-H
 additionally hardens bounded waiting, close/failure release, multi-waiter
 notification, final-text reconciliation and completed-turn retention with
-deterministic tests. The current PR remains draft pending its new CI gate.
-Persistent identity, reconnection, concurrency, approvals UX, telemetry and
-end-to-end integration remain unproven. The C PR is draft and its current CI
-gate must complete before any later action. No OJ3 installation, OJ4, UI,
-default change, ready transition or merge is authorized by this documentation.
+deterministic tests. OJ3-C was integrated before OJ4-A; OJ5-A is the current
+draft for the identity contract.
+Persistent provider propagation, reconnection, concurrency, approvals UX,
+telemetry and end-to-end integration remain unproven. OJ5-A is draft and must
+remain unmerged pending architectural review. No installation, CodexAgent,
+UI, default change, ready transition or later phase is authorized by this
+documentation.
