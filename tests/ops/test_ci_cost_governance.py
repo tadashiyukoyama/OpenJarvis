@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
-import runpy
-from pathlib import Path
-from unittest import main, TestCase
+import pathlib
+import unittest
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 CLASSIFIER_PATH = ROOT / "scripts" / "ci" / "classify_changes.py"
-CLASSIFIER = runpy.run_path(str(CLASSIFIER_PATH))
+CLASSIFIER = {"__name__": "ci_classifier"}
+CLASSIFIER_SOURCE = CLASSIFIER_PATH.read_text(encoding="utf-8")
+exec(
+    compile(CLASSIFIER_SOURCE, str(CLASSIFIER_PATH), "exec"),
+    CLASSIFIER,
+)
 classify_paths = CLASSIFIER["classify_paths"]
 route_for = CLASSIFIER["route_for"]
 targeted_test_roots = CLASSIFIER["targeted_test_roots"]
 
 
-class CiCostGovernanceTests(TestCase):
+class CiCostGovernanceTests(unittest.TestCase):
     def route(self, event: str, draft: bool, *paths: str) -> dict[str, bool]:
         return route_for(event, draft, classify_paths(paths))
 
@@ -110,4 +114,4 @@ class CiCostGovernanceTests(TestCase):
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()
