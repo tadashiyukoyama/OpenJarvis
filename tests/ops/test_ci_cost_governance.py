@@ -1,6 +1,6 @@
 """Pure local tests for the OJ4-A Actions routing contract."""
 
-import pathlib
+import pathlib  # noqa: I001
 import unittest
 
 
