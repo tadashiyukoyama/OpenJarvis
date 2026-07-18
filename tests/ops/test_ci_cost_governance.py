@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import runpy
 from pathlib import Path
-from unittest import TestCase, main
+from unittest import main, TestCase
 
 
 ROOT = Path(__file__).resolve().parents[2]
