@@ -14,6 +14,7 @@ stdout reader; shutdown never holds a client lock while waiting or joining.
 from __future__ import annotations
 
 import json
+import ntpath
 import os
 import queue
 import re
@@ -82,6 +83,13 @@ class _PendingRequest:
 
 
 @dataclass
+class _NotificationSubscription:
+    callback: NotificationCallback
+    active: bool = True
+    in_flight_threads: set[int] = field(default_factory=set)
+
+
+@dataclass
 class _Lifecycle:
     """All mutable process state belonging to one client generation."""
 
@@ -129,6 +137,9 @@ class CodexAppServerClient:
         self._active_lifecycle: _Lifecycle | None = None
         self._notification_callback: NotificationCallback | None = None
         self._server_request_handler: ServerRequestHandler | None = None
+        self._subscription_condition = threading.Condition()
+        self._notification_subscriptions: dict[int, _NotificationSubscription] = {}
+        self._next_subscription_id = 1
 
     @property
     def state(self) -> CodexAppServerState:
@@ -196,8 +207,7 @@ class CodexAppServerClient:
             self._active_lifecycle = lifecycle
             self._state = CodexAppServerState.STARTING
 
-        environment = os.environ.copy()
-        environment.update(self._config.environment_overrides)
+        environment = self._effective_environment()
         try:
             process = subprocess.Popen(
                 list(self._config.command),
@@ -317,7 +327,9 @@ class CodexAppServerClient:
                 timeout_seconds=self._config.startup_timeout_seconds,
                 allow_starting=True,
             )
-            handshake_info = self._sanitize_handshake(result)
+            handshake_info = self._sanitize_handshake(
+                result, effective_environment=environment
+            )
             with self._state_lock:
                 if self._active_lifecycle is not lifecycle:
                     raise CodexProcessExitedError(
@@ -488,6 +500,34 @@ class CodexAppServerClient:
 
         with self._handler_lock:
             self._notification_callback = callback
+
+    def subscribe_notifications(self, callback: NotificationCallback) -> int:
+        """Add a notification listener and return its unsubscribe token."""
+
+        if not callable(callback):
+            raise TypeError("notification callback must be callable")
+        with self._subscription_condition:
+            token = self._next_subscription_id
+            self._next_subscription_id += 1
+            self._notification_subscriptions[token] = _NotificationSubscription(
+                callback=callback
+            )
+            return token
+
+    def unsubscribe_notifications(self, token: int) -> bool:
+        """Remove a listener and wait for already-dispatched calls to finish."""
+
+        with self._subscription_condition:
+            subscription = self._notification_subscriptions.pop(token, None)
+            if subscription is None:
+                return False
+            subscription.active = False
+            current_thread_id = threading.get_ident()
+            while subscription.in_flight_threads and (
+                subscription.in_flight_threads != {current_thread_id}
+            ):
+                self._subscription_condition.wait(timeout=0.1)
+            return True
 
     def set_server_request_handler(self, handler: ServerRequestHandler | None) -> None:
         """Register or clear the fail-closed server-request handler."""
@@ -815,13 +855,31 @@ class CodexAppServerClient:
             except queue.Empty:
                 continue
             with self._handler_lock:
-                callback = self._notification_callback
-            if callback is None:
-                continue
-            try:
-                callback(notification)
-            except BaseException:
-                continue
+                legacy_callback = self._notification_callback
+            if legacy_callback is not None:
+                try:
+                    legacy_callback(notification)
+                except BaseException:
+                    pass
+
+            current_thread_id = threading.get_ident()
+            with self._subscription_condition:
+                subscriptions = [
+                    (token, subscription)
+                    for token, subscription in self._notification_subscriptions.items()
+                    if subscription.active
+                ]
+                for _, subscription in subscriptions:
+                    subscription.in_flight_threads.add(current_thread_id)
+            for token, subscription in subscriptions:
+                try:
+                    subscription.callback(notification)
+                except BaseException:
+                    pass
+                finally:
+                    with self._subscription_condition:
+                        subscription.in_flight_threads.discard(current_thread_id)
+                        self._subscription_condition.notify_all()
 
     def _dispatch_server_requests(
         self,
@@ -913,7 +971,25 @@ class CodexAppServerClient:
         except CodexAppServerError as exc:
             self._set_failure(lifecycle, exc)
 
-    def _sanitize_handshake(self, result: object) -> CodexHandshakeInfo:
+    def _effective_environment(self) -> dict[str, str]:
+        """Return inherited environment with explicit overrides taking precedence."""
+
+        environment = os.environ.copy()
+        environment.update(self._config.environment_overrides)
+        return environment
+
+    @staticmethod
+    def _normalize_path_for_comparison(value: str) -> str:
+        """Normalize Windows separators/case without exposing the path."""
+
+        return ntpath.normcase(ntpath.normpath(value.replace("/", "\\")))
+
+    def _sanitize_handshake(
+        self,
+        result: object,
+        *,
+        effective_environment: Mapping[str, str] | None = None,
+    ) -> CodexHandshakeInfo:
         if not isinstance(result, dict):
             raise CodexProtocolError("initialize result must be an object")
         codex_home = result.get("codexHome")
@@ -922,10 +998,17 @@ class CodexAppServerClient:
         elif not isinstance(codex_home, str) or not codex_home:
             home_status = CodexHomeStatus.UNVERIFIED
         else:
-            expected_home = os.environ.get("CODEX_HOME")
+            environment = (
+                self._effective_environment()
+                if effective_environment is None
+                else effective_environment
+            )
+            expected_home = environment.get("CODEX_HOME")
             if expected_home is None:
                 home_status = CodexHomeStatus.UNVERIFIED
-            elif os.path.normcase(codex_home) == os.path.normcase(expected_home):
+            elif self._normalize_path_for_comparison(codex_home) == (
+                self._normalize_path_for_comparison(expected_home)
+            ):
                 home_status = CodexHomeStatus.EXPECTED
             else:
                 home_status = CodexHomeStatus.UNEXPECTED
