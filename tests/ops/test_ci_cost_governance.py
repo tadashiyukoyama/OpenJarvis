@@ -1,7 +1,5 @@
 """Pure local tests for the OJ4-A Actions routing contract."""
 
-from __future__ import annotations
-
 import pathlib
 import unittest
 
