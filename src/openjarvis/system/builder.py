@@ -124,6 +124,10 @@ class SystemBuilder:
             agent_descriptor is not None
             and agent_descriptor.execution_mode is AgentExecutionMode.EXTERNAL
         )
+        codex_agent = None
+        codex_client = None
+        codex_runtime = None
+        conversation_binding_store = None
 
         if external_agent:
             engine = None
@@ -299,6 +303,39 @@ class SystemBuilder:
             except Exception as exc:
                 logger.warning("Failed to initialize speech backend: %s", exc)
 
+        if external_agent and agent_name == "codex":
+            from pathlib import Path
+
+            from openjarvis.agents.codex import CodexAgent
+            from openjarvis.core.conversation_identity import (
+                SQLiteConversationBindingStore,
+            )
+            from openjarvis.integrations.codex_app_server import CodexAppServerClient
+            from openjarvis.integrations.codex_conversation import (
+                CodexConversationRuntime,
+            )
+
+            codex_client = CodexAppServerClient()
+            try:
+                codex_client.start()
+                codex_runtime = CodexConversationRuntime(codex_client)
+                database_path = (
+                    Path(get_config_dir()) / "codex" / "conversation-bindings.sqlite3"
+                )
+                conversation_binding_store = SQLiteConversationBindingStore(
+                    database_path
+                )
+                codex_agent = CodexAgent(
+                    codex_runtime,
+                    conversation_binding_store,
+                    bus=bus,
+                )
+            except BaseException:
+                if codex_runtime is not None:
+                    codex_runtime.close()
+                codex_client.close()
+                raise
+
         system = JarvisSystem(
             config=config,
             bus=bus,
@@ -325,6 +362,10 @@ class SystemBuilder:
             agent_executor=agent_executor,
             speech_backend=speech_backend,
             skill_manager=skill_manager,
+            agent=codex_agent,
+            codex_client=codex_client,
+            codex_runtime=codex_runtime,
+            conversation_binding_store=conversation_binding_store,
         )
         system._learning_orchestrator = learning_orchestrator
         system._skill_few_shot_examples = skill_few_shot_examples
