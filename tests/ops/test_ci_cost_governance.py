@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-import importlib.util
+import runpy
 from pathlib import Path
 from unittest import TestCase, main
 
 
 ROOT = Path(__file__).resolve().parents[2]
 CLASSIFIER_PATH = ROOT / "scripts" / "ci" / "classify_changes.py"
-SPEC = importlib.util.spec_from_file_location("ci_classifier", CLASSIFIER_PATH)
-assert SPEC and SPEC.loader
-CLASSIFIER = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(CLASSIFIER)
+CLASSIFIER = runpy.run_path(str(CLASSIFIER_PATH))
+classify_paths = CLASSIFIER["classify_paths"]
+route_for = CLASSIFIER["route_for"]
+targeted_test_roots = CLASSIFIER["targeted_test_roots"]
 
 
 class CiCostGovernanceTests(TestCase):
     def route(self, event: str, draft: bool, *paths: str) -> dict[str, bool]:
-        return CLASSIFIER.route_for(event, draft, CLASSIFIER.classify_paths(paths))
+        return route_for(event, draft, classify_paths(paths))
 
     def test_draft_python_uses_fast_lane_without_coverage(self) -> None:
         route = self.route("pull_request", True, "src/openjarvis/core/config.py")
@@ -76,8 +76,8 @@ class CiCostGovernanceTests(TestCase):
                 self.assertTrue(route["run_python_full"])
 
     def test_workflow_or_classifier_change_activates_governance(self) -> None:
-        flags = CLASSIFIER.classify_paths([".github/workflows/ci.yml"])
-        route = CLASSIFIER.route_for("pull_request", True, flags)
+        flags = classify_paths([".github/workflows/ci.yml"])
+        route = route_for("pull_request", True, flags)
         self.assertTrue(flags["workflow_changed"])
         self.assertTrue(route["run_governance"])
         self.assertTrue(route["draft_fast_lane"])
@@ -96,7 +96,7 @@ class CiCostGovernanceTests(TestCase):
         self.assertNotIn("github.event.pull_request.title", ci + docs)
 
     def test_targeted_roots_are_bounded_to_existing_tests(self) -> None:
-        roots = CLASSIFIER.targeted_test_roots(
+        roots = targeted_test_roots(
             [
                 "src/openjarvis/cli/main.py",
                 "tests/ops/test_ci_cost_governance.py",
