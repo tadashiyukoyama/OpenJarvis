@@ -2,10 +2,9 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-18
-Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
-Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
-Current draft PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-07-17
+Functional implementation commit: `91e4330` (OJ3-C primary commit)
+Current live PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -17,16 +16,16 @@ head. The live draft PR head and checks must be confirmed on GitHub.
 
 | Document | Status | Responsibility | Last verified | Applicable SHA |
 |---|---|---|---|---|
-| CURRENT-PROJECT-STATE.md | CANONICAL | factual local state and blockers | 2026-07-18 | d487c428a48f50163ba4fb08387e3545ee6607a3 |
-| ARCHITECTURE-MAP.md | CANONICAL | component and boundary map | 2026-07-18 | d487c428a48f50163ba4fb08387e3545ee6607a3 |
+| CURRENT-PROJECT-STATE.md | CANONICAL | factual local state and blockers | 2026-07-17 | 91e4330 |
+| ARCHITECTURE-MAP.md | CANONICAL | component and boundary map | 2026-07-17 | 91e4330 |
 | REPOSITORY-MAP.md | CANONICAL | Git, remotes and synchronization | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| CODEX-AGENT-INTEGRATION.md | CANONICAL | Codex agent requirement and state | 2026-07-18 | d487c428a48f50163ba4fb08387e3545ee6607a3 |
+| CODEX-AGENT-INTEGRATION.md | CANONICAL | Codex agent requirement and state | 2026-07-17 | 91e4330 |
 | MOBILE-STRATEGY.md | CANONICAL | mobile evidence and decision gate | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | VPS-READINESS.md | CANONICAL | future VPS preparation | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | DECISIONS.md | CANONICAL | approved decisions only | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 | KNOWN-ISSUES.md | CANONICAL | proven issues and risks | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
-| ROADMAP.md | CANONICAL | phases and dependencies | 2026-07-18 | d487c428a48f50163ba4fb08387e3545ee6607a3 |
-| CHANGE-HISTORY.md | CANONICAL | product foundation changes | 2026-07-18 | d487c428a48f50163ba4fb08387e3545ee6607a3 |
+| ROADMAP.md | CANONICAL | phases and dependencies | 2026-07-17 | 91e4330 |
+| CHANGE-HISTORY.md | CANONICAL | product foundation changes | 2026-07-17 | 91e4330 |
 | research/OJ2-CODEX-RUNTIME-AUDIT.md | CANONICAL | OJ2/OJ2-V Codex runtime, installed app-server proof and no-Ollama audit | 2026-07-17 | 3000116d181eb69737241c09eaa70d4c65eb80a0 |
 
 Upstream documentation is present in the checkout. OJ2 indexed the relevant
@@ -40,8 +39,7 @@ Thread durability, reconnection, concurrency, final sandbox, production
 telemetry and end-to-end integration remain unproven. No functional CodexAgent,
 UI, installation or default change is authorized.
 
-OJ3-A, OJ3-B, OJ3-C and OJ4-A are now merged; `main` is
-`d487c428a48f50163ba4fb08387e3545ee6607a3`. OJ5-A adds only the provider-neutral
-persistent conversation identity contract and optional `AgentContext` carrier
-on its draft branch. It remains disconnected from CodexAgent, AgentRegistry,
-SystemBuilder, HTTP/SSE, UI and real Codex execution.
+OJ3-A and OJ3-B are now merged. OJ3-C adds only the isolated conversation
+runtime core in primary commit `91e4330`; it remains disconnected from
+CodexAgent, AgentRegistry, UI, approvals and persistent identity. Its draft PR
+live head/checks must be confirmed on GitHub.

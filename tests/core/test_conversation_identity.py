@@ -13,6 +13,7 @@ from openjarvis.core.conversation_identity import (
     ConversationBindingAlreadyBoundError,
     ConversationBindingKey,
     ConversationBindingOwnerError,
+    ConversationBindingReservationExpiredError,
     ConversationBindingState,
     ConversationIdentity,
     SQLiteConversationBindingStore,
@@ -169,6 +170,77 @@ class SQLiteConversationBindingStoreTests(TestCase):
         with self.assertRaises(ConversationBindingAlreadyBoundError):
             self.store.complete_reservation(key, "owner-b", "external-b", now=102)
         self.assertEqual(self.store.lookup(key).external_conversation_id, "external-a")
+
+    def test_reserve_after_bound_reports_bound_without_replacement(self) -> None:
+        key = _key()
+        self.store.reserve(key, "owner-a", 30, now=100)
+        self.store.complete_reservation(key, "owner-a", "external-a", now=101)
+
+        result = self.store.reserve(key, "owner-b", 30, now=102)
+
+        self.assertEqual(result.state, ConversationBindingState.BOUND)
+        self.assertFalse(result.acquired)
+        self.assertFalse(result.busy)
+        self.assertEqual(result.binding.external_conversation_id, "external-a")
+        self.assertIsNone(result.owner_token)
+        self.assertIsNone(result.lease_expires_at)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT COUNT(*) FROM conversation_bindings"
+                ).fetchone()[0],
+                1,
+            )
+        finally:
+            connection.close()
+
+    def test_bound_row_clears_owner_and_lease_after_completion(self) -> None:
+        key = _key()
+        self.store.reserve(key, "owner-a", 30, now=100)
+        self.store.complete_reservation(key, "owner-a", "external-a", now=101)
+
+        connection = sqlite3.connect(self.database_path)
+        try:
+            row = connection.execute(
+                "SELECT state, owner_token, lease_expires_at, "
+                "external_conversation_id FROM conversation_bindings"
+            ).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(row, ("BOUND", None, None, "external-a"))
+
+    def test_expired_owner_cannot_complete_reservation(self) -> None:
+        key = _key()
+        self.store.reserve(key, "owner-a", 10, now=100)
+
+        with self.assertRaises(ConversationBindingReservationExpiredError):
+            self.store.complete_reservation(key, "owner-a", "external-a", now=111)
+
+        binding = self.store.lookup(key)
+        self.assertIsNotNone(binding)
+        assert binding is not None
+        self.assertEqual(binding.state, ConversationBindingState.RESERVED)
+        self.assertIsNone(binding.external_conversation_id)
+
+    def test_same_owner_renews_valid_lease(self) -> None:
+        key = _key()
+        first = self.store.reserve(key, "owner-a", 10, now=100)
+        second = self.store.reserve(key, "owner-a", 30, now=105)
+
+        self.assertTrue(first.acquired)
+        self.assertTrue(second.acquired)
+        self.assertEqual(second.owner_token, "owner-a")
+        self.assertEqual(second.lease_expires_at, 135.0)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            row = connection.execute(
+                "SELECT COUNT(*), updated_at, lease_expires_at, owner_token "
+                "FROM conversation_bindings"
+            ).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(row, (1, 105.0, 135.0, "owner-a"))
 
     def test_owner_can_release_reserved_binding(self) -> None:
         key = _key()

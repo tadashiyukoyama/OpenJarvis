@@ -105,15 +105,20 @@ def targeted_test_roots(paths: Iterable[str], repo_root: Path) -> list[str]:
     no test argument instead of falling back to the full suite.
     """
 
-    roots: set[str] = set()
+    changed_test_files: set[str] = set()
+    changed_test_domains: set[str] = set()
+    changed_source_domains: set[str] = set()
     for raw_path in paths:
         path = _normalise(raw_path)
         lower = path.lower()
 
         if lower.startswith("tests/") and lower.endswith(".py"):
             candidate = repo_root / Path(path)
-            if candidate.exists():
-                roots.add(path)
+            if candidate.is_file():
+                changed_test_files.add(path)
+                parts = Path(path).parts
+                if len(parts) > 2:
+                    changed_test_domains.add(parts[1].lower())
             continue
 
         prefix = "src/openjarvis/"
@@ -121,11 +126,27 @@ def targeted_test_roots(paths: Iterable[str], repo_root: Path) -> list[str]:
             relative = Path(path[len(prefix) :])
             domain = relative.parts[0] if relative.parts else ""
             if domain:
-                candidate = Path("tests") / domain
-                if (repo_root / candidate).is_dir():
-                    roots.add(candidate.as_posix())
+                changed_source_domains.add(domain.lower())
 
-    return sorted(roots)
+    roots = set(changed_test_files)
+    for domain in sorted(changed_source_domains):
+        if domain in changed_test_domains:
+            continue
+        candidate = Path("tests") / domain
+        if (repo_root / candidate).is_dir():
+            roots.add(candidate.as_posix())
+
+    ordered_roots = sorted(roots, key=lambda root: (len(Path(root).parts), root))
+    non_redundant_roots: list[str] = []
+    for root in ordered_roots:
+        if any(
+            root == parent or root.startswith(f"{parent}/")
+            for parent in non_redundant_roots
+        ):
+            continue
+        non_redundant_roots.append(root)
+
+    return sorted(non_redundant_roots)
 
 
 def _valid_sha(value: str) -> bool:

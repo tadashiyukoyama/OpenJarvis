@@ -21,7 +21,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterator
 
-
 BINDING_DIGEST_SCHEMA_VERSION = "v1"
 SCHEMA_VERSION = 1
 DEFAULT_BUSY_TIMEOUT_MS = 5_000
