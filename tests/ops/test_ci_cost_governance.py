@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
-import unittest
+from unittest import TestCase, main
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +15,7 @@ CLASSIFIER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CLASSIFIER)
 
 
-class CiCostGovernanceTests(unittest.TestCase):
+class CiCostGovernanceTests(TestCase):
     def route(self, event: str, draft: bool, *paths: str) -> dict[str, bool]:
         return CLASSIFIER.route_for(event, draft, CLASSIFIER.classify_paths(paths))
 
@@ -110,4 +110,4 @@ class CiCostGovernanceTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
