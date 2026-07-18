@@ -1,6 +1,8 @@
 """Pure local tests for the OJ4-A Actions routing contract."""
 
 import pathlib  # noqa: I001
+import subprocess
+import tempfile
 import unittest
 
 
@@ -15,6 +17,16 @@ exec(
 classify_paths = CLASSIFIER["classify_paths"]
 route_for = CLASSIFIER["route_for"]
 targeted_test_roots = CLASSIFIER["targeted_test_roots"]
+
+
+def _git(repo_root: pathlib.Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 
 class CiCostGovernanceTests(unittest.TestCase):
@@ -109,6 +121,77 @@ class CiCostGovernanceTests(unittest.TestCase):
         self.assertIn("tests/cli", roots)
         self.assertIn("tests/ops/test_ci_cost_governance.py", roots)
         self.assertNotIn("tests/deleted.py", roots)
+
+    def test_changed_paths_includes_deleted_relevant_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir)
+            deleted_files = [
+                "src/deleted.py",
+                "rust/src/deleted.rs",
+                ".github/workflows/deleted.yml",
+            ]
+            for relative_path in deleted_files:
+                file_path = repo_root / relative_path
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text("placeholder\n", encoding="utf-8")
+
+            _git(repo_root, "init")
+            _git(repo_root, "config", "user.name", "OJ4-A Test")
+            _git(repo_root, "config", "user.email", "oj4a-test@example.invalid")
+            _git(repo_root, "add", ".")
+            _git(repo_root, "commit", "-m", "base")
+            base_sha = _git(repo_root, "rev-parse", "HEAD")
+
+            for relative_path in deleted_files:
+                (repo_root / relative_path).unlink()
+            _git(repo_root, "commit", "-am", "delete relevant files")
+            head_sha = _git(repo_root, "rev-parse", "HEAD")
+
+            paths = CLASSIFIER["changed_paths"](base_sha, head_sha, repo_root)
+            flags = classify_paths(paths)
+            roots = targeted_test_roots(paths, repo_root)
+
+            for relative_path in deleted_files:
+                self.assertIn(relative_path, paths)
+                self.assertNotIn(relative_path, roots)
+            self.assertTrue(flags["python_changed"])
+            self.assertTrue(flags["rust_changed"])
+            self.assertTrue(flags["workflow_changed"])
+
+    def test_docs_workflow_handles_ready_for_review_without_untrusted_deploy(
+        self,
+    ) -> None:
+        docs = (ROOT / ".github" / "workflows" / "docs.yml").read_text(encoding="utf-8")
+        pull_request = docs.split("  pull_request:\n", 1)[1].split(
+            "  workflow_dispatch:", 1
+        )[0]
+        self.assertIn("types:", pull_request)
+        self.assertIn("- ready_for_review", pull_request)
+        self.assertNotIn("converted_to_draft", pull_request)
+        self.assertNotIn("pull_request_target", docs)
+
+        deploy = docs.split("  deploy:\n", 1)[1]
+        self.assertIn("github.event_name != 'pull_request'", deploy)
+
+        secret_step = docs.split(
+            "      - name: Inject leaderboard Supabase anon key", 1
+        )[1].split("      - name: Build documentation", 1)[0]
+        self.assertIn("if: github.event_name != 'pull_request'", secret_step)
+        self.assertIn("secrets.VITE_SUPABASE_ANON_KEY", secret_step)
+        pr_step = docs.split(
+            "      - name: Write disabled leaderboard config for pull requests", 1
+        )[1].split("      - name: Inject leaderboard Supabase anon key", 1)[0]
+        self.assertNotIn("secrets.", pr_step)
+
+    def test_docs_ready_routes_build_for_docs_python_and_workflow_changes(self) -> None:
+        for path in (
+            "docs/index.md",
+            "src/openjarvis/core/config.py",
+            ".github/workflows/docs.yml",
+        ):
+            with self.subTest(path=path):
+                route = self.route("pull_request", False, path)
+                self.assertTrue(route["docs_build_required"])
 
 
 if __name__ == "__main__":

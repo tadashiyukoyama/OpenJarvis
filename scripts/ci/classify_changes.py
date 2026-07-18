@@ -143,7 +143,14 @@ def changed_paths(base_sha: str, head_sha: str, repo_root: Path) -> list[str]:
     if not base_sha or base_sha == ZERO_SHA:
         command = ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "--root", head_sha]
     else:
-        command = ["git", "diff", "--name-only", "--diff-filter=ACMR", base_sha, head_sha]
+        command = [
+            "git",
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMRD",
+            base_sha,
+            head_sha,
+        ]
 
     result = subprocess.run(
         command,
