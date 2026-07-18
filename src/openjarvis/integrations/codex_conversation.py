@@ -511,6 +511,9 @@ class CodexConversationRuntime:
         deadline = (
             None if timeout_seconds is None else time.monotonic() + timeout_seconds
         )
+        result: CodexTurnResult | None = None
+        pending_error: BaseException | None = None
+        should_trim = False
         with state.condition:
             state.waiters += 1
             try:
@@ -541,10 +544,22 @@ class CodexConversationRuntime:
                         timeout=0.1 if remaining is None else min(remaining, 0.1)
                     )
                 if state.wait_error is not None:
-                    raise state.wait_error
-                return self._turn_result(state)
+                    pending_error = state.wait_error
+                else:
+                    result = self._turn_result(state)
+            except BaseException as exc:
+                pending_error = exc
             finally:
                 state.waiters -= 1
+                should_trim = state.done and state.waiters == 0
+        if should_trim:
+            with self._lock:
+                self._trim_completed_locked()
+        if pending_error is not None:
+            raise pending_error
+        if result is None:
+            raise CodexConversationProtocolError("turn wait produced no result")
+        return result
 
     def close(self) -> None:
         """Release conversation waiters and subscriptions without closing client."""

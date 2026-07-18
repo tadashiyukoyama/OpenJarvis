@@ -7,6 +7,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openjarvis.integrations import (
     CodexAppServerClient,
@@ -671,6 +672,88 @@ class CodexConversationRuntimeTests(unittest.TestCase):
 
         active = self.runtime.turn_start("thread-active", "hello")
         self.assertIn((active.thread_id, active.turn_id), self.runtime._turns)
+
+    def test_completed_retention_trims_after_last_waiter_releases(self) -> None:
+        import openjarvis.integrations.codex_conversation as conversation_module
+
+        original_limit = conversation_module._MAX_COMPLETED_TURNS
+        conversation_module._MAX_COMPLETED_TURNS = 2
+        release_results = threading.Event()
+        all_results_blocked = threading.Event()
+        result_barrier = threading.Barrier(3)
+        entered_results = 0
+        entered_lock = threading.Lock()
+        original_turn_result = CodexConversationRuntime._turn_result
+
+        def hold_turn_result(state):
+            nonlocal entered_results
+            result_barrier.wait(timeout=1)
+            with entered_lock:
+                entered_results += 1
+                if entered_results == 3:
+                    all_results_blocked.set()
+            if not release_results.wait(timeout=1):
+                raise AssertionError("waiters were not released")
+            return original_turn_result(state)
+
+        try:
+            infos = [
+                self.runtime.turn_start(f"thread-retention-{index}", "hello")
+                for index in range(3)
+            ]
+            waiter_data = []
+            active = self.runtime.turn_start("thread-retention-active", "hello")
+            active_key = (active.thread_id, active.turn_id)
+            with patch.object(
+                CodexConversationRuntime,
+                "_turn_result",
+                staticmethod(hold_turn_result),
+            ):
+                for info in infos:
+                    waiter_data.append(self._start_waiter(info))
+                self.assertTrue(
+                    self._wait_for(
+                        lambda: all(
+                            state.waiters == 1
+                            for _, _, state in waiter_data
+                        )
+                    )
+                )
+
+                for info in infos:
+                    self._emit_completed(info, text=f"result-{info.turn_id}")
+
+                self.assertTrue(all_results_blocked.wait(timeout=1))
+                for info, (_, _, state) in zip(infos, waiter_data):
+                    key = (info.thread_id, info.turn_id)
+                    self.assertTrue(state.done)
+                    self.assertIn(key, self.runtime._turns)
+
+                release_results.set()
+                for thread, _, _ in waiter_data:
+                    thread.join(timeout=1)
+                    self.assertFalse(thread.is_alive())
+
+                self.assertLessEqual(
+                    len(self.runtime._completed_order),
+                    conversation_module._MAX_COMPLETED_TURNS,
+                )
+                completed_states = [
+                    state for state in self.runtime._turns.values() if state.done
+                ]
+                self.assertLessEqual(
+                    len(completed_states), conversation_module._MAX_COMPLETED_TURNS
+                )
+                self.assertIn(active_key, self.runtime._turns)
+                for info, (_, outcome, _) in zip(infos, waiter_data):
+                    self.assertNotIn("error", outcome)
+                    self.assertEqual(
+                        outcome["result"].final_content,
+                        f"result-{info.turn_id}",
+                    )
+        finally:
+            release_results.set()
+            conversation_module._MAX_COMPLETED_TURNS = original_limit
 
 
 def test_fake_app_server_covers_stable_thread_and_turn_flow(tmp_path: Path) -> None:
