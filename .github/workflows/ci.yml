@@ -5,13 +5,73 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_changed: ${{ steps.classify.outputs.docs_changed }}
+      python_changed: ${{ steps.classify.outputs.python_changed }}
+      tests_changed: ${{ steps.classify.outputs.tests_changed }}
+      integrations_changed: ${{ steps.classify.outputs.integrations_changed }}
+      rust_changed: ${{ steps.classify.outputs.rust_changed }}
+      windows_sensitive_changed: ${{ steps.classify.outputs.windows_sensitive_changed }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      tauri_changed: ${{ steps.classify.outputs.tauri_changed }}
+      workflow_changed: ${{ steps.classify.outputs.workflow_changed }}
+      draft_fast_lane: ${{ steps.classify.outputs.draft_fast_lane }}
+      full_ci_required: ${{ steps.classify.outputs.full_ci_required }}
+      run_lint: ${{ steps.classify.outputs.run_lint }}
+      run_python_full: ${{ steps.classify.outputs.run_python_full }}
+      run_python_targeted: ${{ steps.classify.outputs.run_python_targeted }}
+      run_codex_targeted: ${{ steps.classify.outputs.run_codex_targeted }}
+      run_rust: ${{ steps.classify.outputs.run_rust }}
+      run_windows_312: ${{ steps.classify.outputs.run_windows_312 }}
+      run_windows_313: ${{ steps.classify.outputs.run_windows_313 }}
+      run_governance: ${{ steps.classify.outputs.run_governance }}
+      targeted_test_roots: ${{ steps.classify.outputs.targeted_test_roots }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify real base/head diff
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft || false }}
+        run: |
+          if [ "$PR_DRAFT" = "true" ]; then
+            python scripts/ci/classify_changes.py \
+              --base-sha "$BASE_SHA" \
+              --head-sha "$HEAD_SHA" \
+              --event-name "$EVENT_NAME" \
+              --draft \
+              --output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+          else
+            python scripts/ci/classify_changes.py \
+              --base-sha "$BASE_SHA" \
+              --head-sha "$HEAD_SHA" \
+              --event-name "$EVENT_NAME" \
+              --output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+          fi
+
   lint:
+    needs: classify
+    if: needs.classify.outputs.run_lint == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -35,7 +95,98 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check src/ tests/
 
+  test-targeted:
+    name: test (targeted Python)
+    needs: classify
+    if: needs.classify.outputs.run_python_targeted == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra server
+
+      - name: Compile Python and run bounded tests
+        env:
+          TARGETED_TEST_ROOTS: ${{ needs.classify.outputs.targeted_test_roots }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          roots = json.loads(os.environ.get("TARGETED_TEST_ROOTS", "[]"))
+          subprocess.run([sys.executable, "-m", "compileall", "-q", "src", "tests"], check=True)
+          if not roots:
+              print("No existing changed-domain test root was mapped; compile/AST check passed.")
+              raise SystemExit(0)
+          command = ["uv", "run", "pytest", *roots, "-q", "-m", "not live and not cloud and not hub"]
+          raise SystemExit(subprocess.run(command, check=False).returncode)
+          PY
+
+  test-codex:
+    name: test (Codex/integration targeted)
+    needs: classify
+    if: needs.classify.outputs.run_codex_targeted == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra server
+
+      - name: Run targeted integration tests
+        env:
+          TARGETED_TEST_ROOTS: ${{ needs.classify.outputs.targeted_test_roots }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          roots = json.loads(os.environ.get("TARGETED_TEST_ROOTS", "[]"))
+          if not roots:
+              print("No existing integration test root was mapped; no live integration was executed.")
+              raise SystemExit(0)
+          command = ["uv", "run", "pytest", *roots, "-q", "-m", "not live and not cloud and not hub"]
+          raise SystemExit(subprocess.run(command, check=False).returncode)
+          PY
+
+  governance:
+    name: test (CI governance)
+    needs: classify
+    if: needs.classify.outputs.run_governance == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run pure governance tests
+        run: python -m unittest discover -s tests/ops -p "test_ci_cost_governance.py" -v
+
   test:
+    needs: classify
+    if: needs.classify.outputs.run_python_full == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -70,9 +221,6 @@ jobs:
         run: uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
 
       - name: Run tests
-        # COVERAGE_CORE=sysmon uses CPython 3.12's sys.monitoring backend,
-        # which is dramatically cheaper than the default C trace function.
-        # -n auto fans the suite out across all runner cores via pytest-xdist.
         env:
           COVERAGE_CORE: sysmon
         run: |
@@ -92,66 +240,9 @@ jobs:
           path: coverage.xml
           if-no-files-found: warn
 
-  # Windows job — empirically exercises the platform-specific code paths that
-  # the Ubuntu `test` job can never reach: GlobalMemoryStatusEx RAM detection
-  # (#373) and the cp9xx -> UTF-8 stdout reconfigure (#293). Also the only CI
-  # job that builds + imports the mandatory `openjarvis_rust` PyO3 extension
-  # on Windows. Public repo -> Windows runner minutes are free.
-  #
-  # All `run:` steps use static commands only (no `github.event.*`
-  # interpolation), so there is no workflow-injection surface here.
-  test-windows:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # 3.12 = common; 3.13 = the supported ceiling — installing there guards
-        # against a numpy/native wheel gap at the top of the range (#350), which
-        # is exactly how the source-build failure slips in on Windows.
-        python-version: ["3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.0.0
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --extra dev --extra server
-
-      # Pure-Python check — runs before the Rust build so a flaky toolchain
-      # install can never mask the actual RAM-detection verification.
-      - name: Verify Windows RAM detection (#373)
-        shell: bash
-        run: |
-          uv run python -c "from openjarvis.core.config import _total_ram_gb; ram = _total_ram_gb(); print(f'GlobalMemoryStatusEx RAM = {ram} GB'); assert ram > 0, f'Windows RAM detection returned {ram}, expected > 0'"
-
-      - name: Run Windows-specific tests (hardware + CLI)
-        shell: bash
-        run: |
-          uv run pytest tests/hardware/test_hardware_profiles.py tests/cli/test_cli.py -v -m "not live and not cloud"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build + import the PyO3 extension on Windows
-        shell: bash
-        run: |
-          uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
-          uv run python -c "import openjarvis_rust; print('openjarvis_rust imports on Windows OK')"
-
-      - name: Smoke-test CLI
-        shell: bash
-        run: |
-          uv run jarvis --version
-
   rust:
+    needs: classify
+    if: needs.classify.outputs.run_rust == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -179,3 +270,166 @@ jobs:
 
       - name: Test
         run: cargo test --workspace
+
+  test-windows-312:
+    name: test-windows (3.12)
+    needs: classify
+    if: needs.classify.outputs.run_windows_312 == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra server
+
+      - name: Verify Windows RAM detection (#373)
+        shell: bash
+        run: |
+          uv run python -c "from openjarvis.core.config import _total_ram_gb; ram = _total_ram_gb(); print(f'GlobalMemoryStatusEx RAM = {ram} GB'); assert ram > 0, f'Windows RAM detection returned {ram}, expected > 0'"
+
+      - name: Run Windows-specific tests (hardware + CLI)
+        shell: bash
+        run: |
+          uv run pytest tests/hardware/test_hardware_profiles.py tests/cli/test_cli.py -v -m "not live and not cloud"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build + import the PyO3 extension on Windows
+        shell: bash
+        run: |
+          uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
+          uv run python -c "import openjarvis_rust; print('openjarvis_rust imports on Windows OK')"
+
+      - name: Smoke-test CLI
+        shell: bash
+        run: uv run jarvis --version
+
+  test-windows-313:
+    name: test-windows (3.13)
+    needs: classify
+    if: needs.classify.outputs.run_windows_313 == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra server
+
+      - name: Verify Windows RAM detection (#373)
+        shell: bash
+        run: |
+          uv run python -c "from openjarvis.core.config import _total_ram_gb; ram = _total_ram_gb(); print(f'GlobalMemoryStatusEx RAM = {ram} GB'); assert ram > 0, f'Windows RAM detection returned {ram}, expected > 0'"
+
+      - name: Run Windows-specific tests (hardware + CLI)
+        shell: bash
+        run: |
+          uv run pytest tests/hardware/test_hardware_profiles.py tests/cli/test_cli.py -v -m "not live and not cloud"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build + import the PyO3 extension on Windows
+        shell: bash
+        run: |
+          uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
+          uv run python -c "import openjarvis_rust; print('openjarvis_rust imports on Windows OK')"
+
+      - name: Smoke-test CLI
+        shell: bash
+        run: uv run jarvis --version
+
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs:
+      - classify
+      - lint
+      - test-targeted
+      - test-codex
+      - governance
+      - test
+      - rust
+      - test-windows-312
+      - test-windows-313
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required and applicable jobs
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TARGETED_RESULT: ${{ needs.test-targeted.result }}
+          CODEX_RESULT: ${{ needs.test-codex.result }}
+          GOVERNANCE_RESULT: ${{ needs.governance.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+          WINDOWS_312_RESULT: ${{ needs.test-windows-312.result }}
+          WINDOWS_313_RESULT: ${{ needs.test-windows-313.result }}
+          RUN_LINT: ${{ needs.classify.outputs.run_lint }}
+          RUN_TARGETED: ${{ needs.classify.outputs.run_python_targeted }}
+          RUN_CODEX: ${{ needs.classify.outputs.run_codex_targeted }}
+          RUN_GOVERNANCE: ${{ needs.classify.outputs.run_governance }}
+          RUN_TEST: ${{ needs.classify.outputs.run_python_full }}
+          RUN_RUST: ${{ needs.classify.outputs.run_rust }}
+          RUN_WINDOWS_312: ${{ needs.classify.outputs.run_windows_312 }}
+          RUN_WINDOWS_313: ${{ needs.classify.outputs.run_windows_313 }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          results = {
+              "classify": os.environ.get("CLASSIFY_RESULT", ""),
+              "lint": os.environ.get("LINT_RESULT", ""),
+              "test-targeted": os.environ.get("TARGETED_RESULT", ""),
+              "test-codex": os.environ.get("CODEX_RESULT", ""),
+              "governance": os.environ.get("GOVERNANCE_RESULT", ""),
+              "test": os.environ.get("TEST_RESULT", ""),
+              "rust": os.environ.get("RUST_RESULT", ""),
+              "test-windows-312": os.environ.get("WINDOWS_312_RESULT", ""),
+              "test-windows-313": os.environ.get("WINDOWS_313_RESULT", ""),
+          }
+          required = {
+              "classify": True,
+              "lint": os.environ.get("RUN_LINT") == "true",
+              "test-targeted": os.environ.get("RUN_TARGETED") == "true",
+              "test-codex": os.environ.get("RUN_CODEX") == "true",
+              "governance": os.environ.get("RUN_GOVERNANCE") == "true",
+              "test": os.environ.get("RUN_TEST") == "true",
+              "rust": os.environ.get("RUN_RUST") == "true",
+              "test-windows-312": os.environ.get("RUN_WINDOWS_312") == "true",
+              "test-windows-313": os.environ.get("RUN_WINDOWS_313") == "true",
+          }
+          failures = []
+          for name, result in results.items():
+              if required[name] and result != "success":
+                  failures.append(f"required {name}={result or 'missing'}")
+              elif not required[name] and result not in {"success", "skipped"}:
+                  failures.append(f"non-applicable {name}={result or 'missing'}")
+          for name, result in results.items():
+              print(f"{name}: {result or 'missing'} ({'required' if required[name] else 'skipped allowed'})")
+          if failures:
+              print("ci-gate failures:", "; ".join(failures), file=sys.stderr)
+              raise SystemExit(1)
+          print("ci-gate passed; skipped jobs were non-applicable for this change set.")
+          PY
