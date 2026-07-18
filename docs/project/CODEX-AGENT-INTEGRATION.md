@@ -2,9 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-17
-Functional implementation commit: `91e4330` (OJ3-C primary commit)
-Current live PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-07-18
+Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
+Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
+Current draft PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -36,6 +37,15 @@ sanitized account read and model catalog read passed; no thread, turn, prompt,
 approval, login or logout was executed. Evidence is local and ignored under
 `.workspace/local/audit/`.
 
+OJ4-A Actions governance is integrated in `main` at
+`d487c428a48f50163ba4fb08387e3545ee6607a3`. OJ5-A defines a provider-neutral
+persistent identity contract in a draft PR: `ConversationIdentity` and a
+versioned SHA-256 `ConversationBindingKey` are backed by an explicitly injected
+SQLite store with atomic `RESERVED`/`BOUND` transitions and leases. The
+optional `AgentContext.conversation_identity` carrier is compatible with
+existing constructors. No HTTP/SSE route, UI, `CodexAgent`, registry entry,
+builder wiring or real Codex conversation consumes this identity yet.
+
 The future `AgentRegistry` descriptor is:
 
 | Field | Codex value |
@@ -66,10 +76,11 @@ lifecycle isolation, fatal protocol shutdown, safe server-response serialization
 concurrent-close behavior and fake-process tests; that scope is merged in PR #4.
 OJ3-C adds only stable conversation DTOs, subscriptions, thread/turn lifecycle,
 public event aggregation, timeout/interruption and fake app-server tests. It
-does not implement `CodexAgent`, persistent OpenJarvis-Codex identity,
+does not implement `CodexAgent`, provider propagation or real thread execution,
 approvals UX, HTTP, SSE, frontend, Tauri, authentication, Ollama, model
-selection/download, installation or a default change. The C PR remains draft
-and subject to its current GitHub CI/review gate.
+selection/download, installation or a default change. The C PR was integrated
+before OJ4-A; the OJ5-A PR remains draft and subject to its architectural
+review gate.
 
 OJ3-C-H hardens only the conversation runtime: `wait_turn` performs bounded
 condition waits inside its state loop, close and client failure release all

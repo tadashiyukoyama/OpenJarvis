@@ -2,9 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-17
-Functional implementation commit: `91e4330` (OJ3-C primary commit)
-Current live PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-07-18
+Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
+Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
+Current draft PR head/checks: confirm on GitHub after push; not asserted here.
 Supersedes: none
 Superseded by: none
 
@@ -163,3 +164,19 @@ Superseded by: none
   credential, VPS, deployment or scope expansion was performed.
 - OJ3-C-H is limited to the current draft PR #5 and its new CI gate; no
   ready-for-review transition, merge or later phase is authorized.
+
+## 2026-07-18 - OJ4-A governance merge and OJ5-A identity contract
+
+- Integrated OJ4-A through PR #6 by squash at
+  `d487c428a48f50163ba4fb08387e3545ee6607a3`; main CI passed the full
+  governance, Python, Rust and Windows gates. Pages HTTP 404 and auto-tag
+  without a reachable release tag remain external operational pendencies.
+- Added the provider-neutral `ConversationIdentity`, digest-only
+  `ConversationBindingKey`, sanitized external binding DTOs and a stdlib-only
+  SQLite store with explicit database path, versioned schema, busy timeout,
+  atomic reservations, lease recovery and immutable BOUND records.
+- Added the optional `AgentContext.conversation_identity` carrier and offline
+  validation for privacy, restart persistence, owner protection, lease rules,
+  SQLite integrity and a 20-iteration multi-thread race. No provider,
+  `CodexAgent`, registry, builder, HTTP/SSE, UI or real Codex execution was
+  added; the OJ5-A change remains a draft PR.
