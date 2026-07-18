@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
-import unittest
 from pathlib import Path
+import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,18 +34,24 @@ class CiCostGovernanceTests(unittest.TestCase):
         self.assertFalse(route["run_python_full"])
 
     def test_draft_rust_change_runs_one_rust_gate(self) -> None:
-        route = self.route("pull_request", True, "rust/crates/openjarvis-python/src/lib.rs")
+        route = self.route(
+            "pull_request", True, "rust/crates/openjarvis-python/src/lib.rs"
+        )
         self.assertTrue(route["run_rust"])
         self.assertFalse(route["run_python_full"])
         self.assertFalse(route["run_windows_313"])
 
     def test_windows_sensitive_draft_is_limited_to_312(self) -> None:
-        route = self.route("pull_request", True, "tests/hardware/test_hardware_profiles.py")
+        route = self.route(
+            "pull_request", True, "tests/hardware/test_hardware_profiles.py"
+        )
         self.assertTrue(route["run_windows_312"])
         self.assertFalse(route["run_windows_313"])
 
     def test_docs_only_draft_skips_heavy_docs_build(self) -> None:
-        route = self.route("pull_request", True, "docs/project/CURRENT-PROJECT-STATE.md")
+        route = self.route(
+            "pull_request", True, "docs/project/CURRENT-PROJECT-STATE.md"
+        )
         self.assertFalse(route["docs_build_required"])
         self.assertFalse(route["run_python_targeted"])
 
@@ -91,7 +97,11 @@ class CiCostGovernanceTests(unittest.TestCase):
 
     def test_targeted_roots_are_bounded_to_existing_tests(self) -> None:
         roots = CLASSIFIER.targeted_test_roots(
-            ["src/openjarvis/cli/main.py", "tests/ops/test_ci_cost_governance.py", "tests/deleted.py"],
+            [
+                "src/openjarvis/cli/main.py",
+                "tests/ops/test_ci_cost_governance.py",
+                "tests/deleted.py",
+            ],
             ROOT,
         )
         self.assertIn("tests/cli", roots)
