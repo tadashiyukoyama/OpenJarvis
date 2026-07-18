@@ -7,25 +7,68 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - "src/openjarvis/**"
+      - ".github/workflows/docs.yml"
+      - "scripts/ci/classify_changes.py"
   pull_request:
     branches: [main]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - "docs/**"
       - "mkdocs.yml"
       - "src/openjarvis/**"
+      - ".github/workflows/docs.yml"
+      - "scripts/ci/classify_changes.py"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_build_required: ${{ steps.classify.outputs.docs_build_required }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify documentation scope
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft || false }}
+        run: |
+          if [ "$PR_DRAFT" = "true" ]; then
+            python scripts/ci/classify_changes.py \
+              --base-sha "$BASE_SHA" \
+              --head-sha "$HEAD_SHA" \
+              --event-name "$EVENT_NAME" \
+              --draft \
+              --output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+          else
+            python scripts/ci/classify_changes.py \
+              --base-sha "$BASE_SHA" \
+              --head-sha "$HEAD_SHA" \
+              --event-name "$EVENT_NAME" \
+              --output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+          fi
+
   build:
+    needs: classify
+    if: needs.classify.outputs.docs_build_required == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -41,19 +84,31 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra docs
 
-      # Inject the public Supabase anon key so the savings leaderboard works on
-      # the published docs site. Missing/empty (e.g. fork PRs) leaves the
-      # leaderboard gracefully disabled. The key is read from env (not inlined)
-      # and JSON-encoded into a JS string literal to avoid any injection.
+      - name: Write disabled leaderboard config for pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          Path("docs/javascripts/leaderboard-config.js").write_text(
+              "// Disabled for untrusted pull request documentation builds.\n"
+              "window.OPENJARVIS_SUPABASE_ANON_KEY = \"\";\n",
+              encoding="utf-8",
+          )
+          PY
+
       - name: Inject leaderboard Supabase anon key
+        if: github.event_name != 'pull_request'
         env:
           OPENJARVIS_LEADERBOARD_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
-          python3 - <<'PY'
-          import json, os, pathlib
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
 
           key = os.environ.get("OPENJARVIS_LEADERBOARD_ANON", "")
-          pathlib.Path("docs/javascripts/leaderboard-config.js").write_text(
+          Path("docs/javascripts/leaderboard-config.js").write_text(
               "// Generated at docs-build time from the VITE_SUPABASE_ANON_KEY secret.\n"
               "window.OPENJARVIS_SUPABASE_ANON_KEY = " + json.dumps(key) + ";\n",
               encoding="utf-8",
@@ -73,6 +128,9 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
+    permissions:
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     environment:
       name: github-pages
