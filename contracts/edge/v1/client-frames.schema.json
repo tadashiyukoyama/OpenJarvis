@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "direction": "client-to-core",
+  "envelope": {
+    "additionalProperties": false,
+    "properties": {
+      "device_id": {
+        "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+        "title": "Device Id",
+        "type": "string"
+      },
+      "event_id": {
+        "format": "uuid",
+        "title": "Event Id",
+        "type": "string"
+      },
+      "job_id": {
+        "anyOf": [
+          {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Job Id"
+      },
+      "occurred_at": {
+        "format": "date-time",
+        "title": "Occurred At",
+        "type": "string"
+      },
+      "payload": {
+        "additionalProperties": true,
+        "title": "Payload",
+        "type": "object"
+      },
+      "schema_version": {
+        "const": "1.0",
+        "default": "1.0",
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "sequence": {
+        "minimum": 1,
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "type": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "event_id",
+      "type",
+      "device_id",
+      "occurred_at",
+      "sequence",
+      "payload"
+    ],
+    "title": "EdgeFrame",
+    "type": "object"
+  },
+  "payloads": {
+    "approval.required": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "command",
+            "file_change",
+            "permissions",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Payload Hash",
+          "type": "string"
+        },
+        "preview": {
+          "additionalProperties": true,
+          "title": "Preview",
+          "type": "object"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "approval_id",
+        "kind",
+        "preview",
+        "payload_hash"
+      ],
+      "title": "ApprovalRequiredPayload",
+      "type": "object"
+    },
+    "edge.goodbye": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "default": "shutdown",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "title": "GoodbyePayload",
+      "type": "object"
+    },
+    "edge.heartbeat": {
+      "additionalProperties": false,
+      "properties": {
+        "active_job_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Active Job Ids",
+          "type": "array"
+        },
+        "uptime_seconds": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Uptime Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "HeartbeatPayload",
+      "type": "object"
+    },
+    "edge.register": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "hostname_hash": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Hostname Hash",
+          "type": "string"
+        },
+        "last_core_sequence": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Last Core Sequence",
+          "type": "integer"
+        },
+        "platform": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Platform",
+          "type": "string"
+        },
+        "worker_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Worker Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "worker_version",
+        "platform"
+      ],
+      "title": "RegisterPayload",
+      "type": "object"
+    },
+    "edge.resume": {
+      "additionalProperties": false,
+      "properties": {
+        "active_job_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Active Job Ids",
+          "type": "array"
+        },
+        "last_core_sequence": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Last Core Sequence",
+          "type": "integer"
+        }
+      },
+      "title": "ResumePayload",
+      "type": "object"
+    },
+    "job.accepted": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id"
+      ],
+      "title": "JobAttemptPayload",
+      "type": "object"
+    },
+    "job.cancelled": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id"
+      ],
+      "title": "JobAttemptPayload",
+      "type": "object"
+    },
+    "job.failed": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "result_unknown": {
+          "default": false,
+          "title": "Result Unknown",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "code",
+        "message"
+      ],
+      "title": "JobFailedPayload",
+      "type": "object"
+    },
+    "job.progress": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "progress_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Progress Percent"
+        },
+        "stage": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stage",
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "maxLength": 1000,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "stage"
+      ],
+      "title": "JobProgressPayload",
+      "type": "object"
+    },
+    "job.rejected": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "code": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "code",
+        "message"
+      ],
+      "title": "JobRejectedPayload",
+      "type": "object"
+    },
+    "job.succeeded": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        },
+        "references": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "References",
+          "type": "object"
+        },
+        "status": {
+          "default": "completed",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "summary"
+      ],
+      "title": "JobSucceededPayload",
+      "type": "object"
+    }
+  },
+  "schema_version": "1.0",
+  "title": "OpenJarvis Edge 1.0 client-to-core frames"
+}

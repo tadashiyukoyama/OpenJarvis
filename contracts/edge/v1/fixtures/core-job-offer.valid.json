@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "event_id": "20000000-0000-4000-8000-000000000001",
+  "type": "job.offer",
+  "device_id": "cesar-workstation",
+  "occurred_at": "2026-08-18T12:00:01Z",
+  "sequence": 2,
+  "job_id": "edgejob_example",
+  "payload": {
+    "attempt_id": "attempt_example",
+    "tool_id": "codex.history",
+    "arguments": {"limit": 10},
+    "context": {
+      "session_id": "session_example",
+      "partition_key": "project::thread",
+      "project_key": "D:\\dev\\workspaces\\openjarvis",
+      "codex_thread_id": "thread_example",
+      "request_id": "request_example"
+    },
+    "payload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lease_expires_at": "2026-08-18T12:05:01Z"
+  }
+}

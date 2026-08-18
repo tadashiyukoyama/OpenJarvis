@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "workspaceRoot": "D:\\dev\\workspaces\\openjarvis",
+  "worktreesRoot": "D:\\dev\\worktrees\\openjarvis",
+  "runtimeRoot": "D:\\dev\\runtime\\openjarvis",
+  "cacheRoot": "D:\\dev\\caches\\openjarvis",
+  "modelsRoot": "D:\\dev\\models\\openjarvis",
+  "artifactsRoot": "D:\\dev\\artifacts\\openjarvis",
+  "toolchainsRoot": "D:\\dev\\toolchains",
+  "codexHome": "D:\\dev\\codex-home\\.codex"
+}

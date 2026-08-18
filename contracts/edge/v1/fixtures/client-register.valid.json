@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "event_id": "10000000-0000-4000-8000-000000000001",
+  "type": "edge.register",
+  "device_id": "cesar-workstation",
+  "occurred_at": "2026-08-18T12:00:00Z",
+  "sequence": 1,
+  "payload": {
+    "worker_version": "1.0.0",
+    "platform": "windows",
+    "capabilities": ["codex.status", "codex.history", "codex.catalog", "codex.delegate"],
+    "hostname_hash": "",
+    "last_core_sequence": 0
+  }
+}

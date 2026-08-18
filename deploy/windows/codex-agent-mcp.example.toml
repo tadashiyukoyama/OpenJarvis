@@ -1,0 +1,12 @@
+# No secret is stored here. The PowerShell wrapper reads a private D: env file.
+[mcp_servers.openjarvis_agent]
+command = "pwsh.exe"
+args = [
+  "-NoLogo",
+  "-NoProfile",
+  "-NonInteractive",
+  "-File",
+  "D:\\dev\\workspaces\\openjarvis\\scripts\\edge\\Start-OpenJarvisAgentMcp.ps1"
+]
+startup_timeout_sec = 20
+tool_timeout_sec = 330

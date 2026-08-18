@@ -1,0 +1,15 @@
+.git
+.github
+.manus-audit
+.private
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+frontend/pnpm-lock.yaml
+deploy/vps/private
+docs/project/operations/evidence
+*.log
+*.sqlite3
+*.db

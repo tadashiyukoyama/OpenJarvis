@@ -1,0 +1,113 @@
+# Install inside the existing OpenResty http context. Do not start another
+# listener on ports 80/443. Replace certificate and htpasswd paths at release.
+map $http_upgrade $openjarvis_connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+limit_req_zone $binary_remote_addr zone=openjarvis_api:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=openjarvis_edge:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=openjarvis_webhook:10m rate=10r/s;
+
+upstream openjarvis_core {
+    server 127.0.0.1:8180;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name openjarvis.meugerenciador.pro;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name openjarvis.meugerenciador.pro;
+
+    ssl_certificate     <managed-certificate-fullchain>;
+    ssl_certificate_key <managed-certificate-key>;
+    client_max_body_size 1m;
+
+    proxy_hide_header Content-Security-Policy;
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;
+    add_header Permissions-Policy "microphone=(self), camera=(), geolocation=()" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    location = /healthz {
+        proxy_pass http://openjarvis_core;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
+    # The PWA probes this route before opening its authenticated API channel.
+    location = /health {
+        auth_basic "OpenJarvis";
+        auth_basic_user_file <private-htpasswd-path>;
+        proxy_pass http://openjarvis_core;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        access_log off;
+    }
+
+    location = /edge {
+        limit_req zone=openjarvis_edge burst=20 nodelay;
+        proxy_pass http://openjarvis_core;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $openjarvis_connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+        proxy_buffering off;
+    }
+
+    location = /v1/jarvis/agent/providers/acelerachat/webhooks {
+        limit_req zone=openjarvis_webhook burst=30 nodelay;
+        proxy_pass http://openjarvis_core;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_pass_request_headers on;
+    }
+
+    location ~ ^/(jarvis(?:/.*)?|assets/.*|manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-z0-9]+\.js|pwa-.*\.png|favicon\.ico)$ {
+        auth_basic "OpenJarvis";
+        auth_basic_user_file <private-htpasswd-path>;
+        proxy_pass http://openjarvis_core;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location ~ ^/v1/(jarvis/(?:agent|live)/|codex/|models$|info$|recommended-model$) {
+        auth_basic "OpenJarvis";
+        auth_basic_user_file <private-htpasswd-path>;
+        limit_req zone=openjarvis_api burst=40 nodelay;
+        proxy_pass http://openjarvis_core;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_buffering off;
+        proxy_read_timeout 900s;
+    }
+
+    # Used only by the authenticated Edge Worker MCP relay. Codex STDIO talks
+    # to the worker over a local named pipe and never receives this Bearer.
+    location ^~ /local-agent/v1/jarvis/agent/ {
+        limit_req zone=openjarvis_api burst=20 nodelay;
+        rewrite ^/local-agent/(.*)$ /$1 break;
+        proxy_pass http://openjarvis_core;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-OpenJarvis-MCP-Gateway 1;
+        proxy_buffering off;
+        proxy_read_timeout 330s;
+    }
+
+    location /local-agent/ {
+        return 404;
+    }
+
+    location / {
+        return 404;
+    }
+}

@@ -1,0 +1,45 @@
+name: openjarvis
+
+services:
+  core:
+    image: openjarvis-core:${OPENJARVIS_IMAGE_TAG:?use_the_full_openjarvis_git_sha}
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile
+    init: true
+    restart: unless-stopped
+    env_file:
+      - ./private/core.env
+    environment:
+      OPENJARVIS_CORE_MODE: vps
+      OPENJARVIS_HOME: /var/lib/openjarvis
+      OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${OPENJARVIS_CORE_PORT:-8180}:8000"
+    volumes:
+      - openjarvis-state:/var/lib/openjarvis
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1536m
+    cpus: 1.50
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).read()"]
+      interval: 15s
+      timeout: 3s
+      retries: 4
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+volumes:
+  openjarvis-state:
+    name: openjarvis-state

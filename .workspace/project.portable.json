@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "projectId": "OPENJARVIS_CESAR",
+  "officialUpstream": "open-jarvis/OpenJarvis",
+  "defaultBranch": "main",
+  "workspaceEnvironmentVariable": "OPENJARVIS_WORKSPACE_ROOT",
+  "canonicalDocsRoot": "docs/project",
+  "operationsDocsRoot": "docs/project/operations",
+  "workspaceScriptsRoot": "scripts/workspace",
+  "mobileRoot": "apps/mobile",
+  "contractsRoot": "contracts",
+  "maxAdditionalWorktrees": 2,
+  "worktreesAreExternal": true,
+  "codexAgentRequirement": "SELECTABLE_EXTERNAL_AGENT",
+  "officialMobileRepositoryStatus": "UNVERIFIED",
+  "futureVpsStatus": "NOT_CONTRACTED"
+}

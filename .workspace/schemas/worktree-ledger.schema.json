@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openjarvis.local/schemas/worktree-ledger.schema.json",
+  "title": "OpenJarvis worktree ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [ "schemaVersion", "worktrees" ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "worktrees": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path", "branch", "task", "createdAt", "owner",
+          "status", "pr", "lastVerifiedAt"
+        ],
+        "properties": {
+          "path": { "type": "string" },
+          "branch": { "type": "string" },
+          "task": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "owner": { "type": "string" },
+          "status": { "type": "string", "enum": [ "active", "closed", "cancelled" ] },
+          "pr": { "type": [ "string", "null" ] },
+          "lastVerifiedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
