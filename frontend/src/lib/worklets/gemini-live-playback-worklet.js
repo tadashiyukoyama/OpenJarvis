@@ -3,7 +3,10 @@ const DEFAULT_PREBUFFER_MS = 180;
 const MIN_PREBUFFER_MS = 120;
 const MAX_PREBUFFER_MS = 480;
 const PREBUFFER_STEP_MS = 40;
-const CAPACITY_MS = 8_000;
+// Gemini Live can generate audio faster than wall-clock playback. Preserve a
+// complete normal response instead of deleting speech when a short burst gets
+// ahead of the speaker. At 24 kHz mono Float32, two minutes use about 11 MiB.
+const CAPACITY_MS = 120_000;
 const STABLE_WINDOW_MS = 20_000;
 
 export class AdaptivePcmQueue {

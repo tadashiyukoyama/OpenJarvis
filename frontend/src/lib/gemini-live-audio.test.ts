@@ -35,6 +35,15 @@ describe('Adaptive Gemini PCM queue', () => {
     expect(metrics.queuedMs).toBe(960);
     expect(metrics.droppedSamples).toBe(8_040);
   });
+
+  it('preserves a long Live response that arrives faster than playback', () => {
+    const queue = new AdaptivePcmQueue({ sampleRate: 1_000 });
+    queue.push(new Float32Array(60_000).fill(0.25));
+
+    const metrics = queue.snapshot();
+    expect(metrics.queuedMs).toBe(60_000);
+    expect(metrics.droppedSamples).toBe(0);
+  });
 });
 
 describe('PcmPlayback AudioWorklet transport', () => {
