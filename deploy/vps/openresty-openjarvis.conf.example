@@ -17,6 +17,9 @@ upstream openjarvis_core {
 server {
     listen 80;
     server_name openjarvis.meugerenciador.pro;
+    # The global OpenResty access format includes the full request URI. Keep
+    # this isolated host out of that log so query parameters cannot leak.
+    access_log off;
     return 301 https://$host$request_uri;
 }
 
@@ -27,6 +30,7 @@ server {
     ssl_certificate     <managed-certificate-fullchain>;
     ssl_certificate_key <managed-certificate-key>;
     client_max_body_size 1m;
+    access_log off;
 
     proxy_hide_header Content-Security-Policy;
     add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'" always;

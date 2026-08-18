@@ -37,6 +37,7 @@ def test_vps_container_is_pinned_minimal_and_fail_closed() -> None:
 def test_openresty_exposes_only_explicit_public_boundaries() -> None:
     config = _text("deploy/vps/openresty-openjarvis.conf.example")
 
+    assert config.count("access_log off;") >= 4
     assert "location = /edge" in config
     assert "proxy_set_header Upgrade $http_upgrade" in config
     assert "location = /v1/jarvis/agent/providers/acelerachat/webhooks" in config
