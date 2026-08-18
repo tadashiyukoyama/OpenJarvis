@@ -20,7 +20,17 @@ server {
     # The global OpenResty access format includes the full request URI. Keep
     # this isolated host out of that log so query parameters cannot leak.
     access_log off;
-    return 301 https://$host$request_uri;
+
+    # Keep HTTP-01 renewal functional without exposing another application.
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/sites/openjarvis/acme;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
