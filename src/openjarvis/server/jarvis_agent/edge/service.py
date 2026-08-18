@@ -106,16 +106,22 @@ class EdgeService:
                 )
             elif frame.job_id:
                 self.jobs.handle(connection, frame, payload)
-        await self.protocol.send(
-            connection,
-            "edge.heartbeat_ack",
-            {
-                "acknowledged_sequence": self.store.edge_sequences(
-                    connection.device_id
-                )["inbound_sequence"],
-                "server_time": self.protocol.utc_now(),
-            },
-        )
+        # A heartbeat acknowledges every client frame persisted up to this
+        # point. Job lifecycle frames do not need one response each: the next
+        # periodic heartbeat safely advances the worker spool cursor. Keeping
+        # acknowledgements heartbeat-scoped avoids doubling traffic and the
+        # durable event ledger for every short-lived read job.
+        if frame.type == "edge.heartbeat":
+            await self.protocol.send(
+                connection,
+                "edge.heartbeat_ack",
+                {
+                    "acknowledged_sequence": self.store.edge_sequences(
+                        connection.device_id
+                    )["inbound_sequence"],
+                    "server_time": self.protocol.utc_now(),
+                },
+            )
         return True
 
     def unregister(self, connection: EdgeConnection, *, error_code: str | None) -> None:

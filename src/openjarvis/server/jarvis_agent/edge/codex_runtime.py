@@ -31,6 +31,7 @@ class CodexEdgeRuntimeProxy:
     """
 
     poll_history_only = True
+    history_poll_interval_seconds = 10.0
 
     def __init__(
         self,

@@ -93,6 +93,10 @@ duplicate events and sequence rollback fail closed.
 - Current and previous device credentials may overlap only until an explicit
   expiry. Logs contain fingerprints, never complete values.
 - Heartbeats are bounded. An expired heartbeat produces real offline state.
+  `edge.heartbeat_ack` is emitted only for `edge.heartbeat` and acknowledges
+  the highest client sequence durably recorded at that point. Job lifecycle
+  frames are therefore acknowledged by the next periodic heartbeat instead of
+  generating one redundant durable response per frame.
 - Reconnect uses exponential backoff with jitter and a bounded maximum.
 - A device can be revoked immediately. Re-registration does not clear revoked
   state implicitly.
@@ -103,6 +107,12 @@ If a worker is offline before offer/acceptance, the action fails as
 `DEVICE_OFFLINE`; a user must create and approve a new proposal after recovery.
 Reconnect may only resume a previously accepted attempt and replay its durable
 result. It never executes an old command merely because connectivity returned.
+
+Codex history exposed by the VPS is synchronized through bounded Edge read
+jobs because app-server notifications remain local to Windows. The Edge runtime
+uses a ten-second cadence; direct/local runtimes retain the two-second default.
+This interval affects only remote history freshness, not job execution,
+heartbeats, voice streaming or approval delivery.
 
 ## Job and nested-approval lifecycle
 

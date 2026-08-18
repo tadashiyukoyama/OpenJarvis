@@ -20,6 +20,7 @@ from openjarvis.integrations.codex_protocol import (
 from openjarvis.server import api_routes
 from openjarvis.server.api_routes import (
     _codex_history_event_stream,
+    _codex_history_poll_seconds,
     codex_thread_events,
 )
 from openjarvis.server.app import create_app
@@ -116,6 +117,19 @@ class FakeCodexRuntime:
             ),
             next_cursor=None,
         )
+
+
+def test_codex_history_poll_uses_runtime_cadence_without_accelerating_defaults() -> (
+    None
+):
+    runtime = FakeCodexRuntime()
+    assert _codex_history_poll_seconds(runtime) == 2.0
+
+    runtime.history_poll_interval_seconds = 10.0
+    assert _codex_history_poll_seconds(runtime) == 10.0
+
+    runtime.history_poll_interval_seconds = 0.5
+    assert _codex_history_poll_seconds(runtime) == 2.0
 
 
 def test_codex_catalog_groups_threads_by_project() -> None:

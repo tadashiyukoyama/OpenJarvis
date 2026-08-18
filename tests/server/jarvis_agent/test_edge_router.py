@@ -154,8 +154,8 @@ def test_edge_job_round_trip_and_status(tmp_path: Path) -> None:
                 )
             )
             assert (
-                parse_edge_frame(websocket.receive_text(), from_client=False).type
-                == "edge.heartbeat_ack"
+                orchestrator.store.edge_sequences("desktop-1")["outbound_sequence"]
+                == offer.sequence
             )
             websocket.send_text(
                 _client_frame(
@@ -171,11 +171,23 @@ def test_edge_job_round_trip_and_status(tmp_path: Path) -> None:
                     job_id="job-1",
                 )
             )
-            assert (
-                parse_edge_frame(websocket.receive_text(), from_client=False).type
-                == "edge.heartbeat_ack"
-            )
             thread.join(timeout=2)
+            assert (
+                orchestrator.store.edge_sequences("desktop-1")["outbound_sequence"]
+                == offer.sequence
+            )
+            websocket.send_text(
+                _client_frame(
+                    "edge.heartbeat",
+                    4,
+                    {"active_job_ids": []},
+                )
+            )
+            heartbeat_ack = parse_edge_frame(
+                websocket.receive_text(), from_client=False
+            )
+            assert heartbeat_ack.type == "edge.heartbeat_ack"
+            assert heartbeat_ack.payload["acknowledged_sequence"] == 4
 
     asyncio.run(orchestrator.close_async())
     assert failure == []

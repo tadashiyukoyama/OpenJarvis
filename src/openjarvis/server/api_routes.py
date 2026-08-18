@@ -1016,6 +1016,15 @@ _CODEX_HISTORY_REQUEST_TIMEOUT_SECONDS = 10.0
 _CODEX_DESKTOP_ACTION_HEADER = "codex-desktop-refresh"
 
 
+def _codex_history_poll_seconds(runtime: Any) -> float:
+    """Use a slower bounded cadence when every read crosses the durable Edge."""
+
+    configured = getattr(runtime, "history_poll_interval_seconds", None)
+    if isinstance(configured, (int, float)) and configured > 0:
+        return max(_CODEX_HISTORY_POLL_SECONDS, float(configured))
+    return _CODEX_HISTORY_POLL_SECONDS
+
+
 def _codex_history_reader(request: Request) -> CodexHistoryReader:
     reader = getattr(request.app.state, "codex_history_reader", None)
     if reader is None:
@@ -1224,7 +1233,7 @@ async def codex_thread_events(thread_id: str, request: Request):
             request,
             _codex_history_reader(request),
             None,
-            poll_seconds=_CODEX_HISTORY_POLL_SECONDS,
+            poll_seconds=_codex_history_poll_seconds(runtime),
             heartbeat_seconds=_CODEX_HISTORY_HEARTBEAT_SECONDS,
         ),
         media_type="text/event-stream",

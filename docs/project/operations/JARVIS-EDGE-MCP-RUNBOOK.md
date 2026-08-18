@@ -156,7 +156,9 @@ backups by default under `D:\dev\runtime\openjarvis\logs`.
 Acceptance:
 
 - one outbound WSS connection;
-- register and heartbeat acknowledged;
+- register and each periodic heartbeat acknowledged; job lifecycle frames are
+  covered by the next heartbeat acknowledgement and do not receive individual
+  `edge.heartbeat_ack` frames;
 - capability snapshot truthful;
 - named pipe bound once;
 - 8131 remains loopback;

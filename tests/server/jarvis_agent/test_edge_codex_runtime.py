@@ -76,6 +76,7 @@ def test_edge_runtime_pages_cached_catalog_and_maps_history() -> None:
     }
     assert history_call["context"]["codex_thread_id"] == "thread-1"
     assert runtime.poll_history_only is True
+    assert runtime.history_poll_interval_seconds == 10.0
 
 
 def test_edge_runtime_subscribe_fails_closed_when_worker_is_offline() -> None:
