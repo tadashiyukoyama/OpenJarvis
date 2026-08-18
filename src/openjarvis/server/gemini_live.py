@@ -10,14 +10,15 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from openjarvis.server.jarvis_operational_log import JarvisOperationalLogStore
 
@@ -79,6 +80,38 @@ class JarvisOperationalEventInput(BaseModel):
     event_type: str = Field(min_length=1, max_length=32)
     text: str = Field(min_length=1, max_length=4_000)
     occurred_at: int = Field(ge=0)
+
+
+class GeminiLiveClientDiagnosticInput(BaseModel):
+    """Content-free browser metrics for diagnosing audible Live interruptions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1.0"]
+    session_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9-]+$")
+    sequence: int = Field(ge=1, le=1_000_000)
+    occurred_at: int = Field(ge=0)
+    voice_state: str = Field(min_length=1, max_length=32)
+    socket_state: int = Field(ge=0, le=3)
+    transport: Literal["worklet", "scheduled-buffer"]
+    transport_reason: str = Field(min_length=1, max_length=48)
+    audio_context_state: str = Field(min_length=1, max_length=32)
+    audio_context_sample_rate: int = Field(ge=0, le=192_000)
+    base_latency_ms: float = Field(ge=0, le=10_000)
+    output_latency_ms: float = Field(ge=0, le=10_000)
+    audio_chunks: int = Field(ge=0, le=10_000_000)
+    audio_bytes: int = Field(ge=0, le=10_000_000_000)
+    last_chunk_gap_ms: float = Field(ge=0, le=600_000)
+    max_chunk_gap_ms: float = Field(ge=0, le=600_000)
+    chunk_gaps_over_250_ms: int = Field(ge=0, le=10_000_000)
+    message_queue_max_delay_ms: float = Field(ge=0, le=600_000)
+    queued_ms: int = Field(ge=0, le=60_000)
+    prebuffer_ms: int = Field(ge=0, le=10_000)
+    underruns: int = Field(ge=0, le=10_000_000)
+    dropped_samples: int = Field(ge=0, le=10_000_000_000)
+    interruptions: int = Field(ge=0, le=1_000_000)
+    go_away_events: int = Field(ge=0, le=1_000_000)
+    websocket_buffered_amount: int = Field(ge=0, le=1_000_000_000)
 
 
 async def _google_token_request(api_key: str, payload: dict) -> dict:
@@ -286,6 +319,14 @@ def _operational_log(request: Request) -> JarvisOperationalLogStore:
     return store
 
 
+def _client_diagnostics(request: Request) -> deque[dict]:
+    records = getattr(request.app.state, "gemini_live_client_diagnostics", None)
+    if records is None:
+        records = deque(maxlen=512)
+        request.app.state.gemini_live_client_diagnostics = records
+    return records
+
+
 @jarvis_live_router.get("/status")
 async def gemini_live_status(request: Request) -> dict:
     """Return non-secret configuration and failover status."""
@@ -314,6 +355,50 @@ async def create_gemini_live_token(request: Request) -> dict:
         "model": token.model,
         "expires_at": token.expires_at,
         "websocket_endpoint": GEMINI_LIVE_WS_URL,
+    }
+
+
+@jarvis_live_router.post("/diagnostics", status_code=202)
+async def append_gemini_live_client_diagnostic(
+    payload: GeminiLiveClientDiagnosticInput,
+    request: Request,
+) -> dict:
+    """Retain a bounded, content-free browser audio diagnostic in memory."""
+
+    record = {
+        **payload.model_dump(mode="json"),
+        "received_at": int(time.time() * 1_000),
+    }
+    _client_diagnostics(request).append(record)
+    return {
+        "accepted": True,
+        "session_id": payload.session_id,
+        "sequence": payload.sequence,
+    }
+
+
+@jarvis_live_router.get("/diagnostics")
+async def list_gemini_live_client_diagnostics(
+    request: Request,
+    session_id: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """Return recent sanitized audio metrics for controlled diagnosis."""
+
+    if session_id is not None and (
+        not 8 <= len(session_id) <= 64
+        or not all(character.isalnum() or character == "-" for character in session_id)
+    ):
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+    bounded_limit = min(200, max(1, limit))
+    records = list(_client_diagnostics(request))
+    if session_id is not None:
+        records = [record for record in records if record["session_id"] == session_id]
+    selected = records[-bounded_limit:]
+    return {
+        "schema_version": "1.0",
+        "records": selected,
+        "has_more": len(records) > len(selected),
     }
 
 
@@ -376,12 +461,15 @@ async def append_jarvis_operational_event(
 
 
 __all__ = [
+    "GeminiLiveClientDiagnosticInput",
     "GeminiLiveProvisioningError",
     "GeminiLiveTokenBroker",
     "JarvisOperationalEventInput",
+    "append_gemini_live_client_diagnostic",
     "append_jarvis_operational_event",
     "create_gemini_live_token",
     "gemini_live_status",
     "jarvis_live_router",
+    "list_gemini_live_client_diagnostics",
     "list_jarvis_operational_events",
 ]

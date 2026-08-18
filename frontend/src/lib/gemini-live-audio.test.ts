@@ -79,6 +79,12 @@ describe('PcmPlayback AudioWorklet transport', () => {
     expect(postMessage).toHaveBeenCalledTimes(2);
     expect(postMessage.mock.calls[0][0]).toMatchObject({ type: 'push' });
     expect(postMessage.mock.calls[0][0].samples).toBeInstanceOf(Float32Array);
+    expect(playback.snapshot()).toMatchObject({
+      transport: 'worklet',
+      transportReason: 'audio-worklet-active',
+      audioContextState: 'running',
+      audioContextSampleRate: 24_000,
+    });
 
     playback.interrupt();
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'reset' });

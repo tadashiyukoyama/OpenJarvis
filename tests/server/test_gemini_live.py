@@ -186,3 +186,66 @@ def test_operational_log_is_scoped_to_selected_thread(tmp_path) -> None:
     response = client.get("/v1/jarvis/live/events", params={"thread_id": "thread-a"})
     assert [event["thread_id"] for event in response.json()["events"]] == ["thread-a"]
     store.close()
+
+
+def _client_diagnostic(session_id: str, sequence: int) -> dict:
+    return {
+        "schema_version": "1.0",
+        "session_id": session_id,
+        "sequence": sequence,
+        "occurred_at": 1_000 + sequence,
+        "voice_state": "speaking",
+        "socket_state": 1,
+        "transport": "worklet",
+        "transport_reason": "audio-worklet-active",
+        "audio_context_state": "running",
+        "audio_context_sample_rate": 48_000,
+        "base_latency_ms": 10,
+        "output_latency_ms": 20,
+        "audio_chunks": sequence,
+        "audio_bytes": sequence * 4_800,
+        "last_chunk_gap_ms": 40,
+        "max_chunk_gap_ms": 80,
+        "chunk_gaps_over_250_ms": 0,
+        "message_queue_max_delay_ms": 3,
+        "queued_ms": 240,
+        "prebuffer_ms": 180,
+        "underruns": 0,
+        "dropped_samples": 0,
+        "interruptions": 0,
+        "go_away_events": 0,
+        "websocket_buffered_amount": 0,
+    }
+
+
+def test_client_audio_diagnostics_are_bounded_scoped_and_content_free() -> None:
+    client = _client_with_broker(GeminiLiveTokenBroker())
+    for session_id, sequence in (("session-a", 1), ("session-b", 1), ("session-a", 2)):
+        response = client.post(
+            "/v1/jarvis/live/diagnostics",
+            json=_client_diagnostic(session_id, sequence),
+        )
+        assert response.status_code == 202
+
+    response = client.get(
+        "/v1/jarvis/live/diagnostics",
+        params={"session_id": "session-a", "limit": 1},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_more"] is True
+    assert [record["sequence"] for record in body["records"]] == [2]
+    assert "received_at" in body["records"][0]
+    assert "transcript" not in response.text
+    assert "token" not in response.text
+
+
+def test_client_audio_diagnostics_reject_content_and_invalid_values() -> None:
+    client = _client_with_broker(GeminiLiveTokenBroker())
+    payload = _client_diagnostic("session-a", 1)
+    payload["transcript"] = "conteúdo proibido"
+    assert client.post("/v1/jarvis/live/diagnostics", json=payload).status_code == 422
+
+    invalid = _client_diagnostic("session-a", 1)
+    invalid["underruns"] = -1
+    assert client.post("/v1/jarvis/live/diagnostics", json=invalid).status_code == 422

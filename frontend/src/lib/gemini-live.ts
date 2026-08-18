@@ -7,6 +7,10 @@ import {
   resampleToPcm16,
 } from './gemini-live-audio';
 import {
+  GeminiLiveDiagnosticsCollector,
+  type GeminiLiveClientDiagnostics,
+} from './gemini-live-diagnostics';
+import {
   buildGeminiLiveSetup,
   type GeminiFunctionDeclaration,
 } from './gemini-live-setup';
@@ -17,6 +21,7 @@ export {
   type GeminiFunctionDeclaration,
   JARVIS_VOICE_NAME,
 } from './gemini-live-setup';
+export type { GeminiLiveClientDiagnostics } from './gemini-live-diagnostics';
 
 export type JarvisVoiceState =
   | 'offline'
@@ -44,6 +49,7 @@ export interface GeminiLiveCallbacks {
   onTurnComplete: () => void;
   onNotice: (message: string) => void;
   onError: (message: string) => void;
+  onDiagnostics?: (diagnostics: GeminiLiveClientDiagnostics) => void;
 }
 
 const SETUP_TIMEOUT_MS = 15_000;
@@ -53,7 +59,9 @@ export class GeminiLiveSession {
   private callbacks: GeminiLiveCallbacks;
   private socket: WebSocket | null = null;
   private readonly microphone: MicrophoneCapture;
-  private readonly playback = new PcmPlayback();
+  private readonly playback: PcmPlayback;
+  private readonly diagnostics: GeminiLiveDiagnosticsCollector;
+  private voiceState: JarvisVoiceState = 'offline';
   private sessionHandle = '';
   private manuallyClosed = false;
   private sessionGeneration = 0;
@@ -75,6 +83,12 @@ export class GeminiLiveSession {
     this.callbacks = callbacks;
     this.sessionContext = sessionContext;
     this.manifest = manifest;
+    this.playback = new PcmPlayback(() => this.diagnostics.recordPlayback());
+    this.diagnostics = new GeminiLiveDiagnosticsCollector(
+      () => this.playback.snapshot(),
+      () => ({ voiceState: this.voiceState, socket: this.socket }),
+      callbacks.onDiagnostics,
+    );
     this.microphone = new MicrophoneCapture(
       (pcm) => {
         if (!this.isGenerationActive() || this.socket?.readyState !== WebSocket.OPEN) return;
@@ -99,7 +113,7 @@ export class GeminiLiveSession {
     const generation = ++this.sessionGeneration;
     this.manuallyClosed = false;
     this.transcript.reset();
-    this.callbacks.onState(this.reconnecting ? 'reconnecting' : 'connecting');
+    this.setState(this.reconnecting ? 'reconnecting' : 'connecting');
     const url = `${this.token.websocket_endpoint}?access_token=${encodeURIComponent(
       this.token.token,
     )}`;
@@ -155,11 +169,12 @@ export class GeminiLiveSession {
       };
       liveSocket.onmessage = (event) => {
         if (!this.isGenerationActive(generation)) return;
+        const receivedAt = performance.now();
         this.messageQueue = this.messageQueue
           .then(() =>
             this.handleMessage(event.data, () => {
               resolveSetup();
-            }, generation),
+            }, generation, receivedAt),
           )
           .catch((error) => {
             if (!this.isGenerationActive(generation)) return;
@@ -183,12 +198,13 @@ export class GeminiLiveSession {
         if (!this.isGenerationActive(generation)) return;
         rejectSetup(new Error(event.reason || 'A sessão Gemini Live foi encerrada.'));
         if (this.manuallyClosed || this.reconnecting) return;
-        this.callbacks.onState('error');
+        this.setState('error');
         this.callbacks.onError(event.reason || 'A sessão Gemini Live foi encerrada.');
       };
     });
     this.reconnecting = false;
-    this.callbacks.onState('listening');
+    this.setState('listening');
+    this.diagnostics.emit(true);
   }
 
   private isGenerationActive(generation = this.sessionGeneration): boolean {
@@ -199,8 +215,10 @@ export class GeminiLiveSession {
     data: unknown,
     onSetup: () => void,
     generation = this.sessionGeneration,
+    receivedAt = performance.now(),
   ): Promise<void> {
     if (!this.isGenerationActive(generation)) return;
+    this.diagnostics.recordQueueDelay(receivedAt);
     let text: string;
     if (data instanceof Blob) text = await data.text();
     else if (data instanceof ArrayBuffer) text = new TextDecoder().decode(data);
@@ -218,12 +236,16 @@ export class GeminiLiveSession {
       this.sessionHandle = message.sessionResumptionUpdate.newHandle || '';
     }
     if (message.goAway) {
+      this.diagnostics.recordGoAway();
       this.callbacks.onNotice('Renovando a conexão de voz sem perder o contexto.');
       void this.reconnect();
       return;
     }
     const content = message.serverContent;
-    if (content?.interrupted) this.interruptPlayback();
+    if (content?.interrupted) {
+      this.diagnostics.recordInterruption();
+      this.interruptPlayback();
+    }
     if (content?.inputTranscription) {
       this.transcript.appendInput(content.inputTranscription.text || '');
     }
@@ -233,18 +255,20 @@ export class GeminiLiveSession {
     for (const part of content?.modelTurn?.parts ?? []) {
       if (!this.isGenerationActive(generation)) return;
       if (part.inlineData?.data) {
-        this.callbacks.onState('speaking');
+        this.diagnostics.recordAudioChunk(part.inlineData.data);
+        this.setState('speaking');
         await this.playAudio(part.inlineData.data);
       }
     }
     if (!this.isGenerationActive(generation)) return;
     if (content?.generationComplete && !content?.turnComplete) {
-      this.callbacks.onState('speaking');
+      this.setState('speaking');
     }
     if (content?.turnComplete) {
+      this.diagnostics.completeTurn();
       this.transcript.finalizeInput();
       this.callbacks.onTurnComplete();
-      this.callbacks.onState('listening');
+      this.setState('listening');
     }
     if (message.toolCall?.functionCalls) {
       this.queueToolCalls(message.toolCall.functionCalls, generation);
@@ -322,7 +346,7 @@ export class GeminiLiveSession {
 
   async startMicrophone(): Promise<void> {
     await this.microphone.start();
-    this.callbacks.onState('listening');
+    this.setState('listening');
   }
 
   async stopMicrophone(): Promise<void> {
@@ -338,7 +362,7 @@ export class GeminiLiveSession {
 
   sendText(text: string): void {
     this.send({ realtimeInput: { text } });
-    this.callbacks.onState('thinking');
+    this.setState('thinking');
   }
 
   private send(message: Record<string, unknown>): void {
@@ -352,6 +376,11 @@ export class GeminiLiveSession {
     await this.playback.play(base64);
   }
 
+  private setState(state: JarvisVoiceState): void {
+    this.voiceState = state;
+    this.callbacks.onState(state);
+  }
+
   interruptPlayback(): void {
     this.playback.interrupt();
   }
@@ -359,7 +388,7 @@ export class GeminiLiveSession {
   private async reconnect(): Promise<void> {
     if (this.reconnecting || this.manuallyClosed) return;
     this.reconnecting = true;
-    this.callbacks.onState('reconnecting');
+    this.setState('reconnecting');
     this.sessionGeneration += 1;
     const previous = this.socket;
     this.socket = null;
@@ -368,7 +397,7 @@ export class GeminiLiveSession {
     try {
       await this.connect();
     } catch (error) {
-      this.callbacks.onState('error');
+      this.setState('error');
       this.callbacks.onError(
         error instanceof Error ? error.message : 'Falha ao retomar o Gemini Live.',
       );
@@ -383,7 +412,8 @@ export class GeminiLiveSession {
     this.socket?.close(1000, 'user closed');
     this.socket = null;
     await this.playback.close();
-    this.callbacks.onState('offline');
+    this.setState('offline');
+    this.diagnostics.emit(true);
   }
 }
 

@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import type { GeminiLiveClientDiagnostics } from './gemini-live';
 
 export interface JarvisLiveStatus {
   configured: boolean;
@@ -90,6 +91,21 @@ export async function createJarvisLiveToken(): Promise<JarvisLiveToken> {
     );
   }
   return response.json();
+}
+
+export async function appendGeminiLiveClientDiagnostics(
+  diagnostics: GeminiLiveClientDiagnostics,
+): Promise<void> {
+  const response = await apiFetch('/v1/jarvis/live/diagnostics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(diagnostics),
+  });
+  if (!response.ok) {
+    throw new JarvisLiveApiError(
+      `Telemetria de áudio indisponível: ${response.status}`,
+    );
+  }
 }
 
 export async function fetchJarvisOperationalEvents(

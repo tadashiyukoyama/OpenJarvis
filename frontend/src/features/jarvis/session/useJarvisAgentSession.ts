@@ -5,6 +5,7 @@ import {
   type JarvisVoiceState,
 } from '@/lib/gemini-live';
 import {
+  appendGeminiLiveClientDiagnostics,
   createJarvisLiveToken,
   fetchJarvisLiveStatus,
   JarvisLiveApiError,
@@ -163,6 +164,11 @@ export function useJarvisAgentSession() {
           onTurnComplete: () => undefined,
           onNotice: (message) => addTimeline('system', message),
           onError: (message) => addTimeline('error', message),
+          onDiagnostics: (diagnostics) => {
+            void appendGeminiLiveClientDiagnostics(diagnostics).catch(() => {
+              // Diagnostics are observational and must never affect voice.
+            });
+          },
         },
         context,
         agentSession.manifest,

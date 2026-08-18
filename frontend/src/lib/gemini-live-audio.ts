@@ -131,6 +131,11 @@ export class PcmPlayback {
     underruns: 0,
     droppedSamples: 0,
     transport: 'worklet',
+    transportReason: 'initializing',
+    audioContextState: 'uninitialized',
+    audioContextSampleRate: 0,
+    baseLatencyMs: 0,
+    outputLatencyMs: 0,
   };
 
   constructor(
@@ -173,9 +178,24 @@ export class PcmPlayback {
       latencyHint: 'interactive',
     });
     this.context = context;
+    const reportContext = () => {
+      const outputLatency = (context as AudioContext & { outputLatency?: number })
+        .outputLatency;
+      this.updateMetrics({
+        audioContextState: context.state,
+        audioContextSampleRate: context.sampleRate,
+        baseLatencyMs: Math.round((context.baseLatency || 0) * 1_000),
+        outputLatencyMs: Math.round((outputLatency || 0) * 1_000),
+      });
+    };
+    context.onstatechange = reportContext;
+    reportContext();
     if (context.state === 'suspended') await context.resume();
     if (!context.audioWorklet || typeof AudioWorkletNode === 'undefined') {
-      this.updateMetrics({ transport: 'scheduled-buffer' });
+      this.updateMetrics({
+        transport: 'scheduled-buffer',
+        transportReason: 'audio-worklet-unavailable',
+      });
       return;
     }
     try {
@@ -216,9 +236,15 @@ export class PcmPlayback {
       };
       worklet.connect(context.destination);
       this.worklet = worklet;
-      this.updateMetrics({ transport: 'worklet' });
+      this.updateMetrics({
+        transport: 'worklet',
+        transportReason: 'audio-worklet-active',
+      });
     } catch {
-      this.updateMetrics({ transport: 'scheduled-buffer' });
+      this.updateMetrics({
+        transport: 'scheduled-buffer',
+        transportReason: 'audio-worklet-load-failed',
+      });
     }
   }
 
@@ -252,6 +278,11 @@ export class PcmPlayback {
       && next.underruns === this.metrics.underruns
       && next.droppedSamples === this.metrics.droppedSamples
       && next.transport === this.metrics.transport
+      && next.transportReason === this.metrics.transportReason
+      && next.audioContextState === this.metrics.audioContextState
+      && next.audioContextSampleRate === this.metrics.audioContextSampleRate
+      && next.baseLatencyMs === this.metrics.baseLatencyMs
+      && next.outputLatencyMs === this.metrics.outputLatencyMs
     ) return;
     this.metrics = next;
     this.onMetrics(this.snapshot());
@@ -290,4 +321,13 @@ export interface PcmPlaybackMetrics {
   underruns: number;
   droppedSamples: number;
   transport: 'worklet' | 'scheduled-buffer';
+  transportReason:
+    | 'initializing'
+    | 'audio-worklet-active'
+    | 'audio-worklet-unavailable'
+    | 'audio-worklet-load-failed';
+  audioContextState: AudioContextState | 'uninitialized';
+  audioContextSampleRate: number;
+  baseLatencyMs: number;
+  outputLatencyMs: number;
 }
