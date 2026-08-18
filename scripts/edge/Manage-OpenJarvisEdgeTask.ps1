@@ -14,8 +14,12 @@ switch ($Action) {
         if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
             throw 'Edge Worker launcher was not found.'
         }
-        $taskAction = New-ScheduledTaskAction -Execute 'pwsh.exe' -Argument (
-            "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$launcher`""
+        $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        if (-not (Test-Path -LiteralPath $powerShell -PathType Leaf)) {
+            throw 'Windows PowerShell executable was not found.'
+        }
+        $taskAction = New-ScheduledTaskAction -Execute $powerShell -Argument (
+            "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcher`""
         )
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `
