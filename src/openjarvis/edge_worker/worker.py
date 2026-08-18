@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -22,6 +23,30 @@ from openjarvis.server.jarvis_agent.edge.frames import (
 )
 
 logger = logging.getLogger(__name__)
+
+_SAFE_VALUE_ERRORS = {
+    "Core did not acknowledge Edge registration": "registration_not_acknowledged",
+    "Core frame targets another device": "device_identity_mismatch",
+    "Core frame sequence moved backwards": "core_sequence_moved_backwards",
+    "Edge job identity mismatch": "job_identity_mismatch",
+}
+_SAFE_CLOSE_REASON = re.compile(r"^[a-z0-9_.:-]{1,80}$")
+
+
+def _safe_connection_failure(exc: Exception) -> str:
+    """Return protocol diagnostics without logging URLs, tokens or payloads."""
+
+    if isinstance(exc, ValueError):
+        return f"ValueError:{_SAFE_VALUE_ERRORS.get(str(exc), 'protocol_value_error')}"
+    received = getattr(exc, "rcvd", None)
+    code = getattr(received, "code", None)
+    reason = str(getattr(received, "reason", "") or "")
+    details = [type(exc).__name__]
+    if isinstance(code, int):
+        details.append(f"code={code}")
+    if reason and _SAFE_CLOSE_REASON.fullmatch(reason):
+        details.append(f"reason={reason}")
+    return ":".join(details)
 
 
 class EdgeWorker:
@@ -61,7 +86,7 @@ class EdgeWorker:
                     raise
                 except Exception as exc:
                     logger.warning(
-                        "Edge connection unavailable: %s", type(exc).__name__
+                        "Edge connection unavailable: %s", _safe_connection_failure(exc)
                     )
                     await self._bounded_delay(stop, delay)
                     delay = min(self.config.reconnect_max_seconds, delay * 2)

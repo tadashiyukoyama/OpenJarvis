@@ -56,6 +56,7 @@ class ProviderResponse(StrictModel):
     id: str
     status: str
     connected: bool
+    operational: bool
     capabilities: list[str]
     reason: str | None = None
 

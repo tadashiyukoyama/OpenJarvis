@@ -10,6 +10,11 @@ const LABELS: Record<string, string> = {
 
 export function providerStatus(provider: JarvisAgentProvider): string {
   if (provider.connected) return 'conectado';
+  if (provider.operational) {
+    return provider.status === 'configured_not_probed'
+      ? 'operacional · conexão não sondada'
+      : 'operacional';
+  }
   return provider.status.replace(/_/g, ' ');
 }
 
@@ -43,16 +48,56 @@ export function JarvisProviderOverview() {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
-        {sources.flatMap((source) => source.providers).map((provider) => (
-          <div key={provider.id} style={{ border: '1px solid var(--color-border)', borderRadius: 6, padding: 9 }}>
-            <strong style={{ display: 'block', fontSize: 12 }}>
-              {LABELS[provider.id] ?? provider.id}
-            </strong>
-            <span style={{ fontSize: 11, color: provider.connected ? 'var(--color-success)' : 'var(--color-text-tertiary)' }}>
-              {providerStatus(provider)}
-            </span>
-          </div>
-        ))}
+        {sources
+          .flatMap((source) => source.providers.map((provider) => ({
+            provider,
+            sourceId: source.id,
+          })))
+          .map(({ provider, sourceId }) => {
+            const tools = catalog?.tools.filter(
+              (tool) => tool.source === sourceId && tool.available,
+            ) ?? [];
+            return (
+              <div
+                key={provider.id}
+                style={{
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 6,
+                  padding: 9,
+                }}
+              >
+                <strong style={{ display: 'block', fontSize: 12 }}>
+                  {LABELS[provider.id] ?? provider.id}
+                </strong>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: provider.operational
+                      ? 'var(--color-success)'
+                      : 'var(--color-text-tertiary)',
+                  }}
+                >
+                  {providerStatus(provider)}
+                </span>
+                <details
+                  style={{
+                    marginTop: 7,
+                    fontSize: 10,
+                    color: 'var(--color-text-tertiary)',
+                  }}
+                >
+                  <summary>{tools.length} ferramentas executáveis</summary>
+                  {tools.length > 0 && (
+                    <ul style={{ margin: '6px 0 0', paddingLeft: 16 }}>
+                      {tools.map((tool) => (
+                        <li key={tool.id}>{tool.name}</li>
+                      ))}
+                    </ul>
+                  )}
+                </details>
+              </div>
+            );
+          })}
       </div>
       <p style={{ marginTop: 10, color: 'var(--color-text-tertiary)', fontSize: 11 }}>
         E-mail e WhatsApp são administrados no AceleraChat. O OpenJarvis usa apenas

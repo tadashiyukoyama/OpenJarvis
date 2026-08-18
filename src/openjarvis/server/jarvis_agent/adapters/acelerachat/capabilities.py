@@ -25,6 +25,7 @@ class ChannelSnapshot:
     inbox: Inbox | None
     status: str
     connected: bool
+    operational: bool
     capabilities: frozenset[str]
     reason: str | None
 
@@ -35,6 +36,7 @@ class ChannelSnapshot:
             self.capabilities,
             self.connected,
             self.reason,
+            self.operational,
         )
 
 
@@ -167,6 +169,7 @@ class AceleraChatCapabilities:
             inbox,
             inbox.connection.state,
             inbox.connection.connected,
+            operational,
             capabilities,
             None
             if operational
@@ -184,4 +187,12 @@ class AceleraChatCapabilities:
         capabilities = (
             frozenset({"connection.inspect"}) if status_capability else frozenset()
         )
-        return ChannelSnapshot(provider_id, None, status, False, capabilities, reason)
+        return ChannelSnapshot(
+            provider_id,
+            None,
+            status,
+            False,
+            False,
+            capabilities,
+            reason,
+        )

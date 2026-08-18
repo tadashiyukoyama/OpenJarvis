@@ -46,7 +46,7 @@ class EdgeProtocol:
                 status_code=409,
             ) from exc
 
-    def outbound_frame(
+    def _outbound_frame(
         self,
         device_id: str,
         frame_type: str,
@@ -78,6 +78,26 @@ class EdgeProtocol:
         )
         return frame
 
+    async def send(
+        self,
+        connection: EdgeConnection,
+        frame_type: str,
+        payload: Mapping[str, Any],
+        *,
+        job_id: str | None = None,
+    ) -> EdgeFrame:
+        """Allocate, persist and send in one ordered connection section."""
+
+        safe_payload = dict(payload)
+        return await connection.create_and_send(
+            lambda: self._outbound_frame(
+                connection.device_id,
+                frame_type,
+                safe_payload,
+                job_id=job_id,
+            )
+        )
+
     @staticmethod
     def safe_metadata(frame: EdgeFrame, payload: Mapping[str, Any]) -> dict[str, Any]:
         metadata: dict[str, Any] = {"type": frame.type}
@@ -101,13 +121,26 @@ class EdgeProtocol:
     def utc_now() -> str:
         return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-    @staticmethod
-    def send_from_thread(connection: EdgeConnection, frame: EdgeFrame) -> None:
+    def send_from_thread(
+        self,
+        connection: EdgeConnection,
+        frame_type: str,
+        payload: Mapping[str, Any],
+        *,
+        job_id: str | None = None,
+    ) -> EdgeFrame:
+        safe_payload = dict(payload)
         future = asyncio.run_coroutine_threadsafe(
-            connection.send(frame), connection.loop
+            self.send(
+                connection,
+                frame_type,
+                safe_payload,
+                job_id=job_id,
+            ),
+            connection.loop,
         )
         try:
-            future.result(timeout=5.0)
+            return future.result(timeout=5.0)
         except Exception as exc:
             raise JarvisAgentError(
                 "DEVICE_OFFLINE",

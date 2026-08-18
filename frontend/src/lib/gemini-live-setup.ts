@@ -83,6 +83,20 @@ function geminiSchema(value: unknown): unknown {
   return result;
 }
 
+function executableToolSummary(manifest: GeminiFunctionDeclaration[]): string {
+  if (!manifest.length) {
+    return 'FERRAMENTAS EXECUTÁVEIS NESTA SESSÃO: nenhuma.';
+  }
+  const entries = manifest.map(
+    (tool) => `- ${tool.name}: ${tool.description}`,
+  );
+  return [
+    `FERRAMENTAS EXECUTÁVEIS NESTA SESSÃO (${manifest.length}):`,
+    ...entries,
+    'Esta lista corresponde exatamente às FunctionDeclarations disponíveis.',
+  ].join('\n');
+}
+
 export function buildGeminiLiveSetup(
   model: string,
   sessionHandle = '',
@@ -102,6 +116,7 @@ export function buildGeminiLiveSetup(
       systemInstruction: {
         parts: [
           { text: SYSTEM_INSTRUCTION },
+          { text: executableToolSummary(manifest) },
           ...(sessionContext ? [{ text: sessionContext }] : []),
         ],
       },
@@ -132,4 +147,8 @@ export function buildGeminiLiveSetup(
   };
 }
 
-export const geminiLiveSetupInternals = { geminiSchema, GEMINI_SCHEMA_FIELDS };
+export const geminiLiveSetupInternals = {
+  geminiSchema,
+  executableToolSummary,
+  GEMINI_SCHEMA_FIELDS,
+};

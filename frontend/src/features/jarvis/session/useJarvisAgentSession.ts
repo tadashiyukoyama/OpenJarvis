@@ -179,7 +179,7 @@ export function useJarvisAgentSession() {
         'system',
         token.fallback_active
           ? 'Jarvis online com credencial técnica de fallback.'
-          : 'Jarvis Agent online com manifesto canônico.',
+          : `Jarvis Agent online com ${agentSession.manifest.length} ferramentas executáveis.`,
       );
     } catch (error) {
       startup.abort();

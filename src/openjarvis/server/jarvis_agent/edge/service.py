@@ -106,17 +106,15 @@ class EdgeService:
                 )
             elif frame.job_id:
                 self.jobs.handle(connection, frame, payload)
-        await connection.send(
-            self.protocol.outbound_frame(
-                connection.device_id,
-                "edge.heartbeat_ack",
-                {
-                    "acknowledged_sequence": self.store.edge_sequences(
-                        connection.device_id
-                    )["inbound_sequence"],
-                    "server_time": self.protocol.utc_now(),
-                },
-            )
+        await self.protocol.send(
+            connection,
+            "edge.heartbeat_ack",
+            {
+                "acknowledged_sequence": self.store.edge_sequences(
+                    connection.device_id
+                )["inbound_sequence"],
+                "server_time": self.protocol.utc_now(),
+            },
         )
         return True
 

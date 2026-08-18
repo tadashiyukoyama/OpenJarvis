@@ -122,19 +122,17 @@ class EdgeRegistry:
         if previous is not None and previous is not connection:
             await previous.close(code=4009, reason="superseded")
         cursor = self._store.edge_sequences(frame.device_id)["inbound_sequence"]
-        await connection.send(
-            self._protocol.outbound_frame(
-                frame.device_id,
-                "edge.registered",
-                {
-                    "connection_id": connection.connection_id,
-                    "heartbeat_interval_seconds": int(
-                        self._config.heartbeat_interval_seconds
-                    ),
-                    "acknowledged_sequence": cursor,
-                    "server_time": self._protocol.utc_now(),
-                },
-            )
+        await self._protocol.send(
+            connection,
+            "edge.registered",
+            {
+                "connection_id": connection.connection_id,
+                "heartbeat_interval_seconds": int(
+                    self._config.heartbeat_interval_seconds
+                ),
+                "acknowledged_sequence": cursor,
+                "server_time": self._protocol.utc_now(),
+            },
         )
         self._events.emit(
             "edge_device_connected",

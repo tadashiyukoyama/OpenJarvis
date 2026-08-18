@@ -114,6 +114,7 @@ export interface ProviderResponse {
   id: string;
   status: string;
   connected: boolean;
+  operational: boolean;
   capabilities: Array<string>;
   reason?: string | null;
 }

@@ -22,12 +22,18 @@ class ProviderCapabilities:
     capabilities: frozenset[str]
     connected: bool
     reason: str | None = None
+    operational: bool | None = None
+
+    @property
+    def can_execute(self) -> bool:
+        return self.connected if self.operational is None else self.operational
 
     def public_entry(self) -> dict[str, Any]:
         return {
             "id": self.provider,
             "status": self.status,
             "connected": self.connected,
+            "operational": self.can_execute,
             "capabilities": sorted(self.capabilities),
             "reason": self.reason,
         }
@@ -90,19 +96,22 @@ class JarvisToolCatalog:
         for tool in self._definitions:
             provider = providers.get(tool.provider)
             provider_available = bool(
-                provider is not None and tool.capability in provider.capabilities
+                provider is not None
+                and tool.capability in provider.capabilities
+                and (provider.can_execute or tool.capability == "connection.inspect")
             )
             mutation_blocked = not mutations_enabled and tool.effect is not Effect.READ
             available = provider_available and not mutation_blocked
-            reason = (
-                None
-                if available
-                else "external_mutations_disabled"
-                if mutation_blocked
-                else provider.reason
-                if provider is not None
-                else "provider_unavailable"
-            )
+            if available:
+                reason = None
+            elif mutation_blocked:
+                reason = "external_mutations_disabled"
+            elif provider is None:
+                reason = "provider_unavailable"
+            elif not provider.can_execute and tool.capability != "connection.inspect":
+                reason = provider.reason or "provider_not_operational"
+            else:
+                reason = provider.reason or "capability_unavailable"
             availability[tool.tool_id] = (available, reason)
             public_tools.append(tool.public_entry(available=available, reason=reason))
             if available:

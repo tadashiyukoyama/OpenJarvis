@@ -74,9 +74,13 @@ class EdgeJobBroker:
         resolved_job_id = str(assignment["job_id"])
         waiter = self._install_waiter(resolved_job_id)
         try:
-            offer = self._offer_frame(connection, assignment, arguments, context)
             try:
-                self._protocol.send_from_thread(connection, offer)
+                self._protocol.send_from_thread(
+                    connection,
+                    "job.offer",
+                    self._offer_payload(assignment, arguments, context),
+                    job_id=str(assignment["job_id"]),
+                )
             except JarvisAgentError:
                 terminal = self._results.finish(
                     assignment,
@@ -173,29 +177,23 @@ class EdgeJobBroker:
             }
         )
 
-    def _offer_frame(
+    def _offer_payload(
         self,
-        connection: EdgeConnection,
         assignment: Mapping[str, Any],
         arguments: Mapping[str, Any],
         context: Mapping[str, Any],
-    ) -> EdgeFrame:
+    ) -> dict[str, Any]:
         expires = datetime.now(timezone.utc) + timedelta(
             seconds=self._config.lease_seconds
         )
-        return self._protocol.outbound_frame(
-            connection.device_id,
-            "job.offer",
-            {
-                "attempt_id": assignment["attempt_id"],
-                "tool_id": assignment["tool_id"],
-                "arguments": dict(arguments),
-                "context": dict(context),
-                "payload_hash": assignment["payload_hash"],
-                "lease_expires_at": expires.isoformat().replace("+00:00", "Z"),
-            },
-            job_id=str(assignment["job_id"]),
-        )
+        return {
+            "attempt_id": assignment["attempt_id"],
+            "tool_id": assignment["tool_id"],
+            "arguments": dict(arguments),
+            "context": dict(context),
+            "payload_hash": assignment["payload_hash"],
+            "lease_expires_at": expires.isoformat().replace("+00:00", "Z"),
+        }
 
     def _wait_for_acceptance(
         self, waiter: EdgeJobWaiter, assignment: Mapping[str, Any]
@@ -292,13 +290,12 @@ class EdgeJobBroker:
         self, connection: EdgeConnection, assignment: Mapping[str, Any], reason: str
     ) -> None:
         try:
-            frame = self._protocol.outbound_frame(
-                connection.device_id,
+            self._protocol.send_from_thread(
+                connection,
                 "job.cancel",
                 {"attempt_id": assignment["attempt_id"], "reason": reason},
                 job_id=str(assignment["job_id"]),
             )
-            self._protocol.send_from_thread(connection, frame)
         except Exception:
             pass
 

@@ -115,8 +115,11 @@ class EdgeApprovalService:
             assignment = self._store.get_edge_assignment(str(approval["job_id"]))
             if assignment is None or assignment["device_id"] != connection.device_id:
                 continue
-            await connection.send(
-                self._resolved_frame(connection, assignment, approval)
+            await self._protocol.send(
+                connection,
+                "approval.resolved",
+                self._resolved_payload(assignment, approval),
+                job_id=str(assignment["job_id"]),
             )
 
     def _send_if_online(
@@ -126,26 +129,22 @@ class EdgeApprovalService:
         if connection is None:
             return False
         self._protocol.send_from_thread(
-            connection, self._resolved_frame(connection, assignment, approval)
+            connection,
+            "approval.resolved",
+            self._resolved_payload(assignment, approval),
+            job_id=str(assignment["job_id"]),
         )
         return True
 
-    def _resolved_frame(
-        self,
-        connection: EdgeConnection,
-        assignment: Mapping[str, Any],
-        approval: Mapping[str, Any],
-    ):
-        return self._protocol.outbound_frame(
-            connection.device_id,
-            "approval.resolved",
-            {
-                "attempt_id": assignment["attempt_id"],
-                "approval_id": approval["approval_id"],
-                "decision": "approve" if approval["state"] == "APPROVED" else "deny",
-            },
-            job_id=str(assignment["job_id"]),
-        )
+    @staticmethod
+    def _resolved_payload(
+        assignment: Mapping[str, Any], approval: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return {
+            "attempt_id": assignment["attempt_id"],
+            "approval_id": approval["approval_id"],
+            "decision": "approve" if approval["state"] == "APPROVED" else "deny",
+        }
 
     def _action(self, assignment: Mapping[str, Any]) -> Mapping[str, Any] | None:
         action_id = assignment.get("action_id")

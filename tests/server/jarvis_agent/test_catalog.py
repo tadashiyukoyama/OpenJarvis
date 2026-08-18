@@ -17,6 +17,7 @@ def test_catalog_hides_unavailable_mutations_and_hackernews() -> None:
             "configured_not_probed",
             frozenset({"email.search", "email.unread", "messages.read"}),
             False,
+            operational=True,
         ),
         "acelerachat_whatsapp": ProviderCapabilities(
             "acelerachat_whatsapp",
@@ -43,6 +44,43 @@ def test_catalog_hides_unavailable_mutations_and_hackernews() -> None:
         item for item in snapshot["providers"] if item["id"] == "acelerachat_whatsapp"
     )
     assert whatsapp["status"] == "connected"
+    email = next(
+        item for item in snapshot["providers"] if item["id"] == "acelerachat_email"
+    )
+    assert email["connected"] is False
+    assert email["operational"] is True
+
+
+def test_non_operational_provider_only_exposes_connection_inspection() -> None:
+    catalog = JarvisToolCatalog()
+    providers = {
+        "jarvis_local": ProviderCapabilities(
+            "jarvis_local", "available", frozenset({"jarvis.audit"}), True
+        ),
+        "acelerachat_email": ProviderCapabilities(
+            "acelerachat_email",
+            "disconnected",
+            frozenset({"email.search"}),
+            False,
+            "source_disconnected",
+            False,
+        ),
+        "acelerachat_whatsapp": ProviderCapabilities(
+            "acelerachat_whatsapp",
+            "disconnected",
+            frozenset({"connection.inspect", "conversations.search"}),
+            False,
+            "source_disconnected",
+            False,
+        ),
+    }
+
+    snapshot = catalog.snapshot(providers)
+    manifest = {entry["name"] for entry in snapshot["manifest"]}
+
+    assert "email_search_messages" not in manifest
+    assert "whatsapp_search_contacts" not in manifest
+    assert "whatsapp_get_status" in manifest
 
 
 def test_every_default_tool_has_policy_and_schema() -> None:

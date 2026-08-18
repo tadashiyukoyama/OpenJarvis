@@ -631,6 +631,10 @@
             "title": "Id",
             "type": "string"
           },
+          "operational": {
+            "title": "Operational",
+            "type": "boolean"
+          },
           "reason": {
             "anyOf": [
               {
@@ -651,6 +655,7 @@
           "id",
           "status",
           "connected",
+          "operational",
           "capabilities"
         ],
         "title": "ProviderResponse",

@@ -67,6 +67,8 @@ describe('Gemini Live Jarvis voice setup', () => {
       .replace(/\\n/g, ' ')
       .replace(/\s+/g, ' ');
     expect(instruction).toContain('catálogo de funções');
+    expect(instruction).toContain('FERRAMENTAS EXECUTÁVEIS NESTA SESSÃO (3)');
+    expect(instruction).toContain('codex_delegate_task');
     expect(instruction).toContain('masculina e firme');
     expect(instruction).toContain(
       'não pode ser trocada no meio de uma sessão Live',
@@ -91,8 +93,11 @@ describe('Gemini Live Jarvis voice setup', () => {
       MANIFEST,
     );
 
-    expect(message.setup.systemInstruction.parts).toHaveLength(2);
+    expect(message.setup.systemInstruction.parts).toHaveLength(3);
     expect(message.setup.systemInstruction.parts[1].text).toContain(
+      'whatsapp_search_contacts',
+    );
+    expect(message.setup.systemInstruction.parts[2].text).toContain(
       'Última mensagem conhecida do Codex: pronto',
     );
     expect(

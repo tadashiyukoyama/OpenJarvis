@@ -6,14 +6,17 @@ function provider(
   id: string,
   status: string,
   connected = false,
+  operational = connected,
 ): JarvisAgentProvider {
-  return { id, status, connected, capabilities: [], reason: null };
+  return { id, status, connected, operational, capabilities: [], reason: null };
 }
 
 describe('canonical provider presentation', () => {
   it('shows operational but unprobed e-mail honestly', () => {
-    expect(providerStatus(provider('acelerachat_email', 'configured_not_probed'))).toBe(
-      'configured not probed',
+    expect(providerStatus(
+      provider('acelerachat_email', 'configured_not_probed', false, true),
+    )).toBe(
+      'operacional · conexão não sondada',
     );
   });
 
