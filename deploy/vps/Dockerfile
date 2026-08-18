@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir uv && \
     uv export --frozen --no-dev --extra server --no-emit-project > requirements.txt && \
     uv pip install --system --no-deps -r requirements.txt
 COPY src/ ./src/
+COPY scripts/install/ ./scripts/install/
+COPY deploy/windows/ ./deploy/windows/
 COPY --from=frontend /build/src/openjarvis/server/static ./src/openjarvis/server/static/
 RUN uv pip install --system --no-deps .
 
