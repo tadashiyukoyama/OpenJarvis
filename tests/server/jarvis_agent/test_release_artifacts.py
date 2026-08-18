@@ -81,3 +81,15 @@ def test_release_context_excludes_private_and_local_artifacts() -> None:
         "*.sqlite3",
     ):
         assert excluded in dockerignore
+
+
+def test_windows_edge_task_tracks_the_hidden_worker_process() -> None:
+    manager = _text("scripts/edge/Manage-OpenJarvisEdgeTask.ps1")
+    launcher = _text("scripts/edge/Start-OpenJarvisEdge.ps1")
+
+    assert "System32\\WindowsPowerShell\\v1.0\\powershell.exe" in manager
+    assert "-WindowStyle Hidden" in manager
+    assert "-Repository `\"$Repository`\"" in manager
+    assert "Start-Process -FilePath $python" in launcher
+    assert "-WindowStyle Hidden -Wait -PassThru" in launcher
+    assert "exit $process.ExitCode" in launcher

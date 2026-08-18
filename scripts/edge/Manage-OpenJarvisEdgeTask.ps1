@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$launcher = Join-Path $Repository 'scripts\edge\Start-OpenJarvisEdge.ps1'
+$launcher = Join-Path $PSScriptRoot 'Start-OpenJarvisEdge.ps1'
 
 switch ($Action) {
     'Install' {
@@ -19,7 +19,8 @@ switch ($Action) {
             throw 'Windows PowerShell executable was not found.'
         }
         $taskAction = New-ScheduledTaskAction -Execute $powerShell -Argument (
-            "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcher`""
+            "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass " +
+            "-File `"$launcher`" -Repository `"$Repository`""
         )
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `

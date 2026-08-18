@@ -16,5 +16,7 @@ $logDirectory = Split-Path -Parent $LogFile
 [System.IO.Directory]::CreateDirectory($logDirectory) | Out-Null
 [Environment]::SetEnvironmentVariable('OPENJARVIS_EDGE_LOG_FILE', $LogFile, 'Process')
 Set-Location -LiteralPath $Repository
-& $python -m openjarvis.edge_worker.main --log-level INFO
-exit $LASTEXITCODE
+$process = Start-Process -FilePath $python `
+    -ArgumentList @('-m', 'openjarvis.edge_worker.main', '--log-level', 'INFO') `
+    -WorkingDirectory $Repository -WindowStyle Hidden -Wait -PassThru
+exit $process.ExitCode
