@@ -1,7 +1,7 @@
 import type { ChatMessage, MessageTelemetry, TokenUsage, ToolCallInfo } from '../types';
 import { fetchCodexThreadHistory, requestCodexDesktopRefresh } from './api';
 import { generateId, useAppStore } from './store';
-import { streamChat } from './sse';
+import { streamCodexTurn } from './sse';
 
 export interface CodexCommandProgress {
   phase: 'queued' | 'running' | 'complete' | 'error';
@@ -153,13 +153,6 @@ export async function sendCodexConversationMessage(
       timestamp: Date.now(),
     };
     initial.addMessage(conversationId, userMessage);
-    const latestConversation = useAppStore
-      .getState()
-      .conversations.find((candidate) => candidate.id === conversationId);
-    const apiMessages = (latestConversation?.messages ?? []).map((item) => ({
-      role: item.role,
-      content: item.content,
-    }));
     initial.addMessage(conversationId, {
       id: generateId(),
       role: 'assistant',
@@ -192,18 +185,13 @@ export async function sendCodexConversationMessage(
     options.onProgress?.({ phase: 'running', text: message });
 
     let lastFlush = 0;
-    for await (const event of streamChat(
+    for await (const event of streamCodexTurn(
+      conversation.codexThreadId,
       {
-        model,
-        messages: apiMessages,
-        stream: true,
-        temperature: initial.settings.temperature,
-        max_tokens: initial.settings.maxTokens,
+        project_cwd: conversation.codexProjectCwd,
+        message,
         conversation_id: conversationId,
-        conversation_scope: conversation.codexProjectCwd,
-        codex_thread_id: conversation.codexThreadId,
-        codex_project_cwd: conversation.codexProjectCwd,
-        codex_client_user_message_id: userMessage.id,
+        client_user_message_id: userMessage.id,
       },
       options.signal,
     )) {

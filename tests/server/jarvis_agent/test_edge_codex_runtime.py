@@ -155,3 +155,42 @@ def test_edge_runtime_dispatches_desktop_refresh_on_the_windows_worker() -> None
     assert call["tool_id"] == "codex.desktop_refresh"
     assert call["capability"] == "codex.desktop_refresh"
     assert call["context"]["codex_thread_id"] == "thread-1"
+
+
+def test_edge_runtime_dispatches_idempotent_turn_to_exact_thread() -> None:
+    edge = _Edge()
+    edge.execute_job = lambda **kwargs: (  # type: ignore[method-assign]
+        edge.calls.append(kwargs)
+        or {"status": "completed", "summary": "Resposta real."}
+    )
+    runtime = CodexEdgeRuntimeProxy(edge)  # type: ignore[arg-type]
+
+    result = runtime.start_turn(
+        "thread-1",
+        project_cwd=r"D:\dev\one",
+        command="Execute a auditoria.",
+        request_id="message-1",
+        conversation_id="conversation-1",
+    )
+    first = edge.calls[-1]
+    runtime.start_turn(
+        "thread-1",
+        project_cwd=r"D:\dev\one",
+        command="Execute a auditoria.",
+        request_id="message-1",
+        conversation_id="conversation-1",
+    )
+    second = edge.calls[-1]
+
+    assert result["summary"] == "Resposta real."
+    assert first["tool_id"] == "codex.delegate"
+    assert first["capability"] == "codex.delegate"
+    assert first["arguments"] == {
+        "project_cwd": r"D:\dev\one",
+        "thread_id": "thread-1",
+        "command": "Execute a auditoria.",
+    }
+    assert first["context"]["codex_thread_id"] == "thread-1"
+    assert first["context"]["request_id"] == "message-1"
+    assert first["job_id"] == second["job_id"]
+    assert first["payload_hash"] == second["payload_hash"]

@@ -1340,6 +1340,11 @@ def include_all_routes(app) -> None:
     app.include_router(feedback_router)
     app.include_router(optimize_router)
     app.include_router(codex_router)
+    from openjarvis.server.codex_turn_dispatch import (
+        router as codex_turn_router,  # noqa: PLC0415
+    )
+
+    app.include_router(codex_turn_router)
     from openjarvis.server.gemini_live import jarvis_live_router
 
     app.include_router(jarvis_live_router)

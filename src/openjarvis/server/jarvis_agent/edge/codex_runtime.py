@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import ntpath
 import threading
 import time
@@ -152,6 +153,65 @@ class CodexEdgeRuntimeProxy:
         if not isinstance(uri, str) or not uri.startswith("codex://threads/"):
             raise RuntimeError("CODEX_DESKTOP_REFRESH_FAILED")
         return uri
+
+    def start_turn(
+        self,
+        thread_id: str,
+        *,
+        project_cwd: str,
+        command: str,
+        request_id: str,
+        conversation_id: str,
+    ) -> dict[str, Any]:
+        """Dispatch exactly one idempotent turn to the selected Desktop task."""
+
+        normalized_thread = thread_id.strip()
+        normalized_project = project_cwd.strip()
+        normalized_command = command.strip()
+        normalized_request = request_id.strip()
+        normalized_conversation = conversation_id.strip()
+        if not all(
+            (
+                normalized_thread,
+                normalized_project,
+                normalized_command,
+                normalized_request,
+                normalized_conversation,
+            )
+        ):
+            raise ValueError("CODEX_THREAD_INVALID")
+        arguments = {
+            "project_cwd": normalized_project,
+            "thread_id": normalized_thread,
+            "command": normalized_command,
+        }
+        identity = hashlib.sha256(
+            f"{normalized_thread}\0{normalized_request}".encode("utf-8")
+        ).hexdigest()
+        partition = hashlib.sha256(
+            f"{normalized_project}\0{normalized_thread}".encode("utf-8")
+        ).hexdigest()[:32]
+        return self._edge.execute_job(
+            tool_id="codex.delegate",
+            arguments=arguments,
+            context={
+                "session_id": normalized_conversation,
+                "partition_key": f"codex:{partition}",
+                "project_key": normalized_project,
+                "codex_thread_id": normalized_thread,
+                "request_id": normalized_request,
+            },
+            payload_hash=payload_digest(
+                {
+                    "tool_id": "codex.delegate",
+                    "arguments": arguments,
+                    "request_id": normalized_request,
+                }
+            ),
+            capability="codex.delegate",
+            action_id=normalized_request,
+            job_id=f"codexturn_{identity[:48]}",
+        )
 
     def subscribe_events(self, callback: Callable[[Any], None]) -> int:
         if not callable(callback):

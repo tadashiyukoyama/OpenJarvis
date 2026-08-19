@@ -5,7 +5,7 @@ const harness = vi.hoisted(() => ({
   resetCount: 0,
   logs: [] as Array<Record<string, unknown>>,
   state: null as any,
-  streamChat: vi.fn(),
+  streamCodexTurn: vi.fn(),
   fetchHistory: vi.fn(),
   refreshCodexDesktop: vi.fn(),
 }));
@@ -23,7 +23,7 @@ vi.mock('./store', () => ({
 }));
 
 vi.mock('./sse', () => ({
-  streamChat: (...args: unknown[]) => harness.streamChat(...args),
+  streamCodexTurn: (...args: unknown[]) => harness.streamCodexTurn(...args),
 }));
 
 import {
@@ -88,7 +88,7 @@ beforeEach(() => {
   harness.resetCount = 0;
   harness.logs = [];
   harness.state = createState();
-  harness.streamChat.mockReset();
+  harness.streamCodexTurn.mockReset();
   harness.fetchHistory.mockReset();
   harness.refreshCodexDesktop.mockReset();
   harness.refreshCodexDesktop.mockResolvedValue({
@@ -102,7 +102,7 @@ beforeEach(() => {
 describe('shared Codex conversation dispatcher', () => {
   it('sends the pure message to the selected existing thread and releases stale UI state', async () => {
     harness.state = createState(true);
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [{ delta: { content: 'Resposta real' }, finish_reason: 'stop' }],
@@ -116,20 +116,18 @@ describe('shared Codex conversation dispatcher', () => {
 
     expect(result).toBe('Resposta real');
     expect(harness.resetCount).toBe(2);
-    expect(harness.streamChat).toHaveBeenCalledTimes(1);
+    expect(harness.streamCodexTurn).toHaveBeenCalledTimes(1);
     expect(harness.refreshCodexDesktop).toHaveBeenCalledTimes(2);
     expect(harness.refreshCodexDesktop).toHaveBeenNthCalledWith(1, 'thread-a');
     expect(harness.refreshCodexDesktop).toHaveBeenNthCalledWith(2, 'thread-a');
-    const [request] = harness.streamChat.mock.calls[0];
+    const [threadId, request] = harness.streamCodexTurn.mock.calls[0];
+    expect(threadId).toBe('thread-a');
     expect(request).toMatchObject({
-      model: 'codex',
+      message: 'mensagem pura',
       conversation_id: 'conversation-a',
-      conversation_scope: 'D:\\dev\\workspaces\\openjarvis',
-      codex_thread_id: 'thread-a',
-      codex_project_cwd: 'D:\\dev\\workspaces\\openjarvis',
-      codex_client_user_message_id: 'generated-1',
+      project_cwd: 'D:\\dev\\workspaces\\openjarvis',
+      client_user_message_id: 'generated-1',
     });
-    expect(request.messages).toEqual([{ role: 'user', content: 'mensagem pura' }]);
     expect(harness.state.conversations[0].messages.map((message: any) => message.content)).toEqual([
       'mensagem pura',
       'Resposta real',
@@ -142,7 +140,7 @@ describe('shared Codex conversation dispatcher', () => {
   });
 
   it('keeps the completed response when the optional Desktop refresh fails', async () => {
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [{ delta: { content: 'persistida' }, finish_reason: 'stop' }],
@@ -157,7 +155,7 @@ describe('shared Codex conversation dispatcher', () => {
   });
 
   it('treats a structured SSE agent error as a failed dispatch', async () => {
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield { event: 'error', data: JSON.stringify({ detail: 'CODEX_BUSY' }) };
     });
 
@@ -169,7 +167,7 @@ describe('shared Codex conversation dispatcher', () => {
   });
 
   it('rejects the legacy error-as-assistant-text envelope', async () => {
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [
@@ -189,7 +187,7 @@ describe('shared Codex conversation dispatcher', () => {
   });
 
   it('recovers the canonical Codex answer when the stream has no content delta', async () => {
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [{ delta: {}, finish_reason: 'stop' }],
@@ -214,7 +212,7 @@ describe('shared Codex conversation dispatcher', () => {
   });
 
   it('replaces a transport acknowledgement with the canonical answer', async () => {
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [{ delta: { content: 'Comando concluído pelo Codex.' }, finish_reason: 'stop' }],
@@ -239,7 +237,7 @@ describe('shared Codex conversation dispatcher', () => {
 
   it('does not remount Codex Desktop when the user disables the setting', async () => {
     harness.state.settings.refreshCodexDesktop = false;
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       yield {
         data: JSON.stringify({
           choices: [{ delta: { content: 'feito' }, finish_reason: 'stop' }],
@@ -256,7 +254,7 @@ describe('shared Codex conversation dispatcher', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    harness.streamChat.mockImplementation(async function* () {
+    harness.streamCodexTurn.mockImplementation(async function* () {
       await gate;
       yield {
         data: JSON.stringify({

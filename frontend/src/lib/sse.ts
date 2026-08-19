@@ -21,6 +21,13 @@ export interface ChatRequest {
   codex_client_user_message_id?: string;
 }
 
+export interface CodexTurnRequest {
+  project_cwd: string;
+  message: string;
+  client_user_message_id: string;
+  conversation_id: string;
+}
+
 function parseCodexSyncData(event: string, data: string): CodexThreadSyncEvent | null {
   let parsed: unknown;
   try {
@@ -195,9 +202,44 @@ export async function* streamChat(
     throw new Error(`Chat request failed: ${response.status}`);
   }
 
-  const reader = response.body!.getReader();
+  yield* streamSseResponse(response);
+}
+
+export async function* streamCodexTurn(
+  threadId: string,
+  request: CodexTurnRequest,
+  signal?: AbortSignal,
+): AsyncGenerator<SSEEvent> {
+  const response = await fetch(
+    `${getBase()}/v1/codex/threads/${encodeURIComponent(threadId)}/turns`,
+    {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+      signal,
+    },
+  );
+  if (!response.ok) {
+    let detail = `Codex request failed: ${response.status}`;
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+    } catch {
+      // Keep the status-based error when the response is not JSON.
+    }
+    throw new Error(detail);
+  }
+  yield* streamSseResponse(response);
+}
+
+async function* streamSseResponse(
+  response: Response,
+): AsyncGenerator<SSEEvent> {
+  if (!response.body) throw new Error('Streaming response has no body');
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let currentEvent: string | undefined;
 
   try {
     while (true) {
@@ -205,10 +247,8 @@ export async function* streamChat(
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
+      const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || '';
-
-      let currentEvent: string | undefined;
 
       for (const line of lines) {
         if (line.startsWith('event: ')) {
