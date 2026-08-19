@@ -50,6 +50,12 @@ If the task then exited, Desktop inherited the global redirect and failed with
 `ECONNREFUSED 127.0.0.1:8131`. Reinstalling Desktop could also invalidate the
 old runtime path and authentication session.
 
+The first one-shot cutover helper later exposed a separate environment-specific
+dependency: `Get-FileHash` was unavailable in that hidden PowerShell process.
+The helper failed before cleanup or launch, so normal Codex remained the only
+runtime. SHA-256 calculation now uses `System.Security.Cryptography.SHA256`
+directly and no longer depends on PowerShell module auto-loading.
+
 ## Version-pinned runtime resolution
 
 `Resolve-OpenJarvisCodexRuntime` reads the current MSIX package and hashes both

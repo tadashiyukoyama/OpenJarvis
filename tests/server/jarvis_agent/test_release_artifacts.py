@@ -108,6 +108,8 @@ def test_windows_shared_codex_runtime_is_explicit_versioned_and_fail_safe() -> N
     assert "Resolve-OpenJarvisCodexRuntime" in module
     assert "OpenAI\\Codex\\bin" in module
     assert module.count("Get-OpenJarvisFileSha256") >= 5
+    assert "System.Security.Cryptography.SHA256" in module
+    assert "Get-FileHash" not in module
     assert "Matches: $($matches.Count)" in module
     assert "CurrentRuntime = $currentRuntime" in module
     assert "AllowUnsharedDesktopRecovery" in module

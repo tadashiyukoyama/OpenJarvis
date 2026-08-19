@@ -7,7 +7,16 @@ function Get-OpenJarvisFileSha256 {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Path)
 
-    (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+    $stream = [System.IO.File]::OpenRead($Path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $algorithm.ComputeHash($stream)
+        return [System.BitConverter]::ToString($bytes).Replace('-', '')
+    }
+    finally {
+        $algorithm.Dispose()
+        $stream.Dispose()
+    }
 }
 
 
