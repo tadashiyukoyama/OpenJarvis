@@ -4,6 +4,7 @@ from openjarvis.server.jarvis_agent.registry.catalog import (
     JarvisToolCatalog,
     ProviderCapabilities,
 )
+from openjarvis.server.jarvis_agent.registry.execution_gates import ToolExecutionGates
 
 
 def test_catalog_hides_unavailable_mutations_and_hackernews() -> None:
@@ -126,4 +127,57 @@ def test_release_gate_can_disable_every_mutation_without_hiding_reads() -> None:
     assert "email_search_messages" in manifest
     assert "codex_delegate_task" not in manifest
     blocked = next(tool for tool in snapshot["tools"] if tool["id"] == "codex.delegate")
-    assert blocked["unavailable_reason"] == "external_mutations_disabled"
+    assert blocked["unavailable_reason"] == "codex_delegation_disabled"
+
+
+def test_granular_gate_enables_only_whatsapp_mutations() -> None:
+    catalog = JarvisToolCatalog()
+    capabilities = frozenset(tool.capability for tool in catalog.definitions)
+    providers = {
+        provider: ProviderCapabilities(provider, "available", capabilities, True)
+        for provider in {tool.provider for tool in catalog.definitions}
+    }
+    gates = ToolExecutionGates(
+        default_mutations=False,
+        acelerachat_mutations=False,
+        whatsapp_mutations=True,
+        email_mutations=False,
+        codex_delegation=False,
+    )
+
+    snapshot = catalog.snapshot(providers, execution_gates=gates)
+    manifest = {entry["name"] for entry in snapshot["manifest"]}
+
+    assert "whatsapp_send_text" in manifest
+    assert "whatsapp_react_message" in manifest
+    assert "email_search_messages" in manifest
+    assert "email_reply_conversation" not in manifest
+    assert "codex_delegate_task" not in manifest
+    email = next(tool for tool in snapshot["tools"] if tool["id"] == "email.reply")
+    codex = next(tool for tool in snapshot["tools"] if tool["id"] == "codex.delegate")
+    assert email["unavailable_reason"] == "email_mutations_disabled"
+    assert codex["unavailable_reason"] == "codex_delegation_disabled"
+
+
+def test_account_inbox_mutations_have_an_independent_visual_authority_gate() -> None:
+    catalog = JarvisToolCatalog()
+    capabilities = frozenset(tool.capability for tool in catalog.definitions)
+    providers = {
+        provider: ProviderCapabilities(provider, "available", capabilities, True)
+        for provider in {tool.provider for tool in catalog.definitions}
+    }
+    gates = ToolExecutionGates(
+        default_mutations=False,
+        acelerachat_mutations=True,
+        whatsapp_mutations=False,
+        email_mutations=False,
+        codex_delegation=False,
+    )
+
+    snapshot = catalog.snapshot(providers, execution_gates=gates)
+    manifest = {entry["name"] for entry in snapshot["manifest"]}
+
+    assert "acelerachat_list_inboxes" in manifest
+    assert "acelerachat_send_message" in manifest
+    assert "whatsapp_send_text" not in manifest
+    assert "email_reply_conversation" not in manifest

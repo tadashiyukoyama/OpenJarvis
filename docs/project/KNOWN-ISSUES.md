@@ -19,7 +19,7 @@ Jarvis and do not prove the AceleraChat boundary.
 
 Current external prerequisites for live acceptance:
 
-1. deploy/enable contract version `2026-08-18.2` on AceleraChat;
+1. deploy/enable contract version `2026-08-19.2` on AceleraChat;
 2. configure the ignored local private environment without exposing values;
 3. configure the HTTPS callback ending in
    `/v1/jarvis/agent/providers/acelerachat/webhooks`;
@@ -56,10 +56,12 @@ installable or production-ready, the release still needs:
 4. The general connector registry remains broader than the Jarvis catalog.
    Connectors outside e-mail, WhatsApp and Codex are not executable Jarvis tools
    merely because `/v1/tools` or `mcp_tools()` lists metadata.
-5. AceleraChat contract `2026-08-18.2` does not support WhatsApp native reply,
-   reaction, media upload, provider read receipt, administration, broadcast or
-   voice calls; nor e-mail archive, trash, new composition or attachment upload.
-   These capabilities must not be advertised.
+5. AceleraChat contract `2026-08-19.2` supports Evolution WhatsApp text,
+   provider-native contextual reply, reaction, provider read receipt and media
+   fetched from a public HTTPS URL. It does not expose group/profile/status,
+   broadcast, calls, privacy administration or direct local-file transfer; nor
+   e-mail archive, trash, new composition or attachment upload. Unsupported
+   capabilities must not be advertised.
 6. Vite still contains dormant direct-provider components and libraries for
    preservation/rollback. They are not imported by the active Data Sources page;
    removal requires a separate provenance and compatibility decision.

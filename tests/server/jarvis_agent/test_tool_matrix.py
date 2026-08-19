@@ -48,7 +48,7 @@ def test_canonical_catalog_has_the_exact_agent_surface() -> None:
     catalog = JarvisToolCatalog()
     identifiers = {tool.tool_id for tool in catalog.definitions}
 
-    assert len(identifiers) == 16
+    assert len(identifiers) == 24
     assert "whatsapp_action" not in identifiers
     assert not any("call" in identifier for identifier in identifiers)
     assert not any("hacker" in identifier for identifier in identifiers)
@@ -153,11 +153,14 @@ def test_declared_text_fields_reject_empty_values(tool) -> None:
 def test_acelerachat_surface_does_not_advertise_unsupported_mutations() -> None:
     identifiers = {tool.tool_id for tool in JarvisToolCatalog().definitions}
 
-    assert not {
-        "gmail.archive",
-        "gmail.trash",
+    assert {
         "whatsapp.react",
         "whatsapp.reply",
         "whatsapp.send_media",
+        "whatsapp.mark_read_provider",
+    }.issubset(identifiers)
+    assert not {
+        "gmail.archive",
+        "gmail.trash",
         "whatsapp.broadcast",
     }.intersection(identifiers)

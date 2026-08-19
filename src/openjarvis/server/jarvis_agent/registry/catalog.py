@@ -12,6 +12,7 @@ from openjarvis.server.jarvis_agent.domain.models import ToolDefinition
 from openjarvis.server.jarvis_agent.domain.states import Effect
 from openjarvis.server.jarvis_agent.registry.acelerachat import acelerachat_tools
 from openjarvis.server.jarvis_agent.registry.codex import codex_tools
+from openjarvis.server.jarvis_agent.registry.execution_gates import ToolExecutionGates
 from openjarvis.server.jarvis_agent.registry.schemas import integer, object_schema
 
 
@@ -89,7 +90,9 @@ class JarvisToolCatalog:
         providers: Mapping[str, ProviderCapabilities],
         *,
         mutations_enabled: bool = True,
+        execution_gates: ToolExecutionGates | None = None,
     ) -> dict[str, Any]:
+        gates = execution_gates or ToolExecutionGates.uniform(mutations_enabled)
         availability: dict[str, tuple[bool, str | None]] = {}
         public_tools: list[dict[str, Any]] = []
         manifest: list[dict[str, Any]] = []
@@ -100,12 +103,12 @@ class JarvisToolCatalog:
                 and tool.capability in provider.capabilities
                 and (provider.can_execute or tool.capability == "connection.inspect")
             )
-            mutation_blocked = not mutations_enabled and tool.effect is not Effect.READ
+            mutation_blocked = not gates.allows(tool)
             available = provider_available and not mutation_blocked
             if available:
                 reason = None
             elif mutation_blocked:
-                reason = "external_mutations_disabled"
+                reason = gates.blocked_reason(tool)
             elif provider is None:
                 reason = "provider_unavailable"
             elif not provider.can_execute and tool.capability != "connection.inspect":
@@ -140,6 +143,7 @@ class JarvisToolCatalog:
     ) -> list[dict[str, Any]]:
         source_providers = {
             "jarvis": ("jarvis_local",),
+            "acelerachat": ("acelerachat_inboxes",),
             "email": ("acelerachat_email",),
             "whatsapp": ("acelerachat_whatsapp",),
             "codex": ("codex_desktop",),

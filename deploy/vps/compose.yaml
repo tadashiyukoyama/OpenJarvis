@@ -13,7 +13,6 @@ services:
     environment:
       OPENJARVIS_CORE_MODE: vps
       OPENJARVIS_HOME: /var/lib/openjarvis
-      OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED: "false"
     ports:
       - "127.0.0.1:${OPENJARVIS_CORE_PORT:-8180}:8000"
     volumes:

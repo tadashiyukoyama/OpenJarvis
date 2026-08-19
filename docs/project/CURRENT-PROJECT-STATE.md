@@ -172,8 +172,8 @@ Implemented in the current working tree:
 - private, no-retry AceleraChat HTTP client with streaming-bounded responses
   and stable errors;
 - live inbox/capability discovery with explicit selection when ambiguous;
-- five e-mail tools and seven WhatsApp tools matching contract version
-  `2026-08-18.2`;
+- five e-mail tools and eleven WhatsApp tools matching contract version
+  `2026-08-19.2`;
 - opaque references, bounded presentation and untrusted-data marking;
 - visual approval and one-attempt idempotent mutation dispatch;
 - durable `ACCEPTED` external operations;
@@ -288,7 +288,7 @@ user-operated acceptance is recorded below.
 | Integrated code SHA | `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0` |
 | Integrated tree | `b1196b73f2f27fec596d4458ae79a9cb05b725d1` |
 | Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a` |
-| AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
+| AceleraChat integration | contract `2026-08-19.2`; dynamic account inbox authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
@@ -321,7 +321,7 @@ external mutation. Port 8140 and the tunnel remained offline and unchanged.
 
 | Capability | State |
 |---|---|
-| Canonical catalog | 16 registered typed tools |
+| Canonical catalog | 24 registered typed tools |
 | Current Live manifest | dynamically filtered by AceleraChat inboxes and Codex state |
 | Session lifecycle | generation-bound, close invalidates late callbacks |
 | Approval | visual-only, one pending action, five-minute expiry, exact hash |
@@ -343,8 +343,9 @@ Current architectural source state at 2026-08-18 07:04 -03:00:
 | Source/provider | State | Jarvis capability |
 |---|---|---|
 | Jarvis local | code available | operational audit read |
-| AceleraChat e-mail | live state not configured/verified in this task | search, unread, message/conversation read and approved reply when the selected inbox declares them |
-| AceleraChat WhatsApp | live state not configured/verified in this task | status, contacts, chats, history, summary, approved text and internal read marker when declared |
+| AceleraChat account inboxes | source validated locally; production gate pending | dynamic current/future inbox discovery, conversation read and approved response |
+| AceleraChat e-mail | live state not configured/verified in this task | search, unread, message/conversation read and approved reply across authorized operational inboxes |
+| AceleraChat WhatsApp | live state not configured/verified in this task | multi-inbox status/search plus approved text, reply, reaction, provider read, HTTPS media and internal read |
 | Direct Gmail/IMAP | preserved, inactive | absent from active manifest and Data Sources controls |
 | Direct WhatsApp Baileys | preserved, inactive | absent from active manifest and Data Sources controls |
 | Codex Desktop | preserved existing integration | status, recent history and visually approved delegation when available |

@@ -87,6 +87,37 @@ class AceleraChatClient:
             self._request("GET", f"conversations/{conversation_id}")
         )
 
+    def create_contact(
+        self, contact: Mapping[str, Any], *, idempotency_key: str
+    ) -> dict[str, Any]:
+        return self._data_object(
+            self._request(
+                "POST",
+                "contacts",
+                json_body={"contact": dict(contact)},
+                idempotency_key=idempotency_key,
+                mutation=True,
+            )
+        )
+
+    def create_conversation(
+        self, inbox_id: int, contact_id: int, *, idempotency_key: str
+    ) -> dict[str, Any]:
+        return self._data_object(
+            self._request(
+                "POST",
+                "conversations",
+                json_body={
+                    "conversation": {
+                        "inbox_id": inbox_id,
+                        "contact_id": contact_id,
+                    }
+                },
+                idempotency_key=idempotency_key,
+                mutation=True,
+            )
+        )
+
     def create_message(
         self,
         conversation_id: int,
@@ -108,6 +139,33 @@ class AceleraChatClient:
         return self._request(
             "POST",
             f"conversations/{conversation_id}/read",
+            json_body={},
+            idempotency_key=idempotency_key,
+            mutation=True,
+        )
+
+    def react_message(
+        self,
+        conversation_id: int,
+        message_id: int,
+        reaction: str,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"conversations/{conversation_id}/messages/{message_id}/reaction",
+            json_body={"reaction": reaction},
+            idempotency_key=idempotency_key,
+            mutation=True,
+        )
+
+    def mark_provider_read(
+        self, conversation_id: int, *, idempotency_key: str
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"conversations/{conversation_id}/provider_read",
             json_body={},
             idempotency_key=idempotency_key,
             mutation=True,
@@ -211,6 +269,11 @@ class AceleraChatClient:
             code, message = (
                 "INVALID_REQUEST",
                 "O recurso solicitado não foi encontrado.",
+            )
+        elif status in {400, 422}:
+            code, message = (
+                "PROVIDER_REJECTED" if mutation else "INVALID_REQUEST",
+                "O AceleraChat rejeitou os dados da operação.",
             )
         elif status == 409:
             code, message = "PROVIDER_CONFLICT", "O AceleraChat informou um conflito."

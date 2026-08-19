@@ -3,6 +3,7 @@ import { fetchJarvisAgentCatalog } from '@/features/jarvis/api/client';
 import type { JarvisAgentCatalog, JarvisAgentProvider } from '@/features/jarvis/api/types';
 
 const LABELS: Record<string, string> = {
+  acelerachat_inboxes: 'AceleraChat · Todas as caixas',
   acelerachat_email: 'AceleraChat · E-mail',
   acelerachat_whatsapp: 'AceleraChat · WhatsApp',
   codex_desktop: 'Codex Desktop',
@@ -36,7 +37,7 @@ export function JarvisProviderOverview() {
   }, []);
 
   const sources = catalog?.sources.filter((source) =>
-    ['email', 'whatsapp', 'codex'].includes(source.id),
+    ['acelerachat', 'email', 'whatsapp', 'codex'].includes(source.id),
   ) ?? [];
   return (
     <section className="hud-panel" style={{ padding: 14 }}>
@@ -100,8 +101,8 @@ export function JarvisProviderOverview() {
           })}
       </div>
       <p style={{ marginTop: 10, color: 'var(--color-text-tertiary)', fontSize: 11 }}>
-        E-mail e WhatsApp são administrados no AceleraChat. O OpenJarvis usa apenas
-        o contrato privado e nunca recebe tokens pelo navegador.
+        Todas as caixas são administradas no AceleraChat. O OpenJarvis usa apenas
+        o contrato privado e nunca recebe tokens de canal pelo navegador.
       </p>
     </section>
   );

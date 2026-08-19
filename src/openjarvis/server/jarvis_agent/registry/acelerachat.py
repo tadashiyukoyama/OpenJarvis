@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from openjarvis.server.jarvis_agent.domain.models import ToolDefinition
 from openjarvis.server.jarvis_agent.domain.states import Effect
+from openjarvis.server.jarvis_agent.registry.acelerachat_schemas import (
+    INBOX_SELECTOR as _INBOX_SELECTOR,
+)
+from openjarvis.server.jarvis_agent.registry.acelerachat_schemas import (
+    WHATSAPP_DESTINATION as _WHATSAPP_DESTINATION,
+)
 from openjarvis.server.jarvis_agent.registry.schemas import (
     integer,
     object_schema,
@@ -40,6 +46,71 @@ def _tool(
     )
 
 
+_ACCOUNT_INBOX_TOOLS = (
+    _tool(
+        "acelerachat.list_inboxes",
+        "acelerachat_list_inboxes",
+        "Lista todas as caixas atuais autorizadas e seus estados reais.",
+        "acelerachat",
+        "acelerachat_inboxes",
+        "connection.inspect",
+        Effect.READ,
+        object_schema({}),
+    ),
+    _tool(
+        "acelerachat.list_conversations",
+        "acelerachat_list_conversations",
+        "Lista conversas recentes em uma caixa ou em todas as caixas autorizadas.",
+        "acelerachat",
+        "acelerachat_inboxes",
+        "conversations.search",
+        Effect.READ,
+        object_schema(
+            {
+                **_INBOX_SELECTOR,
+                "limit": integer("Quantidade máxima.", minimum=1, maximum=25),
+            }
+        ),
+    ),
+    _tool(
+        "acelerachat.read_conversation",
+        "acelerachat_read_conversation",
+        "Lê uma conversa de qualquer caixa autorizada por referência opaca.",
+        "acelerachat",
+        "acelerachat_inboxes",
+        "messages.read",
+        Effect.READ,
+        object_schema(
+            {
+                "conversation_ref": string(
+                    "Referência opaca da conversa.", max_length=256
+                ),
+                "limit": integer("Quantidade máxima.", minimum=1, maximum=100),
+            },
+            ("conversation_ref",),
+        ),
+    ),
+    _tool(
+        "acelerachat.send_message",
+        "acelerachat_send_message",
+        "Propõe enviar uma mensagem em qualquer conversa autorizada.",
+        "acelerachat",
+        "acelerachat_inboxes",
+        "messages.send",
+        Effect.MUTATION,
+        object_schema(
+            {
+                "conversation_ref": string(
+                    "Referência opaca da conversa.", max_length=256
+                ),
+                "text": string("Mensagem exata.", max_length=20_000),
+            },
+            ("conversation_ref", "text"),
+        ),
+    ),
+)
+
+
 _EMAIL_TOOLS = (
     _tool(
         "email.search",
@@ -51,6 +122,7 @@ _EMAIL_TOOLS = (
         Effect.READ,
         object_schema(
             {
+                **_INBOX_SELECTOR,
                 "query": string("Texto para busca.", max_length=500),
                 "limit": integer("Quantidade máxima.", minimum=1, maximum=25),
             },
@@ -65,7 +137,12 @@ _EMAIL_TOOLS = (
         "acelerachat_email",
         "email.unread",
         Effect.READ,
-        object_schema({"limit": integer("Quantidade máxima.", minimum=1, maximum=25)}),
+        object_schema(
+            {
+                **_INBOX_SELECTOR,
+                "limit": integer("Quantidade máxima.", minimum=1, maximum=25),
+            }
+        ),
     ),
     _tool(
         "email.read_message",
@@ -150,6 +227,7 @@ _WHATSAPP_TOOLS = (
         Effect.READ,
         object_schema(
             {
+                **_INBOX_SELECTOR,
                 "query": string("Nome, telefone ou texto para busca.", max_length=160),
                 "limit": integer("Quantidade máxima.", minimum=1, maximum=25),
             },
@@ -166,6 +244,7 @@ _WHATSAPP_TOOLS = (
         Effect.READ,
         object_schema(
             {
+                **_INBOX_SELECTOR,
                 "query": string("Nome do contato para busca.", max_length=160),
                 "limit": integer("Quantidade máxima.", minimum=1, maximum=25),
             }
@@ -210,20 +289,87 @@ _WHATSAPP_TOOLS = (
     _tool(
         "whatsapp.send_text",
         "whatsapp_send_text",
-        "Propõe enviar texto em uma conversa WhatsApp existente no AceleraChat.",
+        "Propõe enviar texto em uma conversa ou telefone WhatsApp pelo AceleraChat.",
         "whatsapp",
         "acelerachat_whatsapp",
         "messages.send",
         Effect.MUTATION,
         object_schema(
             {
-                "contact_name": string("Nome exato do contato.", max_length=240),
-                "conversation_ref": string(
-                    "Referência opaca opcional da conversa.", max_length=256
-                ),
+                **_WHATSAPP_DESTINATION,
                 "text": string("Mensagem exata.", max_length=4_000),
             },
             ("text",),
+        ),
+    ),
+    _tool(
+        "whatsapp.reply",
+        "whatsapp_reply_message",
+        "Propõe responder contextualmente a uma mensagem WhatsApp específica.",
+        "whatsapp",
+        "acelerachat_whatsapp",
+        "messages.reply",
+        Effect.MUTATION,
+        object_schema(
+            {
+                "message_ref": string("Referência opaca da mensagem.", max_length=256),
+                "text": string("Resposta exata.", max_length=4_000),
+            },
+            ("message_ref", "text"),
+        ),
+    ),
+    _tool(
+        "whatsapp.react",
+        "whatsapp_react_message",
+        "Propõe adicionar ou remover uma reação em uma mensagem WhatsApp.",
+        "whatsapp",
+        "acelerachat_whatsapp",
+        "messages.reaction",
+        Effect.MUTATION,
+        object_schema(
+            {
+                "message_ref": string("Referência opaca da mensagem.", max_length=256),
+                "reaction": string(
+                    "Um emoji, ou vazio para remover.", min_length=0, max_length=64
+                ),
+            },
+            ("message_ref", "reaction"),
+        ),
+    ),
+    _tool(
+        "whatsapp.mark_read_provider",
+        "whatsapp_mark_provider_read",
+        "Propõe enviar recibos de leitura pelo WhatsApp e atualizar o AceleraChat.",
+        "whatsapp",
+        "acelerachat_whatsapp",
+        "messages.mark_read_provider",
+        Effect.MUTATION,
+        object_schema(
+            {
+                "conversation_ref": string(
+                    "Referência opaca da conversa.", max_length=256
+                )
+            },
+            ("conversation_ref",),
+        ),
+    ),
+    _tool(
+        "whatsapp.send_media",
+        "whatsapp_send_media",
+        "Propõe enviar mídia de uma URL HTTPS em uma conversa ou telefone WhatsApp.",
+        "whatsapp",
+        "acelerachat_whatsapp",
+        "messages.media_send",
+        Effect.MUTATION,
+        object_schema(
+            {
+                **_WHATSAPP_DESTINATION,
+                "url": string("URL HTTPS pública da mídia.", max_length=2_048),
+                "caption": string(
+                    "Legenda opcional exata.", min_length=0, max_length=4_000
+                ),
+            },
+            ("url",),
         ),
     ),
     _tool(
@@ -247,4 +393,4 @@ _WHATSAPP_TOOLS = (
 
 
 def acelerachat_tools() -> tuple[ToolDefinition, ...]:
-    return (*_EMAIL_TOOLS, *_WHATSAPP_TOOLS)
+    return (*_ACCOUNT_INBOX_TOOLS, *_EMAIL_TOOLS, *_WHATSAPP_TOOLS)

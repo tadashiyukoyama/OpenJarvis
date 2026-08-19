@@ -94,11 +94,20 @@ class AceleraChatEmailTools:
     ) -> AdapterResult:
         if tool_id == "email.search":
             return self._search(
-                str(arguments["query"]), int(arguments.get("limit", 10)), context
+                str(arguments["query"]),
+                int(arguments.get("limit", 10)),
+                context,
+                inbox_id=self._optional_inbox_id(arguments),
+                inbox_name=str(arguments.get("inbox_name") or ""),
             )
         if tool_id == "email.list_unread":
             return self._search(
-                None, int(arguments.get("limit", 10)), context, unread=True
+                None,
+                int(arguments.get("limit", 10)),
+                context,
+                unread=True,
+                inbox_id=self._optional_inbox_id(arguments),
+                inbox_name=str(arguments.get("inbox_name") or ""),
             )
         if tool_id in {"email.read_message", "email.read_conversation"}:
             return self._read(tool_id, arguments, context)
@@ -113,8 +122,10 @@ class AceleraChatEmailTools:
         context: AdapterContext,
         *,
         unread: bool | None = None,
+        inbox_id: int | None = None,
+        inbox_name: str = "",
     ) -> AdapterResult:
-        inbox_id = self._inbox_id(force=False)
+        inbox_id = self._inbox_id(force=False, expected=inbox_id, inbox_name=inbox_name)
         raw = self._client.search_messages(
             inbox_id=inbox_id, query=query, unread=unread, limit=min(limit, 25)
         )
@@ -174,10 +185,20 @@ class AceleraChatEmailTools:
             message,
             idempotency_key=f"jarvis:{context.request_id}",
         )
-        return self._accepted(response, context, source="email")
+        return self._accepted(
+            response,
+            context,
+            source="email",
+            inbox_id=int(arguments["inbox_id"]),
+        )
 
     def _accepted(
-        self, response: Mapping[str, Any], context: AdapterContext, *, source: str
+        self,
+        response: Mapping[str, Any],
+        context: AdapterContext,
+        *,
+        source: str,
+        inbox_id: int,
     ) -> AdapterResult:
         result = response.get("result")
         data = response.get("data")
@@ -201,7 +222,7 @@ class AceleraChatEmailTools:
             source=source,
             kind="message",
             resource_id=message.id,
-            inbox_id=int(self._inbox_id(force=False)),
+            inbox_id=inbox_id,
             conversation_id=message.conversation_id,
         )
         return AdapterResult(
@@ -213,8 +234,19 @@ class AceleraChatEmailTools:
             ExternalOperation("acelerachat", "Message", str(message.id)),
         )
 
-    def _inbox_id(self, *, force: bool, expected: int | None = None) -> int:
-        snapshot = self._capabilities.channel("acelerachat_email", force=force)
+    def _inbox_id(
+        self,
+        *,
+        force: bool,
+        expected: int | None = None,
+        inbox_name: str = "",
+    ) -> int:
+        snapshot = self._capabilities.select(
+            "acelerachat_email",
+            inbox_id=expected,
+            inbox_name=inbox_name,
+            force=force,
+        )
         if snapshot.inbox is None or not (
             snapshot.inbox.connection.operational or snapshot.inbox.connection.connected
         ):
@@ -222,9 +254,12 @@ class AceleraChatEmailTools:
                 "SOURCE_DISCONNECTED",
                 "A caixa de e-mail do AceleraChat está indisponível.",
             )
-        if expected is not None and snapshot.inbox.id != expected:
-            raise JarvisAgentError("MANIFEST_STALE", "A caixa de e-mail ativa mudou.")
         return snapshot.inbox.id
+
+    @staticmethod
+    def _optional_inbox_id(arguments: Mapping[str, Any]) -> int | None:
+        value = arguments.get("inbox_id")
+        return int(value) if value is not None else None
 
     @staticmethod
     def _messages(values: list[dict[str, Any]]) -> list[Message]:

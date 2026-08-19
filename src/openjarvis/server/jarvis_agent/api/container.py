@@ -17,6 +17,7 @@ from openjarvis.server.jarvis_agent.edge.codex_runtime import CodexEdgeRuntimePr
 from openjarvis.server.jarvis_agent.edge.service import EdgeService
 from openjarvis.server.jarvis_agent.persistence.sqlite import JarvisAgentStore
 from openjarvis.server.jarvis_agent.registry.catalog import JarvisToolCatalog
+from openjarvis.server.jarvis_agent.registry.execution_gates import ToolExecutionGates
 from openjarvis.server.jarvis_agent.services.context import ContextService
 from openjarvis.server.jarvis_agent.services.events import EventService
 from openjarvis.server.jarvis_agent.services.orchestrator import (
@@ -33,12 +34,6 @@ def state_root() -> Path:
     if runtime:
         return Path(runtime).expanduser().resolve() / "state"
     return Path.home() / ".openjarvis"
-
-
-def _mutations_enabled(core_mode: str) -> bool:
-    default = "false" if core_mode == "vps" else "true"
-    value = os.environ.get("OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED", default)
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def get_orchestrator(app: FastAPI) -> JarvisAgentOrchestrator:
@@ -75,7 +70,7 @@ def get_orchestrator(app: FastAPI) -> JarvisAgentOrchestrator:
         context=context,
         events=events,
         edge=edge,
-        mutations_enabled=_mutations_enabled(core_mode),
+        execution_gates=ToolExecutionGates.from_environment(core_mode),
     )
     acelerachat = adapters["acelerachat"]
     orchestrator.acelerachat_webhooks = AceleraChatWebhookService(

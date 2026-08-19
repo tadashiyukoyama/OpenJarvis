@@ -29,7 +29,7 @@ Required repositories and contracts:
 
 - current release worktree: `D:\dev\workspaces\openjarvis-edge-release`;
 - reusable local Python environment: `D:\dev\workspaces\openjarvis\.venv`;
-- AceleraChat release contract: `2026-08-18.2`;
+- AceleraChat release contract: `2026-08-19.2`;
 - Edge schemas: `contracts/edge/v1`;
 - Agent OpenAPI: `contracts/jarvis-agent.openapi.json`;
 - Core container: `deploy/vps/Dockerfile` and `compose.yaml`;
@@ -164,8 +164,10 @@ The Windows Edge Core-relay token must match the VPS
 `OPENJARVIS_MCP_AUTH_TOKEN`; Codex receives neither value. The local pipe token
 appears only in the two private Windows files.
 
-Before release, confirm selected inbox IDs from the AceleraChat API. Never infer
-them by display name.
+Before release, confirm that the AceleraChat policy is account-scoped and list
+the authorized inboxes through the read-only API. The e-mail and WhatsApp inbox
+IDs are only optional preferred defaults; leave them blank to require explicit
+selection whenever more than one matching inbox is operational.
 
 Keep the bounded replay controls explicit in the private Edge configuration:
 
@@ -289,7 +291,9 @@ future image; the exact current digest and rollback evidence are recorded in
 3. Create `/opt/openjarvis` independently from AceleraChat directories.
 4. Build/tag the image with the full clean OpenJarvis SHA.
 5. Record image digest and scanner result.
-6. Keep `OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`.
+6. Keep `OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`; enable only the reviewed
+   channel-specific gate. For this release, WhatsApp may be `true` while other
+   mutation classes remain independently controlled.
 7. Start `deploy/vps/compose.yaml` with one Core replica.
 8. Verify container user 10001, read-only root, limits, volume and health.
 9. Do not mount Docker socket, SSH keys, AceleraChat filesystem or host source.
