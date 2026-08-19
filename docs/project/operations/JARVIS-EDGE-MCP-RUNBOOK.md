@@ -301,6 +301,7 @@ Current source rollback point is the local AceleraChat checkpoint
 | MCP tools missing | provider capabilities and canonical catalog | do not add a manual MCP tool |
 | Core relay 401 | independent relay-token fingerprints | rotate/configure outside logs |
 | Codex busy | selected task state | fail fast; no hidden queue |
+| `active writer` while Desktop appears idle | verify there is one shared app-server and no private Desktop child | restore the shared topology; do not create another thread |
 | approval never appears | action/job correlation and SSE/poll cursor | do not approve through voice or API shortcut |
 | accepted job has no final result | Edge spool, attempt, lease and history | reconcile; never retry uncertain mutation |
 | PWA health fails | authenticated `/health`, CSP and generated Workbox asset | test exact gateway routes |

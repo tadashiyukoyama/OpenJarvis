@@ -458,3 +458,22 @@ executive section. The historical gate does not add unsupported capabilities.
 - Edge Worker task/service installation: no.
 - Container build or VPS Core installation: no.
 - DNS, TLS or OpenResty reload: no.
+
+## Shared Codex topology correction - 2026-08-18
+
+The Edge rollout exposed a local topology regression after Codex Desktop was
+restarted normally: Desktop spawned its private app-server while the Edge Worker
+remained connected to the dedicated listener on `127.0.0.1:8131`. A live probe
+proved that history remained readable but `thread/resume` failed with JSON-RPC
+`-32600` because the same thread already had a writer in the other app-server.
+
+The required behavior remains the earlier shared-client model: Desktop and Edge
+connect to one app-server so the same thread, turns and public events appear in
+both interfaces. The tracked startup components now install a reversible
+`OpenJarvis Shared Codex` logon task, persist the non-secret loopback endpoint
+for future Desktop launches, refuse unrelated port owners and refuse to kill an
+already-running private Desktop topology. The operational procedure is in
+`operations/JARVIS-SHARED-CODEX-RUNTIME.md`.
+
+No Desktop restart or Codex turn is performed by the code change itself. The
+cutover and one same-thread acceptance turn are separate controlled gates.

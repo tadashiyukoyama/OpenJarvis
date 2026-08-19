@@ -93,3 +93,25 @@ def test_windows_edge_task_tracks_the_hidden_worker_process() -> None:
     assert "Start-Process -FilePath $python" in launcher
     assert "-WindowStyle Hidden -Wait -PassThru" in launcher
     assert "exit $process.ExitCode" in launcher
+
+
+def test_windows_shared_codex_runtime_has_one_reversible_authority() -> None:
+    module = _text("scripts/edge/SharedCodexRuntime.psm1")
+    manager = _text("scripts/edge/Manage-OpenJarvisSharedCodexTask.ps1")
+    server = _text("scripts/edge/Start-OpenJarvisSharedCodex.ps1")
+    desktop = _text("scripts/edge/Start-OpenJarvisCodexDesktop.ps1")
+    runbook = _text("docs/project/operations/JARVIS-SHARED-CODEX-RUNTIME.md")
+
+    assert "Get-OpenJarvisDesktopCodexTopology" in module
+    assert "PrivateAppServerCount" in module
+    assert "CODEX_APP_SERVER_WS_URL" in manager
+    assert "shared-codex-user-environment.backup.json" in manager
+    assert "Restore-OpenJarvisUserEnvironment" in manager
+    assert "New-ScheduledTaskTrigger -AtLogOn" in manager
+    assert "-WindowStyle Hidden" in manager
+    assert "app-server', '--listen', $config.SharedUrl" in server
+    assert "Start-Process -FilePath $config.DesktopExe" in desktop
+    assert "Codex Desktop is already open with a private app-server" in desktop
+    assert "normally and use the OpenJarvis Codex shortcut again" in desktop
+    assert "Stop-Process" not in desktop
+    assert "one shared Codex app-server" in runbook
