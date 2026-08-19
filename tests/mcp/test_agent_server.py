@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from openjarvis.mcp.agent_server import JarvisAgentMCPServer
-from openjarvis.mcp.protocol import MCPRequest
+from openjarvis.mcp.protocol import INTERNAL_ERROR, MCPRequest
 
 
 class _Client:
@@ -18,7 +18,7 @@ class _Client:
                 "name": "email_search",
                 "description": "Search email",
                 "source": "email",
-                "effect": "read",
+                "effect": "READ",
                 "input_schema": {"type": "object", "properties": {}},
             },
             {
@@ -26,7 +26,7 @@ class _Client:
                 "name": "whatsapp_send",
                 "description": "Send message",
                 "source": "whatsapp",
-                "effect": "mutation",
+                "effect": "MUTATION",
                 "input_schema": {"type": "object", "properties": {}},
             },
             {
@@ -34,7 +34,7 @@ class _Client:
                 "name": "codex_delegate_task",
                 "description": "Recursive delegation",
                 "source": "codex",
-                "effect": "delegation",
+                "effect": "DELEGATION",
                 "input_schema": {"type": "object", "properties": {}},
             },
         ]
@@ -51,6 +51,13 @@ class _Client:
 
     def close(self) -> None:
         pass
+
+
+class _InvalidEffectClient(_Client):
+    def catalog(self) -> list[dict[str, Any]]:
+        values = super().catalog()
+        values[0]["effect"] = "UNRECOGNIZED"
+        return values
 
 
 def test_agent_mcp_initialize_documents_safety_contract() -> None:
@@ -73,6 +80,24 @@ def test_agent_mcp_excludes_codex_and_exposes_annotations() -> None:
     assert [item["name"] for item in tools] == ["email_search", "whatsapp_send"]
     assert tools[0]["annotations"]["readOnlyHint"] is True
     assert tools[1]["annotations"]["destructiveHint"] is True
+
+
+def test_agent_mcp_rejects_unknown_effect_without_caching_tools() -> None:
+    client = _InvalidEffectClient()
+    server = JarvisAgentMCPServer(client)  # type: ignore[arg-type]
+
+    response = server.handle(MCPRequest(method="tools/list", id=1))
+    tool_call = server.handle(
+        MCPRequest(
+            method="tools/call",
+            params={"name": "email_search", "arguments": {}},
+            id=2,
+        )
+    )
+
+    assert response.error["code"] == INTERNAL_ERROR
+    assert tool_call.error["code"] == INTERNAL_ERROR
+    assert client.calls == []
 
 
 def test_agent_mcp_calls_core_without_legacy_executor() -> None:

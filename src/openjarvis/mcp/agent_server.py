@@ -78,10 +78,12 @@ class JarvisAgentMCPServer:
             ]
             if len(values) > 13:
                 raise RuntimeError("Agent Core exposed more than 13 local tools")
-            self._tools = {str(item["name"]): item for item in values}
             tools = [self._mcp_tool(item) for item in values]
+            resolved_tools = {str(item["name"]): item for item in values}
+            self._tools = resolved_tools
             return MCPResponse(result={"tools": tools}, id=request.id or 0)
         except Exception:
+            self._tools = {}
             return MCPResponse.error_response(
                 request.id or 0,
                 INTERNAL_ERROR,
@@ -137,7 +139,10 @@ class JarvisAgentMCPServer:
 
     @staticmethod
     def _mcp_tool(item: dict[str, Any]) -> dict[str, Any]:
-        read_only = item.get("effect") == "read"
+        effect = str(item.get("effect") or "").upper()
+        if effect not in {"READ", "MUTATION", "DELEGATION"}:
+            raise ValueError("Unsupported Agent Core tool effect")
+        read_only = effect == "READ"
         return {
             "name": item["name"],
             "description": item["description"],
