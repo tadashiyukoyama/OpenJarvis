@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
-import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -14,6 +12,10 @@ from websockets.asyncio.client import ClientConnection, connect
 from openjarvis.edge_worker.approvals import CodexApprovalBridge
 from openjarvis.edge_worker.codex_events import CodexEventRelay
 from openjarvis.edge_worker.config import EdgeWorkerConfig
+from openjarvis.edge_worker.connection_safety import (
+    safe_connection_failure,
+    wait_for_reconnect,
+)
 from openjarvis.edge_worker.executor import CodexEdgeExecutor
 from openjarvis.edge_worker.job_runner import EdgeJobRunner
 from openjarvis.edge_worker.spool import EdgeWorkerSpool
@@ -25,30 +27,6 @@ from openjarvis.server.jarvis_agent.edge.frames import (
 )
 
 logger = logging.getLogger(__name__)
-
-_SAFE_VALUE_ERRORS = {
-    "Core did not acknowledge Edge registration": "registration_not_acknowledged",
-    "Core frame targets another device": "device_identity_mismatch",
-    "Core frame sequence moved backwards": "core_sequence_moved_backwards",
-    "Edge job identity mismatch": "job_identity_mismatch",
-}
-_SAFE_CLOSE_REASON = re.compile(r"^[a-z0-9_.:-]{1,80}$")
-
-
-def _safe_connection_failure(exc: Exception) -> str:
-    """Return protocol diagnostics without logging URLs, tokens or payloads."""
-
-    if isinstance(exc, ValueError):
-        return f"ValueError:{_SAFE_VALUE_ERRORS.get(str(exc), 'protocol_value_error')}"
-    received = getattr(exc, "rcvd", None)
-    code = getattr(received, "code", None)
-    reason = str(getattr(received, "reason", "") or "")
-    details = [type(exc).__name__]
-    if isinstance(code, int):
-        details.append(f"code={code}")
-    if reason and _SAFE_CLOSE_REASON.fullmatch(reason):
-        details.append(f"reason={reason}")
-    return ":".join(details)
 
 
 class EdgeWorker:
@@ -104,9 +82,13 @@ class EdgeWorker:
                     raise
                 except Exception as exc:
                     logger.warning(
-                        "Edge connection unavailable: %s", _safe_connection_failure(exc)
+                        "Edge connection unavailable: %s", safe_connection_failure(exc)
                     )
-                    await self._bounded_delay(stop, delay)
+                    await wait_for_reconnect(
+                        stop,
+                        delay,
+                        max_seconds=self.config.reconnect_max_seconds,
+                    )
                     delay = min(self.config.reconnect_max_seconds, delay * 2)
         finally:
             await self.close()
@@ -398,16 +380,6 @@ class EdgeWorker:
         )
         future.result(timeout=10.0)
         self.spool.transition(job_id, "WAITING_APPROVAL")
-
-    async def _bounded_delay(self, stop: asyncio.Event, delay: float) -> None:
-        duration = min(
-            self.config.reconnect_max_seconds,
-            delay + random.uniform(0, max(0.1, delay * 0.2)),
-        )
-        try:
-            await asyncio.wait_for(stop.wait(), timeout=duration)
-        except asyncio.TimeoutError:
-            pass
 
     async def close(self) -> None:
         await self.jobs.close()
