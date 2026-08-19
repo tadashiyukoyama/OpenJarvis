@@ -1,9 +1,9 @@
 # Jarvis Edge Worker and MCP release runbook
 
-Status: CANONICAL — CONTROLLED RELEASE AUTHORIZED, DEPLOYMENT PENDING
+Status: CANONICAL — CONTROLLED RELEASE ACTIVE; MUTATIONS DISABLED
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Supersedes: none
@@ -12,10 +12,11 @@ Superseded by: none
 ## Safety boundary
 
 This runbook prepares and governs the controlled release authorized by Cesar on
-2026-08-19. The authorization covers one private fast-forward publication,
-validated backup/build/deploy, rollback and read-only smoke. It does not cover
-DNS changes, AceleraChat migrations, a real Codex turn, channel mutations or a
-real WhatsApp/e-mail send; those remain separate explicit gates.
+2026-08-19. The authorization covers the initial private fast-forward release,
+one gate-driven local MCP hotfix publication, validated backup/build/deploy,
+rollback and read-only smoke. It does not cover new DNS changes, AceleraChat
+migrations, a real Codex turn, channel mutations or a real WhatsApp/e-mail send;
+those remain separate explicit gates.
 
 Never print private values. The private handoff remains outside Git at the path
 supplied by Cesar. Operators may verify required variable names and presence,
@@ -26,7 +27,7 @@ redacted paths.
 
 Required repositories and contracts:
 
-- current release worktree: `D:\dev\workspaces\openjarvis-edge-relay`;
+- current release worktree: `D:\dev\workspaces\openjarvis-edge-release`;
 - reusable local Python environment: `D:\dev\workspaces\openjarvis\.venv`;
 - AceleraChat release contract: `2026-08-18.2`;
 - Edge schemas: `contracts/edge/v1`;
@@ -45,7 +46,7 @@ digest. Never deploy from a working tree, archive or copied `node_modules`.
 Run read-only checks:
 
 ```powershell
-Set-Location -LiteralPath D:\dev\workspaces\openjarvis-edge-relay
+Set-Location -LiteralPath D:\dev\workspaces\openjarvis-edge-release
 git status --short --branch
 git rev-parse HEAD
 git worktree list --porcelain
@@ -70,7 +71,7 @@ Use the existing locked environments; do not install a missing dependency just
 to make the gate green without approval.
 
 ```powershell
-$sourceRoot = 'D:\dev\workspaces\openjarvis-edge-relay'
+$sourceRoot = 'D:\dev\workspaces\openjarvis-edge-release'
 $python = 'D:\dev\workspaces\openjarvis\.venv\Scripts\python.exe'
 $env:PYTHONPATH = Join-Path $sourceRoot 'src'
 Set-Location -LiteralPath $sourceRoot
@@ -111,13 +112,14 @@ npm run build
 Pop-Location
 ```
 
-Current local evidence for integrated code SHA `df82a3c`: 537 directed Python
+Current local evidence for integrated code SHA `1ecb90a`: 538 directed Python
 tests plus 4 subtests, 52 isolated Edge Worker tests and 106 frontend tests in
 27 files passed.
 TypeScript, Vite/PWA, Ruff check/format, generated contracts, `compileall`, ten
 Edge PowerShell parses, Compose YAML, MCP TOML and `git diff --check` also
-passed. These are local gates only; they do not replace the pending container,
-OpenResty, WSS, same-task turn or visual smokes.
+passed. These are local gates only. The container, OpenResty and WSS gates were
+later completed under controlled release; the same-task turn and final visual
+smokes remain separate gates.
 
 The repository-wide upstream suite is a diagnostic, not this release gate: it
 contains unrelated optional-provider and external-integration tests. If it is
@@ -255,11 +257,19 @@ Copy the example block from
 configuration only after authorization. It contains no secret; the wrapper
 loads `agent-mcp.env` from D: and starts only the MCP STDIO facade.
 
+On Windows, use the absolute command
+`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` with
+`-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass`. Do not assume
+`pwsh.exe` is present in the clean Desktop PATH. Save and restart Codex after
+changing MCP configuration.
+
 Verify through an MCP protocol client:
 
 - `initialize` returns safety instructions;
 - `tools/list` returns at most 13 available tools;
 - no `codex.*` or `codex_delegate_task` exists;
+- every live `READ` tool has `readOnlyHint=true`, `destructiveHint=false` and
+  `idempotentHint=true`; an unknown effect fails the catalog closed;
 - an unavailable provider removes its tools;
 - read calls pass through the Agent Core;
 - mutation creates a visual proposal and waits;
@@ -270,7 +280,9 @@ Do not configure remote `/mcp`; it is outside this release.
 
 ## Gate 5 — VPS container preparation
 
-This gate is descriptive until VPS access is explicitly authorized.
+This gate was completed for the active Core release. Re-run every item for any
+future image; the exact current digest and rollback evidence are recorded in
+`OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md`.
 
 1. Record VPS resource, container, port and OpenResty preflight.
 2. Confirm no conflict on loopback port 8180 and no second 80/443 listener.
@@ -401,7 +413,7 @@ The source rollback point is the private production-source baseline
 `openjarvis-core:3586569fe597943baa990dfb18fa5f7a7d2c9b69` as the active prior
 image; re-confirm its immutable image ID immediately before cutover. Preserve
 evidence first, then revert integrated checkpoints in reverse order when a
-narrower source rollback is proven safe: `df82a3c`, `c31bd49`, `955cf84`,
+narrower source rollback is proven safe: `1ecb90a`, `df82a3c`, `c31bd49`, `955cf84`,
 `49e99f2`, `4a1db68`, `35ee771`, `21c9481`, `5493484`, `343a62c`, `95f3d14`,
 `84bcba7`. Do not mix a source rollback with deletion of Edge/Core ledgers.
 
@@ -411,6 +423,7 @@ narrower source rollback is proven safe: `df82a3c`, `c31bd49`, `955cf84`,
 |---|---|---|
 | Edge shown offline | WSS TLS, device ID, heartbeat and revocation | fix identity/network; create a new proposal afterward |
 | MCP unavailable | scheduled task, named pipe and local token ACL | restart worker only after identifying cause |
+| MCP absent only in Codex Desktop | absolute Windows PowerShell command, `config.toml`, Desktop restart | fix the command first; do not add a second MCP server |
 | MCP tools missing | provider capabilities and canonical catalog | do not add a manual MCP tool |
 | Core relay 401 | independent relay-token fingerprints | rotate/configure outside logs |
 | Codex busy | selected task state | fail fast; no hidden queue |

@@ -1,9 +1,9 @@
 # Jarvis Edge Worker and MCP contract
 
-Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
+Status: CANONICAL — CONTROLLED CORE AND EDGE ACTIVE; MUTATIONS DISABLED
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Supersedes: none
@@ -14,7 +14,8 @@ Superseded by: none
 This contract defines the hybrid boundary that keeps the Jarvis Agent Core on
 the VPS while Codex Desktop remains on Cesar's Windows computer. It also defines
 the filtered MCP surface consumed by local Codex. It does not authorize a VPS
-deployment, DNS change, credential change or external mutation.
+redeployment, DNS change, credential change or external mutation beyond the
+controlled evidence explicitly recorded for the active release.
 
 The AceleraChat contract remains unchanged at `2026-08-18.2`. AceleraChat owns
 e-mail, WhatsApp, contacts and conversations. The Edge Worker owns no provider
@@ -34,7 +35,9 @@ worklet and diagnostic paths. Traceable release checkpoints are:
 - `49e99f2f76fbb33679e33f987c7e422c62054137`: strict nested result mappings;
 - `955cf84081cec1cfa67e94077d412b96fb190e38`: focused bounded-history serialization;
 - `c31bd49cfb8125438af1ae3ae4f305090828f70e`: production-base reconciliation;
-- `df82a3c2a1f138837cbbf88f2a303908adeb754e`: focused connection safety.
+- `df82a3c2a1f138837cbbf88f2a303908adeb754e`: focused connection safety;
+- `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`: strict live effect mapping and
+  PATH-independent Windows MCP startup.
 
 ## Topology and authority
 
@@ -68,7 +71,7 @@ never be mistaken for a successful SPA navigation.
 
 | Surface | Contract |
 |---|---|
-| PWA | `https://openjarvis.meugerenciador.pro/jarvis` after deployment |
+| PWA | `https://openjarvis.meugerenciador.pro/jarvis` |
 | Agent Core | `/v1/jarvis/agent/*` behind interface authentication |
 | Gemini Live | `/v1/jarvis/live/status`, `/token` and `/events` |
 | Edge | `wss://openjarvis.meugerenciador.pro/edge` with device Bearer |
@@ -260,7 +263,10 @@ for JSON-RPC; diagnostics use standard error. The facade:
 - derives `tools/list` from the canonical server catalog;
 - removes every tool with source/ID `codex.*`;
 - exposes at most 13 currently eligible tools;
-- preserves JSON Schema and read/destructive annotations;
+- accepts only canonical `READ`, `MUTATION` and `DELEGATION` effects, normalizes
+  their case and fails the entire list closed on any unknown effect;
+- preserves JSON Schema and maps `READ` to read-only, non-destructive,
+  idempotent MCP annotations;
 - sends `tools/call` into a canonical Agent Core proposal;
 - requires a JSON-RPC request ID for tool calls;
 - derives a stable function-call ID from request ID plus exact payload;
@@ -332,7 +338,9 @@ Errors never include stack traces, tokens, private paths or provider content.
 
 Automated tests prove protocol, persistence, rotation overlap, revocation,
 reconciliation, nested approval, MCP filtering/idempotency, a real Windows named
-pipe round trip, PWA contracts and fail-closed release artifacts. Production
-acceptance additionally requires an authorized VPS build/deploy, DNS/TLS,
-container digest, Edge connection, read-only smokes and visual PWA proof. None
-of those external changes is implied by this document.
+pipe round trip, PWA contracts and fail-closed release artifacts. Controlled
+acceptance has also completed VPS build/deploy, DNS/TLS, immutable image
+recording, Edge reconnection after reboot, live MCP read calls, same-thread
+history and sanitized live event relay. External mutations remain disabled.
+A real delegated Codex turn, real channel send and final tablet/desktop visual
+acceptance remain separate explicit gates.

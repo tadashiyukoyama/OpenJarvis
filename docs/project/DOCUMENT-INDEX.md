@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
@@ -20,14 +20,15 @@ documentation; the completion report must record both SHAs and prove that diff.
 
 | Document | Status | Responsibility | Last verified | Applicable implementation |
 |---|---|---|---|---|
-| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-19 | `df82a3c` |
+| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-19 | `1ecb90a` |
 | `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-19 | `28744c7` |
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-18 | AceleraChat working tree |
-| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `df82a3c` |
+| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `1ecb90a` |
 | `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-18 | AceleraChat working tree |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `df82a3c` |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `1ecb90a` |
+| `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md` | CANONICAL EVIDENCE | exact Core/local SHAs, backups, digest, read-only smokes and rollback | 2026-08-19 | `1ecb90a` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
-| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `df82a3c` |
+| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `1ecb90a` |
 | `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-08-19 | `28744c7` |
 | `KNOWN-ISSUES.md` | CANONICAL | proven current risks and scoped acceptance status | 2026-08-18 | AceleraChat working tree |
 | `REPOSITORY-MAP.md` | CANONICAL | Git roots, remotes and synchronization history | 2026-07-17 | historical foundation |
@@ -49,7 +50,8 @@ documentation; the completion report must record both SHAs and prove that diff.
 7. `KNOWN-ISSUES.md`
 8. `operations/JARVIS-AGENT-RUNBOOK.md`
 9. `operations/JARVIS-EDGE-MCP-RUNBOOK.md`
-10. generated OpenAPI/TypeScript/Edge contracts and code
+10. `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md`
+11. generated OpenAPI/TypeScript/Edge contracts and code
 
 For a new computer, read `operations/FRESH-WINDOWS-INSTALL.md` immediately
 after `AGENTS.md` and `.workspace/project.portable.json`, then resume the order

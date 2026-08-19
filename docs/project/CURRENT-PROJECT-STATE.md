@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication target: private `main` at
@@ -41,7 +41,17 @@ branch `codex/edge-live-relay-release`. The auditable functional checkpoints are
 - `c31bd49cfb8125438af1ae3ae4f305090828f70e` reconciles production SPA/API
   behavior without losing the production-only frontend and audio paths;
 - `df82a3c2a1f138837cbbf88f2a303908adeb754e` isolates connection-safety logic
-  and restores the physical module limit after the production merge.
+  and restores the physical module limit after the production merge;
+- `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0` aligns the local MCP facade with
+  the uppercase Core effect contract, fails closed on unknown effects and uses
+  an absolute Windows PowerShell launcher that does not depend on Desktop PATH.
+
+The post-reboot MCP gate found two concrete local-only defects after the Core
+release: `pwsh.exe` was absent from the clean Codex Desktop PATH, and the live
+catalog returned `READ` while the facade compared against lowercase `read`.
+That made the server fail to launch automatically and, under a manual launch,
+made read tools appear destructive. SHA `1ecb90a` corrects both without changing
+the Core API, Edge protocol, database or deployed container behavior.
 
 Together, those checkpoints correct the split between job completion and
 visible Codex state:
@@ -118,11 +128,13 @@ Data Sources and are inaccessible through VPS connector/source routes. The
 earlier direct-provider acceptance below remains historical evidence; it is not
 evidence of a live AceleraChat deployment.
 
-The hybrid VPS/Windows boundary is now implemented locally: a VPS-mode Core,
-outbound authenticated Edge WSS, durable Edge jobs/leases, a persistent Windows
-worker using the loopback Codex app-server, nested visual approvals and a
-filtered Codex MCP STDIO facade. Release artifacts and runbooks exist, but no
-VPS, DNS, TLS, OpenResty, task, credential or runtime was changed in this gate.
+The hybrid VPS/Windows boundary is active under controlled release. The VPS Core
+runs release `2ed693755e1cf0a21a0cb7cb704fbdd3c4294415`; the Windows Edge Worker
+starts through its existing limited scheduled task; Codex exposes one shared
+loopback listener on `127.0.0.1:8131`; and the local MCP runtime is at hotfix
+`1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`. External mutations remain disabled.
+The real delegated Codex turn and any real e-mail/WhatsApp send remain separate
+explicit authorization gates.
 
 ## Edge Worker and MCP preparation — 2026-08-18 13:09 -03:00
 
@@ -273,15 +285,15 @@ user-operated acceptance is recorded below.
 | Branch | `codex/edge-live-relay-release` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code SHA | `df82a3c2a1f138837cbbf88f2a303908adeb754e` |
-| Integrated tree | `d5129454afc2182b5c9fc5ac616354d9ce4dadc4` |
-| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c` |
+| Integrated code SHA | `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0` |
+| Integrated tree | `b1196b73f2f27fec596d4458ae79a9cb05b725d1` |
+| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a` |
 | AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
 | Distribution remote | `https://github.com/tadashiyukoyama/openjarvis-codex.git` (private) |
-| Push/PR | one fast-forward publication to private `main` is the release gate; no PR |
+| Push/PR | initial release plus one gate-driven local MCP hotfix, each in one fast-forward push; no PR |
 | Current implementation workspace | isolated `openjarvis-edge-release` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
 | Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
@@ -393,9 +405,9 @@ overwritten. The C: rollback was not deleted.
 | Generated OpenAPI/TypeScript contracts | regenerated and parity check passed |
 | Python compileall, PowerShell parser and `git diff --check` | passed |
 
-Edge/MCP directed validation at integrated code SHA `df82a3c`:
+Edge/MCP directed validation at integrated code SHA `1ecb90a`:
 
-- 537 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
+- 538 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
   MCP and the selected Codex integration boundaries;
 - the isolated Edge Worker matrix passed 52 tests, including atomic admission,
   full-spool rollback, invalid/oversized/nested result fallback and failed-send
@@ -410,8 +422,26 @@ Edge/MCP directed validation at integrated code SHA `df82a3c`:
 - full-spool regressions prove atomic admission plus acceptance frame, atomic
   success/failure, bounded terminal fallback, replay after send failure,
   restart recovery and additive local SQLite schema migration;
-- Docker image build, Compose rendering, OpenResty syntax, Edge WSS and remote
-  visual smokes remain controlled deployment gates.
+- Docker image build, Compose rendering, OpenResty syntax and Edge WSS passed in
+  the controlled deployment; the delegated turn and final visual smokes remain
+  separate gates.
+
+Controlled post-reboot evidence on 2026-08-19:
+
+- one Codex app-server listener existed on `127.0.0.1:8131`; no private second
+  listener was present;
+- the Edge scheduled task returned `Running` after the Windows reboot;
+- MCP initialized from the absolute Windows PowerShell command and exposed six
+  live tools, all with read-only/non-destructive annotations and no Codex tool;
+- `jarvis_read_operational_audit` and `whatsapp_get_status` completed through the
+  real Core path without external mutation; WhatsApp truthfully reported
+  `source_disconnected`;
+- `codex.status` completed in 882 ms and correctly reported the active task busy;
+- bounded `codex.history` returned three messages and found the current reboot
+  marker without printing content;
+- the same thread hash had 83 live `codex.event` frames in 15 minutes, including
+  `item_started`, `item_completed` and `text_delta`;
+- no Codex turn, e-mail or WhatsApp message was created by these smokes.
 
 The final live backend rejected a 1 MiB-plus webhook with HTTP 413 and
 `WEBHOOK_INVALID_PAYLOAD`. Backend and frontend contained no error-level,

@@ -3,10 +3,11 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Functional dispatch: `343a62c52d75dc73d3d30e9a671d13f60434d637`
 Functional state relay: `5493484fca5d4ce81a4892bec9a1826cffbfe93a`
 Durable admission and terminal outcome: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+MCP facade and Windows launcher: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
 Branch: `codex/edge-live-relay-release`
 Supersedes: none
 Superseded by: none
@@ -161,12 +162,17 @@ Codex also receives a filtered MCP STDIO facade for non-Codex tools. STDIO talks
 to the persistent Edge Worker through an authenticated Windows named pipe. The
 worker relays only five required Agent Core route shapes using an independent
 HTTPS Bearer. The facade does not expose `codex.*`, cannot approve/revoke and
-does not use the legacy `ToolExecutor`.
+does not use the legacy `ToolExecutor`. Canonical uppercase effects are validated
+before caching tools; an unknown effect makes the catalog unavailable. The
+Windows configuration uses the absolute system PowerShell path and therefore
+does not depend on the reduced Codex Desktop PATH.
 
 Automated proof covers WSS contracts, Edge persistence/recovery, Windows named
 pipe round trip, MCP filtering/idempotency, nested approvals and bounded remote
-history reconciliation. A real VPS/Edge/visual smoke remains a release gate and
-has not been claimed.
+history reconciliation. Controlled live proof covers reboot recovery, one
+shared listener, six safe MCP tools, actual read-only calls, current-task history
+and ordered `codex.event` relay. No turn was started. A real delegated turn and
+final visual smoke remain explicit release gates.
 
 ## Known platform limitation
 
