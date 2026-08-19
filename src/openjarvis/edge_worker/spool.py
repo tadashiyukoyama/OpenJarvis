@@ -7,6 +7,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -46,9 +47,29 @@ ON worker_jobs(state, updated_at);
 """
 
 
+class EdgeSpoolCapacityError(RuntimeError):
+    """The durable outbound queue reached its configured safety boundary."""
+
+
+@dataclass(frozen=True, slots=True)
+class PendingOutboundFrame:
+    sequence: int
+    wire_json: str
+
+
 class EdgeWorkerSpool:
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        max_frames: int = 10_000,
+        max_bytes: int = 64 * 1024 * 1024,
+    ) -> None:
+        if max_frames <= 0 or max_bytes <= 0:
+            raise ValueError("Edge spool limits must be positive")
         self.path = path
+        self.max_frames = max_frames
+        self.max_bytes = max_bytes
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         with self._transaction() as connection:
@@ -92,6 +113,28 @@ class EdgeWorkerSpool:
                 ).fetchone()[0]
             )
 
+    def inbound_sequence(self) -> int:
+        return self._state_value("inbound_sequence")
+
+    def outbound_sequence(self) -> int:
+        return self._state_value("outbound_sequence")
+
+    def reconcile_outbound_sequence(self, minimum: int) -> None:
+        if minimum < 0:
+            raise ValueError("Outbound sequence minimum cannot be negative")
+        with self._transaction() as connection:
+            connection.execute(
+                "UPDATE worker_state SET value = MAX(value, ?) WHERE key = ?",
+                (minimum, "outbound_sequence"),
+            )
+
+    def _state_value(self, key: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM worker_state WHERE key = ?", (key,)
+            ).fetchone()
+        return int(row[0])
+
     def record_inbound(self, event_id: str, sequence: int) -> bool:
         with self._transaction() as connection:
             if connection.execute(
@@ -118,9 +161,34 @@ class EdgeWorkerSpool:
             return True
 
     def queue_outbound(self, event_id: str, sequence: int, wire_json: str) -> None:
+        wire_bytes = len(wire_json.encode("utf-8"))
         with self._transaction() as connection:
+            existing = connection.execute(
+                "SELECT sequence, wire_json FROM outbound_frames WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                identity_changed = (
+                    int(existing["sequence"]) != sequence
+                    or existing["wire_json"] != wire_json
+                )
+                if identity_changed:
+                    raise ValueError("Edge outbound event identity mismatch")
+                return
+            stats = connection.execute(
+                "SELECT COUNT(*) AS frame_count, "
+                "COALESCE(SUM(LENGTH(CAST(wire_json AS BLOB))), 0) AS byte_count "
+                "FROM outbound_frames"
+            ).fetchone()
+            if (
+                int(stats["frame_count"]) >= self.max_frames
+                or int(stats["byte_count"]) + wire_bytes > self.max_bytes
+            ):
+                raise EdgeSpoolCapacityError(
+                    "Edge outbound spool capacity reached; durable event was not queued"
+                )
             connection.execute(
-                "INSERT OR IGNORE INTO outbound_frames"
+                "INSERT INTO outbound_frames"
                 "(event_id, sequence, wire_json, created_at) VALUES (?, ?, ?, ?)",
                 (event_id, sequence, wire_json, time.time()),
             )
@@ -131,12 +199,29 @@ class EdgeWorkerSpool:
                 "DELETE FROM outbound_frames WHERE sequence <= ?", (sequence,)
             )
 
-    def pending_frames(self) -> list[str]:
+    def pending_frames(
+        self, *, after_sequence: int = 0, limit: int = 100
+    ) -> list[PendingOutboundFrame]:
+        if after_sequence < 0 or limit <= 0:
+            raise ValueError("Invalid Edge spool page")
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT wire_json FROM outbound_frames ORDER BY sequence"
+                "SELECT sequence, wire_json FROM outbound_frames "
+                "WHERE sequence > ? ORDER BY sequence LIMIT ?",
+                (after_sequence, min(limit, 1_000)),
             ).fetchall()
-        return [str(row[0]) for row in rows]
+        return [
+            PendingOutboundFrame(int(row["sequence"]), str(row["wire_json"]))
+            for row in rows
+        ]
+
+    def discard_legacy_registration_frames(self) -> int:
+        """Remove v1.0 registration frames incorrectly persisted as application data."""
+        with self._transaction() as connection:
+            return connection.execute(
+                "DELETE FROM outbound_frames "
+                "WHERE wire_json LIKE '%\"type\":\"edge.register\"%'"
+            ).rowcount
 
     def accept_job(
         self, *, job_id: str, attempt_id: str, tool_id: str, payload_hash: str
@@ -202,4 +287,8 @@ class EdgeWorkerSpool:
             )
 
 
-__all__ = ["EdgeWorkerSpool"]
+__all__ = [
+    "EdgeSpoolCapacityError",
+    "EdgeWorkerSpool",
+    "PendingOutboundFrame",
+]

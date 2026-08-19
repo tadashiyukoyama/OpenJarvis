@@ -17,6 +17,14 @@ def _positive(values: Mapping[str, str], name: str, default: float) -> float:
     return result
 
 
+def _positive_int(values: Mapping[str, str], name: str, default: int) -> int:
+    raw = values.get(name, "").strip()
+    result = int(raw) if raw else default
+    if result <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return result
+
+
 def _edge_url(value: str) -> str:
     parsed = urlparse(value)
     loopback = parsed.hostname in {"127.0.0.1", "localhost", "::1"}
@@ -56,6 +64,9 @@ class EdgeWorkerConfig:
     reconnect_max_seconds: float = 30.0
     approval_timeout_seconds: float = 300.0
     job_timeout_seconds: float = 600.0
+    spool_max_frames: int = 10_000
+    spool_max_bytes: int = 64 * 1024 * 1024
+    replay_batch_size: int = 100
 
     @classmethod
     def from_env(
@@ -99,6 +110,15 @@ class EdgeWorkerConfig:
             ),
             job_timeout_seconds=_positive(
                 values, "OPENJARVIS_EDGE_JOB_TIMEOUT_SECONDS", 600.0
+            ),
+            spool_max_frames=_positive_int(
+                values, "OPENJARVIS_EDGE_SPOOL_MAX_FRAMES", 10_000
+            ),
+            spool_max_bytes=_positive_int(
+                values, "OPENJARVIS_EDGE_SPOOL_MAX_BYTES", 64 * 1024 * 1024
+            ),
+            replay_batch_size=_positive_int(
+                values, "OPENJARVIS_EDGE_REPLAY_BATCH_SIZE", 100
             ),
         )
         if not config.device_id or not config.token or not config.project_roots:

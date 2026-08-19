@@ -104,9 +104,6 @@ class EdgeRegistry:
                 "updated_at": now,
             }
         )
-        self._protocol.record_inbound(
-            frame, metadata=self._protocol.safe_metadata(frame, payload)
-        )
         connection = EdgeConnection(
             connection_id=f"edgec_{uuid.uuid4().hex}",
             device_id=frame.device_id,
@@ -139,6 +136,7 @@ class EdgeRegistry:
             payload={
                 "device_id": frame.device_id,
                 "capability_count": len(connection.capabilities),
+                "registration_sequence": frame.sequence,
             },
         )
         return connection

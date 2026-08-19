@@ -59,10 +59,16 @@ class EdgeWorker:
         executor: CodexEdgeExecutor | None = None,
     ) -> None:
         self.config = config
-        self.spool = spool or EdgeWorkerSpool(config.state_path)
+        self.spool = spool or EdgeWorkerSpool(
+            config.state_path,
+            max_frames=config.spool_max_frames,
+            max_bytes=config.spool_max_bytes,
+        )
+        self.spool.discard_legacy_registration_frames()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._connection: ClientConnection | None = None
         self._send_lock: asyncio.Lock | None = None
+        self._handshake_complete = False
         self._recovered = self.spool.recover_interrupted()
         self.approvals = CodexApprovalBridge(
             self._send_required_from_thread,
@@ -119,24 +125,15 @@ class EdgeWorker:
             self.jobs.set_loop(self._loop)
             self._connection = websocket
             self._send_lock = asyncio.Lock()
-            await self._emit(
-                "edge.register",
-                {
-                    "worker_version": "1.0.0",
-                    "platform": "windows",
-                    "capabilities": sorted(self.executor.capabilities),
-                },
-            )
+            self._handshake_complete = False
+            await self._send_registration()
             first = parse_edge_frame(await websocket.recv(), from_client=False)
             if first.type != "edge.registered":
                 raise ValueError("Core did not acknowledge Edge registration")
             await self._handle_core(first)
-            await self._emit(
-                "edge.resume", {"active_job_ids": self.spool.active_job_ids()}
-            )
+            await self._replay_and_resume()
             recovered, self._recovered = self._recovered, []
             await self.jobs.publish_recovered(recovered)
-            await self._replay_spool()
             heartbeat = asyncio.create_task(self._heartbeat(stop))
             try:
                 while not stop.is_set():
@@ -147,8 +144,30 @@ class EdgeWorker:
             finally:
                 heartbeat.cancel()
                 await asyncio.gather(heartbeat, return_exceptions=True)
+                self._handshake_complete = False
                 self._connection = None
                 self._send_lock = None
+
+    async def _send_registration(self) -> EdgeFrame:
+        connection, lock = self._connection, self._send_lock
+        if connection is None or lock is None:
+            raise ConnectionError("Edge connection is offline")
+        sequence = self.spool.next_outbound_sequence()
+        frame = make_edge_frame(
+            frame_type="edge.register",
+            device_id=self.config.device_id,
+            sequence=sequence,
+            payload={
+                "worker_version": "1.0.0",
+                "platform": "windows",
+                "capabilities": sorted(self.executor.capabilities),
+                "last_core_sequence": self.spool.inbound_sequence(),
+            },
+            from_client=True,
+        )
+        async with lock:
+            await connection.send(frame.wire_json())
+        return frame
 
     async def _handle_core(self, frame: EdgeFrame) -> None:
         if frame.device_id != self.config.device_id:
@@ -158,6 +177,7 @@ class EdgeWorker:
         payload = frame.validated_payload(from_client=False).model_dump(mode="json")
         acknowledged = payload.get("acknowledged_sequence")
         if isinstance(acknowledged, int):
+            self.spool.reconcile_outbound_sequence(acknowledged)
             self.spool.acknowledge(acknowledged)
         if frame.type == "job.offer":
             await self.jobs.accept_offer(frame, payload)
@@ -183,6 +203,22 @@ class EdgeWorker:
         *,
         job_id: str | None = None,
     ) -> EdgeFrame:
+        connection, lock = self._connection, self._send_lock
+        if connection is None or lock is None:
+            return self._queue_frame(frame_type, payload, job_id=job_id)
+        async with lock:
+            frame = self._queue_frame(frame_type, payload, job_id=job_id)
+            if self._handshake_complete:
+                await connection.send(frame.wire_json())
+            return frame
+
+    def _queue_frame(
+        self,
+        frame_type: str,
+        payload: Mapping[str, Any],
+        *,
+        job_id: str | None = None,
+    ) -> EdgeFrame:
         sequence = self.spool.next_outbound_sequence()
         frame = make_edge_frame(
             frame_type=frame_type,
@@ -193,23 +229,36 @@ class EdgeWorker:
             from_client=True,
         )
         self.spool.queue_outbound(str(frame.event_id), sequence, frame.wire_json())
-        connection, lock = self._connection, self._send_lock
-        if connection is None or lock is None:
-            return frame
-        async with lock:
-            await connection.send(frame.wire_json())
         return frame
 
     async def _emit_codex_event(self, payload: Mapping[str, Any]) -> EdgeFrame:
         return await self._emit("codex.event", payload)
 
-    async def _replay_spool(self) -> None:
+    async def _replay_and_resume(self) -> None:
         connection, lock = self._connection, self._send_lock
         if connection is None or lock is None:
             return
         async with lock:
-            for wire in self.spool.pending_frames():
-                await connection.send(wire)
+            cursor = 0
+            while True:
+                page = self.spool.pending_frames(
+                    after_sequence=cursor,
+                    limit=self.config.replay_batch_size,
+                )
+                if not page:
+                    break
+                for pending in page:
+                    await connection.send(pending.wire_json)
+                    cursor = pending.sequence
+            resume = self._queue_frame(
+                "edge.resume", {"active_job_ids": self.spool.active_job_ids()}
+            )
+            self._handshake_complete = True
+            try:
+                await connection.send(resume.wire_json())
+            except Exception:
+                self._handshake_complete = False
+                raise
 
     def _send_required_from_thread(
         self, job_id: str, frame_type: str, payload: Mapping[str, Any]

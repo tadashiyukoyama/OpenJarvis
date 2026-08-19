@@ -96,6 +96,11 @@ class EdgeService:
             raise JarvisAgentError(
                 "EDGE_AUTH_FAILED", "Identidade Edge divergente.", status_code=403
             )
+        if frame.type == "edge.register":
+            raise JarvisAgentError(
+                "EDGE_FRAME_INVALID",
+                "O registro Edge só é permitido durante o handshake.",
+            )
         payload = frame.validated_payload(from_client=True).model_dump(mode="json")
         created = self.protocol.record_inbound(
             frame, metadata=self.protocol.safe_metadata(frame, payload)
