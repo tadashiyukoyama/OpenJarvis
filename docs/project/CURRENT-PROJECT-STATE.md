@@ -3,36 +3,45 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
-Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
-Branch: `codex/edge-codex-live-relay`
-Remote publication: this correction is local and not pushed; the source snapshot
-remains private at `https://github.com/tadashiyukoyama/openjarvis-codex`
+Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
+Branch: `codex/edge-live-relay-release`
+Remote publication target: private `main` at
+`https://github.com/tadashiyukoyama/openjarvis-codex`; the completion report
+must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
 
-## Codex live Edge relay correction — 2026-08-19
+## Codex live Edge relay production-base release — 2026-08-19
 
-Branch `codex/edge-codex-live-relay`, based on
-`393031e9eec9e8583d0b8958ae399c40dd5148d3`, now has eight auditable logical
-checkpoints without activating the runtime:
+The independently audited source branch ended at documentation HEAD
+`49d90e86f78d4416b09866880a40a3ad28c8e3af`, with functional code SHA
+`11a6c424c33af6db899cdffed609bef5e01b5ee8`. That tree was not deployed because
+it was based on an unrelated history and differed from the production-source
+baseline across 106 paths, including removal of seven production-only audio,
+worklet, diagnostic and regression-test paths.
 
-- `9433229c124a9dc048ab83dd683f621e13008665` bounds the durable spool,
-  reconciles acknowledgement high-water and replays before `edge.resume`;
-- `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf` adds the explicit selected-task
-  turn endpoint and server-derived idempotent Edge job;
-- `19fb8585a80ae70d5f1c999923a5e2bece9e950c` relays ordered real execution
-  state and distinguishes local from remote active writers;
-- `f08b6c3fa69318b13ad9053eea307f1ee9f90323` enforces AceleraChat as the VPS
-  e-mail/WhatsApp authority and prevents SPA success responses for unknown APIs;
-- `28744c74ff30278a658e0606f378c1c15f5f93ad` reserves bounded terminal capacity
-  and atomically persists each accepted Edge job outcome with its replay frame;
-- `7e45f1ab3193fce21f69d3b3c51a32122492b02b` makes admission atomic with the
-  durable `job.accepted` frame and bounds invalid or oversized terminal results;
-- `11ad8f4b868a4265ac1bda88868689e331cb8204` rejects present `data` or
-  `references` fields that are not mappings instead of silently replacing them;
-- `11a6c424c33af6db899cdffed609bef5e01b5ee8` isolates bounded Codex-history
-  serialization in a focused module and restores the physical module limit.
+The same logical correction was reapplied commit by commit over the private
+production-source baseline `9874381c9df924e9d439ecb958761a6df27586b1` in
+branch `codex/edge-live-relay-release`. The auditable functional checkpoints are:
+
+- `84bcba756922845a551b6c04b652b43e048ab963` and
+  `95f3d14f0b99398f54f3094d3567233e3d32a5e7` add safe live-state relay and
+  durable reconnect replay;
+- `343a62c52d75dc73d3d30e9a671d13f60434d637` adds immutable selected-task
+  turn dispatch;
+- `5493484fca5d4ce81a4892bec9a1826cffbfe93a` relays ordered execution state;
+- `21c94819a707c86a9e81d9ce866f1bd4de02b364` enforces AceleraChat as the VPS
+  e-mail/WhatsApp authority;
+- `35ee771277a687d1c80398520920cee77e040f2b` and
+  `4a1db681ed4374ca63672d42d8b8c860f9dec16d` reserve terminal capacity and make
+  admission/outcomes atomic and bounded;
+- `49e99f2f76fbb33679e33f987c7e422c62054137` rejects malformed nested results;
+- `955cf84081cec1cfa67e94077d412b96fb190e38` isolates bounded history payloads;
+- `c31bd49cfb8125438af1ae3ae4f305090828f70e` reconciles production SPA/API
+  behavior without losing the production-only frontend and audio paths;
+- `df82a3c2a1f138837cbbf88f2a303908adeb754e` isolates connection-safety logic
+  and restores the physical module limit after the production merge.
 
 Together, those checkpoints correct the split between job completion and
 visible Codex state:
@@ -69,7 +78,7 @@ terminal result above 256 KiB left a completed local operation `RUNNING`. A
 fourth audit then proved that non-mapping nested `data` or `references` values
 were silently replaced by empty objects while the job became `SUCCEEDED`.
 
-Final code SHA `11a6c42` closes all four paths. The worker now writes the local
+Final code SHA `df82a3c` closes all four paths. The worker now writes the local
 `ACCEPTED` row and its normal `job.accepted` replay frame in one SQLite
 transaction; capacity failure rolls back both and the executor is not started.
 Every admitted job still owns one of 64 terminal slots. A valid terminal frame
@@ -84,8 +93,8 @@ per message and 128 KiB of content per page, with `content_truncated` and the
 canonical cursors retained.
 
 The production Edge modules touched by this correction are all below 400
-physical lines: `executor.py` 388, `worker.py` 399, `spool.py` 337,
-`job_runner.py` 328 and `history_payload.py` 55.
+physical lines: `executor.py` 388, `worker.py` 396, `connection_safety.py` 47,
+`spool.py` 337, `job_runner.py` 328 and `history_payload.py` 55.
 
 The normal partition remains bounded at 10,000 frames and 64 MiB; the dedicated
 terminal partition remains bounded at 64 frames and 16 MiB. A transport send
@@ -260,17 +269,20 @@ user-operated acceptance is recorded below.
 
 | Field | Current value |
 |---|---|
-| Current release worktree | `D:\dev\workspaces\openjarvis-edge-relay` |
-| Branch | `codex/edge-codex-live-relay` |
-| Correction baseline | `393031e9eec9e8583d0b8958ae399c40dd5148d3` |
-| Implementation checkpoints | `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3`, `28744c7`, `7e45f1a`, `11ad8f4`, `11a6c42` |
+| Current release worktree | `D:\dev\workspaces\openjarvis-edge-release` |
+| Branch | `codex/edge-live-relay-release` |
+| Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
+| Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
+| Integrated code SHA | `df82a3c2a1f138837cbbf88f2a303908adeb754e` |
+| Integrated tree | `d5129454afc2182b5c9fc5ac616354d9ce4dadc4` |
+| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c` |
 | AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
 | Distribution remote | `https://github.com/tadashiyukoyama/openjarvis-codex.git` (private) |
-| Push/PR | prior clean snapshot on `main`; this correction has not been pushed and has no PR |
-| Current implementation workspace | isolated `openjarvis-edge-relay` worktree |
+| Push/PR | one fast-forward publication to private `main` is the release gate; no PR |
+| Current implementation workspace | isolated `openjarvis-edge-release` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
 | Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
 
@@ -381,14 +393,14 @@ overwritten. The C: rollback was not deleted.
 | Generated OpenAPI/TypeScript contracts | regenerated and parity check passed |
 | Python compileall, PowerShell parser and `git diff --check` | passed |
 
-Edge/MCP directed validation at code SHA `11a6c42`:
+Edge/MCP directed validation at integrated code SHA `df82a3c`:
 
-- 533 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
+- 537 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
   MCP and the selected Codex integration boundaries;
 - the isolated Edge Worker matrix passed 52 tests, including atomic admission,
   full-spool rollback, invalid/oversized/nested result fallback and failed-send
   replay;
-- 100 frontend tests passed in 25 files;
+- 106 frontend tests passed in 27 files;
 - TypeScript no-emit check passed;
 - 14 Edge named-pipe tests passed, including an actual authenticated Windows
   pipe round trip;
@@ -398,9 +410,8 @@ Edge/MCP directed validation at code SHA `11a6c42`:
 - full-spool regressions prove atomic admission plus acceptance frame, atomic
   success/failure, bounded terminal fallback, replay after send failure,
   restart recovery and additive local SQLite schema migration;
-- Docker image build, Compose rendering, OpenResty syntax and remote visual
-  smokes remain pending because their runtimes/deployment were not authorized
-  or available.
+- Docker image build, Compose rendering, OpenResty syntax, Edge WSS and remote
+  visual smokes remain controlled deployment gates.
 
 The final live backend rejected a 1 MiB-plus webhook with HTTP 413 and
 `WEBHOOK_INVALID_PAYLOAD`. Backend and frontend contained no error-level,
@@ -536,12 +547,13 @@ All acceptance tests listed above passed for the prior direct-provider
 generation. AceleraChat live acceptance remains open as stated in the current
 executive section. The historical gate does not add unsupported capabilities.
 
-## Change declaration
+## Source-correction declaration before controlled release
 
 - Deploy: no.
 - VPS: no.
 - External migration: no.
-- GitHub, PR, merge or push: no.
+- GitHub, PR, merge or push during source correction: no. The release procedure
+  permits one later fast-forward push to the private `main`, recorded externally.
 - Credentials: no.
 - Tunnel: no.
 - Local runtime: backend, frontend and shared app-server started with the tracked

@@ -3,9 +3,9 @@
 Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
-Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
-Branch: `codex/edge-codex-live-relay`
+Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
+Branch: `codex/edge-live-relay-release`
 Supersedes: none
 Superseded by: none
 
@@ -20,18 +20,21 @@ The AceleraChat contract remains unchanged at `2026-08-18.2`. AceleraChat owns
 e-mail, WhatsApp, contacts and conversations. The Edge Worker owns no provider
 identity and does not create a second Agent Core.
 
-Traceable implementation checkpoints after the baseline are:
+The independently audited source code ended at `11a6c424`; it was reapplied over
+the real private production-source baseline to preserve production-only audio,
+worklet and diagnostic paths. Traceable release checkpoints are:
 
-- `9433229c124a9dc048ab83dd683f621e13008665`: durable reconnect replay;
-- `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`: selected-task turn dispatch;
-- `19fb8585a80ae70d5f1c999923a5e2bece9e950c`: ordered execution-state relay;
-- `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority;
-- `28744c74ff30278a658e0606f378c1c15f5f93ad`: atomic terminal outcome reserve;
-- `7e45f1ab3193fce21f69d3b3c51a32122492b02b`: atomic acceptance and bounded
-  terminal result enforcement;
-- `11ad8f4b868a4265ac1bda88868689e331cb8204`: strict nested result mappings;
-- `11a6c424c33af6db899cdffed609bef5e01b5ee8`: focused bounded-history
-  serialization.
+- `84bcba756922845a551b6c04b652b43e048ab963` plus `95f3d14f0b99398f54f3094d3567233e3d32a5e7`:
+  live-state relay and durable reconnect replay;
+- `343a62c52d75dc73d3d30e9a671d13f60434d637`: selected-task turn dispatch;
+- `5493484fca5d4ce81a4892bec9a1826cffbfe93a`: ordered execution-state relay;
+- `21c94819a707c86a9e81d9ce866f1bd4de02b364`: VPS channel authority;
+- `35ee771277a687d1c80398520920cee77e040f2b` plus `4a1db681ed4374ca63672d42d8b8c860f9dec16d`:
+  reserved terminal outcomes and bounded atomic admission;
+- `49e99f2f76fbb33679e33f987c7e422c62054137`: strict nested result mappings;
+- `955cf84081cec1cfa67e94077d412b96fb190e38`: focused bounded-history serialization;
+- `c31bd49cfb8125438af1ae3ae4f305090828f70e`: production-base reconciliation;
+- `df82a3c2a1f138837cbbf88f2a303908adeb754e`: focused connection safety.
 
 ## Topology and authority
 

@@ -3,11 +3,11 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
-Functional dispatch: `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`
-Functional state relay: `19fb8585a80ae70d5f1c999923a5e2bece9e950c`
-Durable admission and terminal outcome: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
-Branch: `codex/edge-codex-live-relay`
+Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Functional dispatch: `343a62c52d75dc73d3d30e9a671d13f60434d637`
+Functional state relay: `5493484fca5d4ce81a4892bec9a1826cffbfe93a`
+Durable admission and terminal outcome: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Branch: `codex/edge-live-relay-release`
 Supersedes: none
 Superseded by: none
 
@@ -137,8 +137,9 @@ recover it without replaying the old user transcript.
   contract tests.
 
 No Codex app-server, Edge Worker, browser or shared Desktop runtime was started
-while implementing SHAs `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3` and
-`28744c7`, nor while implementing `7e45f1a`, `11ad8f4` or `11a6c42`.
+while implementing or reconciling the integrated release checkpoints through
+`df82a3c`. Read-only VPS preflight was performed separately; no runtime or
+external channel mutation was triggered.
 
 ## Prepared VPS and Edge path
 

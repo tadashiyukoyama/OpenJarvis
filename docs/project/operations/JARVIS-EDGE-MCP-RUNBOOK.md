@@ -1,20 +1,21 @@
 # Jarvis Edge Worker and MCP release runbook
 
-Status: CANONICAL — INSTALLATION NOT YET AUTHORIZED
+Status: CANONICAL — CONTROLLED RELEASE AUTHORIZED, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
-Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
-Branch: `codex/edge-codex-live-relay`
+Applies to code SHA: `df82a3c2a1f138837cbbf88f2a303908adeb754e`
+Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
+Branch: `codex/edge-live-relay-release`
 Supersedes: none
 Superseded by: none
 
 ## Safety boundary
 
-This runbook prepares a controlled release; it is not permission to access the
-VPS, change DNS/TLS/OpenResty, run AceleraChat migrations, create credentials,
-push GitHub, install a Windows task or send a real message/e-mail. Obtain an
-explicit release authorization before any external or service-changing step.
+This runbook prepares and governs the controlled release authorized by Cesar on
+2026-08-19. The authorization covers one private fast-forward publication,
+validated backup/build/deploy, rollback and read-only smoke. It does not cover
+DNS changes, AceleraChat migrations, a real Codex turn, channel mutations or a
+real WhatsApp/e-mail send; those remain separate explicit gates.
 
 Never print private values. The private handoff remains outside Git at the path
 supplied by Cesar. Operators may verify required variable names and presence,
@@ -110,8 +111,9 @@ npm run build
 Pop-Location
 ```
 
-Current local evidence for code SHA `11a6c42`: 533 directed Python tests plus
-4 subtests, 52 isolated Edge Worker tests and 100 frontend tests passed.
+Current local evidence for integrated code SHA `df82a3c`: 537 directed Python
+tests plus 4 subtests, 52 isolated Edge Worker tests and 106 frontend tests in
+27 files passed.
 TypeScript, Vite/PWA, Ruff check/format, generated contracts, `compileall`, ten
 Edge PowerShell parses, Compose YAML, MCP TOML and `git diff --check` also
 passed. These are local gates only; they do not replace the pending container,
@@ -172,7 +174,7 @@ Keep the bounded replay controls explicit in the private Edge configuration:
 Changing them requires a measured capacity review; removing a limit is not an
 accepted troubleshooting step.
 
-These variables bound the normal event partition. Code SHA `11a6c42` retains a
+These variables bound the normal event partition. Code SHA `df82a3c` retains a
 reserve of exactly 64 terminal frames, each limited by the 256 KiB Edge protocol
 maximum. This fixed 16 MiB reserve is not a second general-purpose spool and is
 not runtime-configurable. Do not reduce or reuse it without proving that the
@@ -203,7 +205,7 @@ Preconditions:
 - WSS hostname has valid TLS;
 - no existing task/process owns the same device ID or pipe.
 
-Before the first Worker start at SHA `11a6c42`, stop the Worker if it exists,
+Before the first Worker start at SHA `df82a3c`, stop the Worker if it exists,
 copy its local SQLite spool to the dated backup directory and run
 `PRAGMA integrity_check` against the copy. Startup adds the nullable
 `terminal_job_id` marker and its partial unique index idempotently, then runs an
@@ -394,12 +396,14 @@ OpenJarvis volume. Rollback does not delete state.
 8. restore the Windows source to the recorded prior SHA only after preserving
    the current patch/evidence.
 
-The source rollback point for this correction is
-`393031e9eec9e8583d0b8958ae399c40dd5148d3`. Preserve evidence first, then
-revert logical checkpoints in reverse order when a narrower rollback is proven
-safe: `11a6c42`, `11ad8f4`, `7e45f1a`, `28744c7`, `f08b6c3`, `19fb858`,
-`bd0fe4d`, `9433229`. Do not mix a source rollback with deletion of Edge/Core
-ledgers.
+The source rollback point is the private production-source baseline
+`9874381c9df924e9d439ecb958761a6df27586b1`. The runtime preflight observed
+`openjarvis-core:3586569fe597943baa990dfb18fa5f7a7d2c9b69` as the active prior
+image; re-confirm its immutable image ID immediately before cutover. Preserve
+evidence first, then revert integrated checkpoints in reverse order when a
+narrower source rollback is proven safe: `df82a3c`, `c31bd49`, `955cf84`,
+`49e99f2`, `4a1db68`, `35ee771`, `21c9481`, `5493484`, `343a62c`, `95f3d14`,
+`84bcba7`. Do not mix a source rollback with deletion of Edge/Core ledgers.
 
 ## Troubleshooting matrix
 
