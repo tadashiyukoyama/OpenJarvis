@@ -3,14 +3,42 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
-Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `codex/edge-live-relay-release`
+Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
+Branch: `codex/acelerachat-granular-whatsapp`
 Remote publication target: private `main` at
 `https://github.com/tadashiyukoyama/openjarvis-codex`; the completion report
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
+
+## AceleraChat dynamic multi-inbox release candidate — 2026-08-19
+
+Functional SHA `b03a029ea0964ce3cd1e450b2499343de5fc0564` upgrades the
+native AceleraChat adapter to contract `2026-08-19.2`. It discovers every inbox
+authorized by the account-scoped AceleraChat credential, keeps disconnected
+inboxes visible but non-executable, and requires an exact inbox when more than
+one operational inbox can perform an action. New inboxes require no OpenJarvis
+redeploy.
+
+The catalog now has 24 typed tools: one local audit tool, four account-wide
+AceleraChat tools, five e-mail tools, eleven WhatsApp tools and three Codex
+tools. WhatsApp adds exact E.164 targeting, contextual reply, reaction,
+provider read receipt and HTTPS media through AceleraChat. Every mutation still
+requires the existing exact visual approval, idempotency and runtime gate.
+Provider-global Evolution credentials are never copied to OpenJarvis.
+
+Runtime authority is split into fail-closed gates for generic AceleraChat,
+WhatsApp, e-mail and Codex delegation. The global mutation gate remains false
+by default in VPS mode; enabling a reviewed channel does not bypass approval.
+Hard-coded Compose overrides were removed so the private environment is the
+single runtime authority.
+
+Local evidence at this SHA: 243 Python Agent Core/Edge tests passed, 106
+frontend tests passed, 93 focused AceleraChat/catalog tests passed, Ruff check
+and format passed for 124 files, and TypeScript plus the Vite/PWA production
+build passed. No real message, e-mail, Codex delegation, credential rotation,
+VPS mutation, deploy or GitHub change was performed for this candidate.
 
 ## Codex live Edge relay production-base release — 2026-08-19
 

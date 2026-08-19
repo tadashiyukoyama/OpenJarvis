@@ -2,9 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 06:34:36 -03:00
-Working tree base: `ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`
-Branch: `codex/acelerachat-native-adapter`
+Last verified: 2026-08-19
+Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
+Branch: `codex/acelerachat-granular-whatsapp`
 
 ## 1. Scope and safety
 
