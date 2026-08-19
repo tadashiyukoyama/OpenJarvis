@@ -1,2 +1,3 @@
 @echo off
-start "" powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Start-OpenJarvisCodexDesktop.ps1" %*
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-OpenJarvisCodexDesktop.ps1" %*
+if errorlevel 1 pause

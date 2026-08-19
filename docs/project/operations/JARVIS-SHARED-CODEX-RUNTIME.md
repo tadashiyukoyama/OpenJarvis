@@ -1,118 +1,185 @@
 # Shared Codex runtime for OpenJarvis
 
-## Required outcome
+## Status and safety boundary
 
-OpenJarvis and Codex Desktop must append to and observe the same persisted Codex
-thread. The Windows computer therefore runs one shared Codex app-server and two
-clients:
+Shared mode is an explicit, opt-in Windows operating mode. It is not installed
+at logon and it does not replace normal Codex Desktop startup. The tracked code
+never writes `CODEX_APP_SERVER_WS_URL` at User or Machine scope. The variable is
+set only in the launcher process long enough for the specifically launched
+Desktop child to inherit it.
 
-```text
-Codex Desktop ──┐
-                ├── ws://127.0.0.1:8131 ── one Codex app-server
-Edge Worker ────┘
-```
+Normal Codex remains the recovery path. A failed shared-server preflight opens
+Codex normally without the redirect unless the operator passed
+`-NoNormalFallback`. The launcher never closes an existing Desktop process.
 
-A private app-server child under Codex Desktop while the Edge Worker uses port
-8131 is a split-brain topology. It causes `thread/resume` to fail with an active
-writer conflict and must not be treated as normal thread activity.
-
-The official app-server contract describes the server as the interface for rich
-clients, including conversation history, approvals and streamed events. It also
-defines `thread/resume` as the operation that reopens a stored thread so later
-`turn/start` calls append to it. See:
+The Codex app-server documentation defines the server used by rich clients,
+conversation history and `thread/resume`. It also marks WebSocket transport as
+experimental and not supported for production deployments:
 
 <https://developers.openai.com/codex/app-server>
 
+This integration is therefore a controlled local compatibility mode, not a
+production-supported OpenAI transport guarantee.
+
+## Required topology
+
+```text
+Codex Desktop ──┐
+                ├── ws://127.0.0.1:8131 ── one validated Codex app-server
+Edge Worker ────┘
+```
+
+A private Desktop app-server plus a second listener for Edge is split brain.
+Both processes can read the same files, but `thread/resume` may reject the
+second writer. Never create another thread or retry a mutation to hide that
+condition.
+
+## Root cause of the retired launcher
+
+The first launcher created three coupled failure modes:
+
+1. it persisted `CODEX_APP_SERVER_WS_URL=ws://127.0.0.1:8131` for the Windows
+   user, making normal Desktop startup depend on that listener;
+2. its scheduled task attempted to execute `codex.exe` directly from the MSIX
+   `WindowsApps` resources directory, which can return access denied outside
+   the packaged process boundary;
+3. owner validation accepted any installed `OpenAI.Codex` package path, so a
+   stale runtime from an older Desktop version could be treated as current.
+
+If the task then exited, Desktop inherited the global redirect and failed with
+`ECONNREFUSED 127.0.0.1:8131`. Reinstalling Desktop could also invalidate the
+old runtime path and authentication session.
+
+## Version-pinned runtime resolution
+
+`Resolve-OpenJarvisCodexRuntime` reads the current MSIX package and hashes both
+packaged resources:
+
+- `codex.exe`;
+- `codex-code-mode-host.exe`.
+
+It then resolves exactly one executable pair under
+`%LOCALAPPDATA%\OpenAI\Codex\bin\<runtime-id>` whose two SHA-256 values match the
+current package. Zero or multiple matches fail closed. The npm Codex CLI and an
+older materialized runtime are never accepted as substitutes.
+
+After a Desktop update, validate again. A changed package hash intentionally
+invalidates the old listener. Stale cleanup is allowed only for a recognized
+Codex runtime, the exact managed listen command and a closed Desktop.
+
+## Preflight gates
+
+Before Desktop receives a process-scoped redirect, all gates must pass:
+
+1. no User/Machine `CODEX_APP_SERVER_WS_URL` exists;
+2. Desktop is closed, or is already connected to the exact shared topology;
+3. port 8131 is free or owned by the exact current materialized runtime;
+4. `/readyz` returns success;
+5. `/healthz` returns success;
+6. a bounded WebSocket client completes JSON-RPC `initialize` and sends
+   `initialized`;
+7. after launch, Desktop has a connection to 8131 and no private app-server
+   child.
+
+An HTTP response alone cannot prove protocol compatibility. The initialize
+probe is limited to one MiB and five seconds.
+
 ## Tracked components
 
-- `SharedCodexRuntime.psm1`: strict topology and health inspection.
-- `Start-OpenJarvisSharedCodex.ps1`: foreground app-server process used by Task
-  Scheduler; hidden by the task action.
-- `Manage-OpenJarvisSharedCodexTask.ps1`: reversible task and user-environment
-  installation.
-- `Start-OpenJarvisCodexDesktop.ps1`: starts Desktop only after the shared server
-  is healthy and refuses to replace an already-running private topology.
-- `start-openjarvis-codex.cmd`: shortcut entrypoint.
+- `SharedCodexProtocol.psm1`: bounded WebSocket initialize probe.
+- `SharedCodexRuntime.psm1`: package/hash resolution, ownership, health and
+  topology inspection.
+- `Start-OpenJarvisSharedCodex.ps1`: starts only the validated materialized
+  executable with `on-request` and `workspace-write` defaults.
+- `Start-OpenJarvisCodexDesktop.ps1`: opt-in preflight, process-scoped redirect
+  and normal-Codex fallback.
+- `Manage-OpenJarvisSharedCodexTask.ps1`: read-only status/validation and
+  explicit removal of the retired scheduled-task authority.
+- `start-openjarvis-codex.cmd`: visible opt-in shortcut entrypoint.
 
-No script kills Codex Desktop. The operator closes it normally before changing
-topology so the current rollout is persisted.
+There is no automatic shared-runtime task. The independent `OpenJarvis Edge
+Worker` task may remain active and reconnect when a validated listener exists.
 
-## Install
+## Validation without activation
 
 From the repository root:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-  .\scripts\edge\Manage-OpenJarvisSharedCodexTask.ps1 -Action Install
+  .\scripts\edge\Start-OpenJarvisSharedCodex.ps1 -ValidateOnly
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  .\scripts\edge\Start-OpenJarvisCodexDesktop.ps1 -ValidateOnly
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  .\scripts\edge\Manage-OpenJarvisSharedCodexTask.ps1 -Action Status
 ```
 
-Installation:
+`-ValidateOnly` resolves and hashes the current runtime but does not open,
+close, redirect or stop anything.
 
-1. saves the previous user values of `CODEX_HOME` and
-   `CODEX_APP_SERVER_WS_URL` under the managed D: runtime;
-2. points future Desktop processes to `ws://127.0.0.1:8131`;
-3. registers `OpenJarvis Shared Codex` at user logon with hidden execution,
-   restart-on-failure and no time limit;
-4. does not close or restart the currently running Desktop.
+## Controlled opt-in cutover
 
-The existing `OpenJarvis Edge Worker` task remains independent. It reconnects
-to the shared server if the server starts after the worker.
-
-## Controlled cutover
-
-1. Finish the current Codex response.
+1. Finish the current Codex response and confirm the task is persisted.
 2. Close Codex Desktop normally.
-3. Stop any old shared app-server only through the manager after verifying its
-   exact packaged executable and listen URL.
-4. Start `OpenJarvis Shared Codex`.
-5. Open Codex through the tracked OpenJarvis shortcut.
-6. Verify the same thread is visible in Desktop and OpenJarvis before allowing
-   a delegation.
+3. Confirm port 8131 is free and legacy User/Machine redirects are absent.
+4. Run the tracked `start-openjarvis-codex.cmd` explicitly.
+5. Confirm `RUNNING_SHARED_OPT_IN` and the required topology below.
+6. Verify history is visible from Desktop and OpenJarvis using read-only calls.
+7. Perform one harmless same-task turn only under separate authorization.
 
-Do not start a second app-server to work around a busy result.
+Required state:
 
-## Verification
+- `SharedOwnerManaged = true`;
+- `SharedOwnerCurrent = true`;
+- `SharedReady = true`;
+- `SharedHealthy = true`;
+- `ProtocolInitialized = true`;
+- `DesktopShared = true`;
+- `PrivateAppServerCount = 0`;
+- User and Machine redirects are empty.
+
+No message, e-mail, reaction, campaign or provider mutation belongs to this
+cutover. Voice confirmation alone is not authority.
+
+## Failure behavior
+
+| Condition | Fail-safe result |
+|---|---|
+| current normal/private Desktop is open | report topology; close or restart nothing |
+| materialized hashes do not match current package | refuse shared mode |
+| port has an unrelated owner | refuse shared mode; stop nothing |
+| stale recognized Codex owns the port | require explicit legacy cleanup |
+| ready, health or initialize probe fails | remove only a newly started verified listener, then start normal Codex; withhold fallback if any listener remains |
+| Desktop opens a private server instead of joining | stop only the newly started verified shared listener and preserve normal Desktop |
+| Edge starts before shared server | remain offline/reconnecting without hidden job execution |
+
+## One-time retirement of the old authority
+
+Only after Codex Desktop is closed, inspect first:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   .\scripts\edge\Manage-OpenJarvisSharedCodexTask.ps1 -Action Status
 ```
 
-Required state:
-
-- `SharedHealthy = true`;
-- `SharedOwnerValid = true`;
-- `DesktopShared = true`;
-- `PrivateAppServerCount = 0`;
-- exactly one packaged `codex.exe ... app-server` process;
-- Edge advertises `codex.status`, `codex.history`, `codex.catalog` and
-  `codex.delegate`;
-- selecting a thread loads public history in both clients;
-- one separately authorized harmless turn appears in both clients with the same
-  thread and turn IDs.
-
-The final turn is not part of installation and requires explicit operator
-authorization. Voice confirmation alone is not authority.
-
-## Failure behavior
-
-| Condition | Result |
-|---|---|
-| Desktop uses a private app-server | refuse launch/cutover and report topology |
-| port 8131 has an unrelated owner | fail closed; do not stop the process |
-| selected thread has a real active turn | `CODEX_BUSY`, without queue or retry |
-| Edge starts before shared server | reconnect after the server becomes healthy |
-| shared server is offline | no Codex delegation is accepted |
-
-## Rollback
-
-Close Codex Desktop normally, then run:
+Then remove only the known legacy task, verified managed listener and backed-up
+user redirect:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-  .\scripts\edge\Manage-OpenJarvisSharedCodexTask.ps1 -Action Uninstall
+  .\scripts\edge\Manage-OpenJarvisSharedCodexTask.ps1 -Action RemoveLegacy
 ```
 
-Uninstall stops only the verified shared process, removes the task and restores
-the exact prior user environment from the D: backup. It does not delete Codex
-threads, OpenJarvis state, credentials or logs.
+`RemoveLegacy` refuses to run while Desktop is open and refuses unrelated port
+owners. It never deletes threads, credentials, project state or Codex logs.
+
+## Rollback
+
+Close a shared Desktop normally. With Desktop closed, stop only the exact
+current managed runtime through `Stop-OpenJarvisSharedCodexOwner`, then launch
+Codex from its normal installed shortcut. Because there is no persistent
+redirect, normal startup does not depend on port 8131.
+
+Rolling source back restores code only. It does not require a database
+migration and does not modify Codex task history.

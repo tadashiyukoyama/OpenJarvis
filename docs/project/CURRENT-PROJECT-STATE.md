@@ -467,13 +467,22 @@ remained connected to the dedicated listener on `127.0.0.1:8131`. A live probe
 proved that history remained readable but `thread/resume` failed with JSON-RPC
 `-32600` because the same thread already had a writer in the other app-server.
 
-The required behavior remains the earlier shared-client model: Desktop and Edge
-connect to one app-server so the same thread, turns and public events appear in
-both interfaces. The tracked startup components now install a reversible
-`OpenJarvis Shared Codex` logon task, persist the non-secret loopback endpoint
-for future Desktop launches, refuse unrelated port owners and refuse to kill an
-already-running private Desktop topology. The operational procedure is in
+The first attempted correction was rejected after reproducing its failure
+chain. It persisted the loopback redirect for the Windows user, depended on a
+scheduled listener and attempted direct execution from the protected MSIX
+resource path. If the listener failed, normal Desktop startup inherited an
+unreachable `127.0.0.1:8131` and failed with `ECONNREFUSED`. Accepting any old
+package path also allowed stale runtimes after a Desktop update.
+
+The replacement is source-only and not activated. Shared mode is now opt-in,
+resolves the executable pair materialized by the current Desktop, requires
+SHA-256 equality with both current packaged resources, validates `readyz`,
+`healthz` and the JSON-RPC initialize handshake, and redirects only the Desktop
+child launched by the explicit shortcut. It never installs a logon task or
+persists `CODEX_APP_SERVER_WS_URL`. A failed preflight leaves normal Codex as
+the default fallback. The operational and rollback procedure is in
 `operations/JARVIS-SHARED-CODEX-RUNTIME.md`.
 
-No Desktop restart or Codex turn is performed by the code change itself. The
-cutover and one same-thread acceptance turn are separate controlled gates.
+No Desktop restart, port-8131 listener, environment mutation or Codex turn was
+performed by this source correction. Legacy cleanup, opt-in cutover and one
+same-task acceptance turn remain separate controlled gates.
