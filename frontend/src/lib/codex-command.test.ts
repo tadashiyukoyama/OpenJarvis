@@ -50,6 +50,7 @@ function createState(staleStreaming = false) {
     settings: { temperature: 0.2, maxTokens: 4096, refreshCodexDesktop: true },
     streamState: {
       isStreaming: staleStreaming,
+      owner: null,
       phase: staleStreaming ? 'stale' : '',
       elapsedMs: 0,
       activeToolCalls: [],
@@ -70,6 +71,7 @@ function createState(staleStreaming = false) {
       harness.resetCount += 1;
       state.streamState = {
         isStreaming: false,
+        owner: null,
         phase: '',
         elapsedMs: 0,
         activeToolCalls: [],

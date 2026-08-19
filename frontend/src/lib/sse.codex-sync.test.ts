@@ -120,6 +120,32 @@ describe('streamCodexThreadUpdates', () => {
     });
   });
 
+  it('parses an ordered real execution event', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamingResponse([
+      'event: execution\ndata: {"thread_id":"thread-a",',
+      '"turn_id":"turn-1","item_id":"item-1",',
+      '"event_type":"item_started","state":"running",',
+      '"action_summary":"Executando testes.","sequence":12}\n\n',
+    ])));
+
+    const stream = streamCodexThreadUpdates('thread-a');
+    const first = await stream.next();
+    await stream.return(undefined);
+
+    expect(first.value).toEqual({
+      type: 'execution',
+      execution: {
+        thread_id: 'thread-a',
+        turn_id: 'turn-1',
+        item_id: 'item-1',
+        event_type: 'item_started',
+        state: 'running',
+        action_summary: 'Executando testes.',
+        sequence: 12,
+      },
+    });
+  });
+
   it('keeps a degraded history state inside the live stream', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamingResponse([
       'event: status\ndata: {"thread_id":"thread-a","state":"connected"}\n\n',

@@ -10,6 +10,16 @@ HISTORY_PAGE_LIMIT = 100
 MAX_INITIAL_HISTORY_PAGES = 5
 SUBSCRIBE_TIMEOUT_SECONDS = 5.0
 
+_EXECUTION_STATES = {
+    "STARTING": "starting",
+    "RUNNING": "running",
+    "COMPLETED": "completed",
+    "FAILED": "failed",
+    "INTERRUPTED": "interrupted",
+    "CANCELLED": "cancelled",
+    "UNKNOWN": "unknown",
+}
+
 
 def codex_history_payload(
     history: Any,
@@ -80,6 +90,47 @@ def status_event(
     return sse_event("status", payload)
 
 
+def codex_execution_payload(event: Any, thread_id: str) -> dict[str, Any] | None:
+    event_type = getattr(event, "event_type", None)
+    if event_type not in {
+        "turn_started",
+        "turn_completed",
+        "item_started",
+        "item_completed",
+        "status_changed",
+    }:
+        return None
+    terminal = getattr(event, "terminal_status", None)
+    terminal_value = getattr(terminal, "value", terminal)
+    state = _EXECUTION_STATES.get(str(terminal_value or ""))
+    if state is None:
+        if event_type == "turn_completed":
+            state = "unknown"
+        elif event_type == "turn_started":
+            state = "starting"
+        elif event_type.startswith("item_"):
+            state = "working"
+        else:
+            state = "running"
+    payload: dict[str, Any] = {
+        "thread_id": thread_id,
+        "turn_id": getattr(event, "turn_id", None),
+        "item_id": getattr(event, "item_id", None),
+        "event_type": event_type,
+        "state": state,
+    }
+    action = getattr(event, "public_action_summary", None)
+    if isinstance(action, str) and action.strip():
+        payload["action_summary"] = action.strip()[:1_000]
+    event_id = getattr(event, "event_id", None)
+    if isinstance(event_id, str) and event_id:
+        payload["event_id"] = event_id
+    sequence = getattr(event, "sequence", None)
+    if isinstance(sequence, int) and sequence > 0:
+        payload["sequence"] = sequence
+    return payload
+
+
 def public_event_is_relevant(event: Any, thread_id: str) -> bool:
     if getattr(event, "thread_id", None) != thread_id:
         return False
@@ -87,7 +138,14 @@ def public_event_is_relevant(event: Any, thread_id: str) -> bool:
         getattr(event, "public_text_delta", None)
         or getattr(event, "public_message", None)
         or getattr(event, "event_type", None)
-        in {"turn_started", "turn_completed", "turn_reconciled"}
+        in {
+            "turn_started",
+            "turn_completed",
+            "turn_reconciled",
+            "item_started",
+            "item_completed",
+            "status_changed",
+        }
     )
 
 
@@ -120,6 +178,7 @@ __all__ = [
     "MAX_INITIAL_HISTORY_PAGES",
     "SUBSCRIBE_TIMEOUT_SECONDS",
     "codex_history_payload",
+    "codex_execution_payload",
     "history_snapshot",
     "merge_public_messages",
     "public_event_is_relevant",

@@ -163,6 +163,7 @@ export function ChatArea() {
               // pre-content loading state — suppress the generic dots.
               const last = messages[messages.length - 1];
               if (last?.role === 'assistant' && last.isResearch) return null;
+              if (last?.role === 'assistant' && last.content.trim()) return null;
               return (
                 <div className="flex justify-start mb-4">
                   <StreamingDots phase={streamState.phase} />

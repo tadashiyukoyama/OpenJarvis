@@ -195,10 +195,32 @@ export interface CodexThreadSyncStatusEvent {
   retry_in_seconds?: number;
 }
 
+export type CodexExecutionState =
+  | 'starting'
+  | 'running'
+  | 'working'
+  | 'completed'
+  | 'failed'
+  | 'interrupted'
+  | 'cancelled'
+  | 'unknown';
+
+export interface CodexThreadExecutionEvent {
+  thread_id: string;
+  turn_id: string | null;
+  item_id: string | null;
+  event_type: 'turn_started' | 'turn_completed' | 'item_started' | 'item_completed' | 'status_changed';
+  state: CodexExecutionState;
+  action_summary?: string;
+  event_id?: string;
+  sequence?: number;
+}
+
 export type CodexThreadSyncEvent =
   | { type: 'snapshot'; history: CodexThreadHistory }
   | { type: 'delta'; delta: CodexThreadDelta }
   | { type: 'message'; message: CodexThreadMessageEvent }
+  | { type: 'execution'; execution: CodexThreadExecutionEvent }
   | { type: 'status'; status: CodexThreadSyncStatusEvent };
 
 export type CodexSyncStatus =
@@ -219,6 +241,7 @@ export interface ConversationStore {
 
 export interface StreamState {
   isStreaming: boolean;
+  owner: 'local' | 'remote' | null;
   phase: string;
   elapsedMs: number;
   activeToolCalls: ToolCallInfo[];

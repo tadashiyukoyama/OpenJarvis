@@ -20,6 +20,7 @@ from openjarvis.server.codex_sync_events import (
     HISTORY_PAGE_LIMIT,
     MAX_INITIAL_HISTORY_PAGES,
     SUBSCRIBE_TIMEOUT_SECONDS,
+    codex_execution_payload,
     history_snapshot,
     merge_public_messages,
     public_event_is_relevant,
@@ -224,6 +225,14 @@ async def stream_codex_thread_updates(
                             "turn_id": getattr(event, "turn_id", None),
                             "delta": public_delta,
                         },
+                    )
+                    last_emit = time.monotonic()
+                execution = codex_execution_payload(event, thread_id)
+                if execution is not None:
+                    yield sse_event(
+                        "execution",
+                        execution,
+                        execution.get("event_id"),
                     )
                     last_emit = time.monotonic()
                 if getattr(event, "event_type", None) in {

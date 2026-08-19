@@ -1,5 +1,6 @@
 import type {
   CodexThreadHistory,
+  CodexThreadExecutionEvent,
   CodexThreadMessageEvent,
   CodexThreadSyncEvent,
   CodexThreadSyncStatusEvent,
@@ -99,6 +100,36 @@ function parseCodexSyncData(event: string, data: string): CodexThreadSyncEvent |
       message: parsed as CodexThreadMessageEvent,
     };
   }
+  if (event === 'execution') {
+    const states = [
+      'starting', 'running', 'working', 'completed', 'failed',
+      'interrupted', 'cancelled', 'unknown',
+    ];
+    const eventTypes = [
+      'turn_started', 'turn_completed', 'item_started', 'item_completed', 'status_changed',
+    ];
+    if (
+      typeof parsed !== 'object'
+      || parsed === null
+      || !('thread_id' in parsed)
+      || typeof parsed.thread_id !== 'string'
+      || !('event_type' in parsed)
+      || !eventTypes.includes(String(parsed.event_type))
+      || !('state' in parsed)
+      || !states.includes(String(parsed.state))
+      || ('sequence' in parsed && (
+        typeof parsed.sequence !== 'number'
+        || !Number.isInteger(parsed.sequence)
+        || parsed.sequence <= 0
+      ))
+    ) {
+      throw new Error('Codex synchronization returned an invalid execution event');
+    }
+    return {
+      type: 'execution',
+      execution: parsed as CodexThreadExecutionEvent,
+    };
+  }
   if (event === 'status') {
     if (
       typeof parsed !== 'object'
@@ -164,7 +195,9 @@ export async function* streamCodexThreadUpdates(
                   ? update.delta.thread_id
                   : update.type === 'message'
                     ? update.message.thread_id
-                    : update.status.thread_id;
+                    : update.type === 'execution'
+                      ? update.execution.thread_id
+                      : update.status.thread_id;
               if (updateThreadId !== threadId) {
                 throw new Error('Codex synchronization returned the wrong thread');
               }

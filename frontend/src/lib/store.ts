@@ -126,6 +126,7 @@ function saveSettings(settings: Settings): void {
 
 const INITIAL_STREAM: StreamState = {
   isStreaming: false,
+  owner: null,
   phase: '',
   elapsedMs: 0,
   activeToolCalls: [],

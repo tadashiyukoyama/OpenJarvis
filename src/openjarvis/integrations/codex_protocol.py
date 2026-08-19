@@ -311,6 +311,8 @@ class CodexConversationEvent:
     """Allowlisted public event data; raw JSON-RPC params are never retained."""
 
     method: str
+    event_id: str | None = None
+    sequence: int | None = None
     thread_id: str | None = None
     turn_id: str | None = None
     item_id: str | None = None

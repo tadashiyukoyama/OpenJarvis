@@ -179,6 +179,7 @@ export function InputArea() {
       if (
         selectedConversation?.codexThreadId
         && !isCodexConversationDispatchActive(selectedConversation.id)
+        && streamState.owner !== 'remote'
       ) {
         // Presentation state can survive a route/HMR transition. The shared
         // dispatcher is the authoritative local owner for Codex sends.

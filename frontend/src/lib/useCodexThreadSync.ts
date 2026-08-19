@@ -5,6 +5,11 @@ import {
   prependCodexHistoryPage,
   usesFiniteCodexSync,
 } from './codex-sync-transport';
+import {
+  codexExecutionPhase,
+  isTerminalCodexExecution,
+} from './codex-execution';
+import { isCodexConversationDispatchActive } from './codex-command';
 import { useAppStore } from './store';
 import { streamCodexThreadUpdates } from './sse';
 
@@ -30,6 +35,8 @@ export function useCodexThreadSync(): void {
   const applyDelta = useAppStore((state) => state.applyCodexDelta);
   const applyMessage = useAppStore((state) => state.applyCodexMessage);
   const setSyncState = useAppStore((state) => state.setCodexSyncState);
+  const setStreamState = useAppStore((state) => state.setStreamState);
+  const resetStream = useAppStore((state) => state.resetStream);
   const threadId = conversations.find((conversation) => conversation.id === activeId)
     ?.codexThreadId;
 
@@ -41,6 +48,7 @@ export function useCodexThreadSync(): void {
     const controller = new AbortController();
     let retryMilliseconds = 1_000;
     let initialFiniteHistoryLoaded = false;
+    let latestExecutionSequence = 0;
 
     const synchronize = async () => {
       setSyncState('connecting', null);
@@ -96,11 +104,34 @@ export function useCodexThreadSync(): void {
             if (update.type === 'snapshot') {
               applyHistory(activeId, update.history);
             } else if (update.type === 'delta') {
-              if (!useAppStore.getState().streamState.isStreaming) {
+              if (!isCodexConversationDispatchActive(activeId)) {
                 applyDelta(activeId, update.delta);
               }
             } else if (update.type === 'message') {
               applyMessage(activeId, update.message);
+            } else if (update.type === 'execution') {
+              const execution = update.execution;
+              if (
+                execution.sequence
+                && execution.sequence <= latestExecutionSequence
+              ) {
+                continue;
+              }
+              if (execution.sequence) latestExecutionSequence = execution.sequence;
+              const localDispatch = isCodexConversationDispatchActive(activeId);
+              if (isTerminalCodexExecution(execution)) {
+                if (localDispatch) {
+                  setStreamState({ phase: codexExecutionPhase(execution) });
+                } else if (useAppStore.getState().streamState.owner === 'remote') {
+                  resetStream();
+                }
+              } else {
+                setStreamState({
+                  isStreaming: true,
+                  owner: localDispatch ? 'local' : 'remote',
+                  phase: codexExecutionPhase(execution),
+                });
+              }
             } else if (update.status.state === 'degraded') {
               retryMilliseconds = 1_000;
               setSyncState(
@@ -127,5 +158,14 @@ export function useCodexThreadSync(): void {
 
     void synchronize();
     return () => controller.abort();
-  }, [activeId, applyDelta, applyHistory, applyMessage, setSyncState, threadId]);
+  }, [
+    activeId,
+    applyDelta,
+    applyHistory,
+    applyMessage,
+    resetStream,
+    setStreamState,
+    setSyncState,
+    threadId,
+  ]);
 }

@@ -326,6 +326,14 @@ class CodexEdgeRuntimeProxy:
         metadata = value.get("metadata")
         return CodexConversationEvent(
             method=str(value.get("method") or "codex/event"),
+            event_id=CodexEdgeRuntimeProxy._optional_string(
+                value.get("edge_event_id")
+            ),
+            sequence=(
+                int(value["edge_sequence"])
+                if isinstance(value.get("edge_sequence"), int)
+                else None
+            ),
             thread_id=CodexEdgeRuntimeProxy._optional_string(value.get("thread_id")),
             turn_id=CodexEdgeRuntimeProxy._optional_string(value.get("turn_id")),
             item_id=CodexEdgeRuntimeProxy._optional_string(value.get("item_id")),

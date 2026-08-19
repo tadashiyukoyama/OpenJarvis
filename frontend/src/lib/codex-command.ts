@@ -162,6 +162,7 @@ export async function sendCodexConversationMessage(
 
     initial.setStreamState({
       isStreaming: true,
+      owner: 'local',
       phase: 'Delegando ao Codex...',
       elapsedMs: 0,
       activeToolCalls: [],

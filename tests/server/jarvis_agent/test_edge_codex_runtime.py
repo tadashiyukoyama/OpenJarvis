@@ -140,10 +140,34 @@ def test_edge_runtime_subscribes_maps_and_unsubscribes_live_events() -> None:
     )
 
     assert received[0].thread_id == "thread-1"
+    assert received[0].event_id is None
+    assert received[0].sequence is None
     assert received[0].public_message.content == "Concluído."
     assert received[0].terminal_status.value == "COMPLETED"
     assert runtime.unsubscribe_events(token) is True
     assert edge.subscriptions == {}
+
+
+def test_edge_runtime_preserves_edge_event_identity_for_ordering() -> None:
+    edge = _Edge()
+    runtime = CodexEdgeRuntimeProxy(edge)  # type: ignore[arg-type]
+    received = []
+    runtime.subscribe_events(received.append)
+    next(iter(edge.subscriptions.values()))(
+        {
+            "edge_event_id": "edge-event-1",
+            "edge_sequence": 42,
+            "method": "turn/started",
+            "thread_id": "thread-1",
+            "turn_id": "turn-1",
+            "event_type": "turn_started",
+            "terminal_status": "RUNNING",
+            "metadata": {},
+        }
+    )
+
+    assert received[0].event_id == "edge-event-1"
+    assert received[0].sequence == 42
 
 
 def test_edge_runtime_dispatches_desktop_refresh_on_the_windows_worker() -> None:
