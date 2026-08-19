@@ -122,3 +122,39 @@ def test_desktop_refresh_validates_subscription_before_dispatch(monkeypatch) -> 
         "refreshed": True,
         "uri": "codex://threads/thread-1",
     }
+
+
+def test_history_is_paginated_and_bounded_by_utf8_bytes() -> None:
+    class Runtime:
+        received_limit = 0
+
+        @classmethod
+        def thread_history_page(cls, thread_id: str, **kwargs):
+            assert thread_id == "thread-1"
+            cls.received_limit = kwargs["limit"]
+            messages = [
+                SimpleNamespace(
+                    message_id=f"message-{index}",
+                    role="assistant",
+                    content="á" * 8_000,
+                    timestamp=float(index),
+                )
+                for index in range(100)
+            ]
+            return SimpleNamespace(
+                history=SimpleNamespace(messages=messages),
+                next_cursor="next-page",
+                backwards_cursor="previous-page",
+            )
+
+    result = CodexEdgeExecutor._history(  # noqa: SLF001
+        Runtime(), {"limit": 100}, {"codex_thread_id": "thread-1"}
+    )
+
+    messages = result["data"]["messages"]
+    content_bytes = sum(len(item["content"].encode("utf-8")) for item in messages)
+    assert Runtime.received_limit == 30
+    assert len(messages) == 30
+    assert content_bytes <= 128 * 1024
+    assert any(item["content_truncated"] for item in messages)
+    assert result["data"]["next_cursor"] == "next-page"

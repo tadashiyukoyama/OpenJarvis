@@ -10,7 +10,11 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from openjarvis.edge_worker.executor import CodexEdgeExecutor
-from openjarvis.edge_worker.spool import EdgeSpoolCapacityError, EdgeWorkerSpool
+from openjarvis.edge_worker.spool import EdgeWorkerSpool
+from openjarvis.edge_worker.spool_errors import (
+    EdgeSpoolCapacityError,
+    EdgeTerminalPayloadError,
+)
 from openjarvis.server.jarvis_agent.edge.frames import EdgeFrame
 
 logger = logging.getLogger(__name__)
@@ -37,6 +41,17 @@ class TerminalFrameEmitter(Protocol):
     ) -> EdgeFrame: ...
 
 
+class JobAcceptor(Protocol):
+    async def __call__(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        tool_id: str,
+        payload_hash: str,
+    ) -> bool: ...
+
+
 class EdgeJobRunner:
     def __init__(
         self,
@@ -45,11 +60,13 @@ class EdgeJobRunner:
         executor: CodexEdgeExecutor,
         emit: FrameEmitter,
         emit_terminal: TerminalFrameEmitter,
+        accept_job: JobAcceptor,
     ) -> None:
         self._spool = spool
         self._executor = executor
         self._emit = emit
         self._emit_terminal = emit_terminal
+        self._accept_job = accept_job
         self._loop: asyncio.AbstractEventLoop | None = None
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._cancelled: dict[str, threading.Event] = {}
@@ -70,7 +87,7 @@ class EdgeJobRunner:
             )
             return
         try:
-            created = self._spool.accept_job(
+            created = await self._accept_job(
                 job_id=job_id,
                 attempt_id=attempt_id,
                 tool_id=str(payload["tool_id"]),
@@ -87,7 +104,6 @@ class EdgeJobRunner:
                 job_id=job_id,
             )
             return
-        await self._emit("job.accepted", {"attempt_id": attempt_id}, job_id=job_id)
         if not created or job_id in self._tasks:
             return
         cancelled = threading.Event()
@@ -158,18 +174,26 @@ class EdgeJobRunner:
                     result_unknown=True,
                 )
                 return
-            await self._emit_terminal(
-                "job.succeeded",
-                {
-                    "attempt_id": attempt_id,
-                    "status": str(result.get("status") or "completed"),
-                    "summary": str(result.get("summary") or "Concluído.")[:20_000],
-                    "data": dict(result.get("data") or {}),
-                    "references": dict(result.get("references") or {}),
-                },
-                job_id=job_id,
-                state="SUCCEEDED",
-            )
+            try:
+                await self._emit_terminal(
+                    "job.succeeded",
+                    self._success_payload(attempt_id, result),
+                    job_id=job_id,
+                    state="SUCCEEDED",
+                )
+            except EdgeTerminalPayloadError:
+                logger.warning(
+                    "Edge job result exceeded the safe terminal protocol boundary: %s",
+                    job_id,
+                )
+                await self._failed(
+                    job_id,
+                    attempt_id,
+                    "EXTERNAL_RESULT_UNKNOWN",
+                    "A operação local terminou, mas o resultado não pôde ser "
+                    "representado com segurança.",
+                    result_unknown=True,
+                )
         finally:
             self._cancelled.pop(job_id, None)
 
@@ -194,6 +218,27 @@ class EdgeJobRunner:
             job_id=job_id,
             state=state,
         )
+
+    @staticmethod
+    def _success_payload(attempt_id: str, result: Any) -> dict[str, Any]:
+        if not isinstance(result, Mapping):
+            raise EdgeTerminalPayloadError("Edge executor returned an invalid result")
+        try:
+            data = result.get("data")
+            references = result.get("references")
+            return {
+                "attempt_id": attempt_id,
+                "status": str(result.get("status") or "completed"),
+                "summary": str(result.get("summary") or "Concluído.")[:20_000],
+                "data": dict(data) if isinstance(data, Mapping) else {},
+                "references": (
+                    dict(references) if isinstance(references, Mapping) else {}
+                ),
+            }
+        except Exception as exc:
+            raise EdgeTerminalPayloadError(
+                "Edge executor result could not be normalized"
+            ) from exc
 
     async def _emit_progress(
         self,
@@ -264,4 +309,9 @@ class EdgeJobRunner:
         self._executor.close()
 
 
-__all__ = ["EdgeJobRunner", "FrameEmitter", "TerminalFrameEmitter"]
+__all__ = [
+    "EdgeJobRunner",
+    "FrameEmitter",
+    "JobAcceptor",
+    "TerminalFrameEmitter",
+]

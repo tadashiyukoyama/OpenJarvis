@@ -7,6 +7,38 @@ import pytest
 
 from openjarvis.edge_worker.config import EdgeWorkerConfig
 from openjarvis.edge_worker.spool import EdgeSpoolCapacityError, EdgeWorkerSpool
+from openjarvis.server.jarvis_agent.edge.frames import make_edge_frame
+
+
+def _accept_job(
+    spool: EdgeWorkerSpool,
+    *,
+    job_id: str,
+    attempt_id: str,
+    payload_hash: str,
+    acknowledge: bool = True,
+) -> bool:
+    sequence = spool.next_outbound_sequence()
+    frame = make_edge_frame(
+        frame_type="job.accepted",
+        device_id="desktop-1",
+        sequence=sequence,
+        job_id=job_id,
+        payload={"attempt_id": attempt_id},
+        from_client=True,
+    )
+    created = spool.accept_job_with_frame(
+        job_id=job_id,
+        attempt_id=attempt_id,
+        tool_id="codex.delegate",
+        payload_hash=payload_hash,
+        event_id=str(frame.event_id),
+        sequence=sequence,
+        wire_json=frame.wire_json(),
+    )
+    if acknowledge:
+        spool.acknowledge(sequence)
+    return created
 
 
 def _environment(tmp_path: Path) -> dict[str, str]:
@@ -64,10 +96,10 @@ def test_spool_preserves_sequences_deduplicates_and_recovers(tmp_path: Path) -> 
     with pytest.raises(ValueError, match="backwards"):
         spool.record_inbound("core-old", 1)
 
-    assert spool.accept_job(
+    assert _accept_job(
+        spool,
         job_id="job-1",
         attempt_id="attempt-1",
-        tool_id="codex.delegate",
         payload_hash="a" * 64,
     )
     spool.transition("job-1", "RUNNING")
@@ -94,6 +126,25 @@ def test_spool_is_bounded_and_replays_in_stable_pages(tmp_path: Path) -> None:
         spool.queue_outbound("event-3", 3, '{"event_id":"event-3"}')
 
 
+def test_job_admission_and_acceptance_frame_commit_together(tmp_path: Path) -> None:
+    path = tmp_path / "atomic-admission.sqlite3"
+    spool = EdgeWorkerSpool(path)
+
+    assert _accept_job(
+        spool,
+        job_id="job-1",
+        attempt_id="attempt-1",
+        payload_hash="a" * 64,
+        acknowledge=False,
+    )
+
+    reopened = EdgeWorkerSpool(path)
+    pending = reopened.pending_frames()
+    assert reopened.job_state("job-1") == "ACCEPTED"
+    assert len(pending) == 1
+    assert '"type":"job.accepted"' in pending[0].wire_json
+
+
 def test_spool_reconciles_high_water_and_removes_legacy_registration(
     tmp_path: Path,
 ) -> None:
@@ -111,11 +162,13 @@ def test_spool_reconciles_high_water_and_removes_legacy_registration(
 
 def test_terminal_outcome_uses_bounded_reserve_and_is_atomic(tmp_path: Path) -> None:
     path = tmp_path / "terminal.sqlite3"
-    spool = EdgeWorkerSpool(path, max_frames=1, max_bytes=80, terminal_reserve_frames=1)
-    assert spool.accept_job(
+    spool = EdgeWorkerSpool(
+        path, max_frames=1, max_bytes=1_024, terminal_reserve_frames=1
+    )
+    assert _accept_job(
+        spool,
         job_id="job-1",
         attempt_id="attempt-1",
-        tool_id="codex.delegate",
         payload_hash="a" * 64,
     )
     spool.transition("job-1", "RUNNING")
@@ -136,7 +189,7 @@ def test_terminal_outcome_uses_bounded_reserve_and_is_atomic(tmp_path: Path) -> 
     assert spool.job_state("job-1") == "SUCCEEDED"
     assert [item.sequence for item in spool.pending_frames()] == [1, 3]
     reopened = EdgeWorkerSpool(
-        path, max_frames=1, max_bytes=80, terminal_reserve_frames=1
+        path, max_frames=1, max_bytes=1_024, terminal_reserve_frames=1
     )
     assert reopened.job_state("job-1") == "SUCCEEDED"
     reopened.queue_terminal(
@@ -152,17 +205,17 @@ def test_terminal_reserve_blocks_admission_until_delivery_is_acknowledged(
     tmp_path: Path,
 ) -> None:
     spool = EdgeWorkerSpool(tmp_path / "reserve.sqlite3", terminal_reserve_frames=1)
-    assert spool.accept_job(
+    assert _accept_job(
+        spool,
         job_id="job-1",
         attempt_id="attempt-1",
-        tool_id="codex.delegate",
         payload_hash="a" * 64,
     )
     with pytest.raises(EdgeSpoolCapacityError, match="new job"):
-        spool.accept_job(
+        _accept_job(
+            spool,
             job_id="job-2",
             attempt_id="attempt-2",
-            tool_id="codex.delegate",
             payload_hash="b" * 64,
         )
 
@@ -174,18 +227,18 @@ def test_terminal_reserve_blocks_admission_until_delivery_is_acknowledged(
         wire_json='{"event_id":"terminal-1"}',
     )
     with pytest.raises(EdgeSpoolCapacityError, match="new job"):
-        spool.accept_job(
+        _accept_job(
+            spool,
             job_id="job-2",
             attempt_id="attempt-2",
-            tool_id="codex.delegate",
             payload_hash="b" * 64,
         )
 
     spool.acknowledge(1)
-    assert spool.accept_job(
+    assert _accept_job(
+        spool,
         job_id="job-2",
         attempt_id="attempt-2",
-        tool_id="codex.delegate",
         payload_hash="b" * 64,
     )
 
@@ -195,10 +248,10 @@ def test_interrupted_job_remains_recoverable_until_terminal_frame_is_durable(
 ) -> None:
     path = tmp_path / "recovery.sqlite3"
     spool = EdgeWorkerSpool(path)
-    assert spool.accept_job(
+    assert _accept_job(
+        spool,
         job_id="job-1",
         attempt_id="attempt-1",
-        tool_id="codex.delegate",
         payload_hash="a" * 64,
     )
     spool.transition("job-1", "RUNNING")

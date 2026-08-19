@@ -17,6 +17,7 @@ from openjarvis.edge_worker.config import EdgeWorkerConfig
 from openjarvis.edge_worker.executor import CodexEdgeExecutor
 from openjarvis.edge_worker.job_runner import EdgeJobRunner
 from openjarvis.edge_worker.spool import EdgeWorkerSpool
+from openjarvis.edge_worker.spool_errors import EdgeTerminalPayloadError
 from openjarvis.server.jarvis_agent.edge.frames import (
     EdgeFrame,
     make_edge_frame,
@@ -87,6 +88,7 @@ class EdgeWorker:
             executor=self.executor,
             emit=self._emit,
             emit_terminal=self._emit_terminal,
+            accept_job=self._accept_job,
         )
 
     async def run_forever(self, stop: asyncio.Event | None = None) -> None:
@@ -232,6 +234,69 @@ class EdgeWorker:
         self.spool.queue_outbound(str(frame.event_id), sequence, frame.wire_json())
         return frame
 
+    async def _accept_job(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        tool_id: str,
+        payload_hash: str,
+    ) -> bool:
+        connection, lock = self._connection, self._send_lock
+        if connection is None or lock is None:
+            created, _ = self._queue_job_acceptance(
+                job_id=job_id,
+                attempt_id=attempt_id,
+                tool_id=tool_id,
+                payload_hash=payload_hash,
+            )
+            return created
+        async with lock:
+            created, frame = self._queue_job_acceptance(
+                job_id=job_id,
+                attempt_id=attempt_id,
+                tool_id=tool_id,
+                payload_hash=payload_hash,
+            )
+            if self._handshake_complete:
+                try:
+                    await connection.send(frame.wire_json())
+                except Exception as exc:
+                    self._handshake_complete = False
+                    logger.warning(
+                        "Edge acceptance retained for replay after send failure: %s",
+                        type(exc).__name__,
+                    )
+            return created
+
+    def _queue_job_acceptance(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        tool_id: str,
+        payload_hash: str,
+    ) -> tuple[bool, EdgeFrame]:
+        sequence = self.spool.next_outbound_sequence()
+        frame = make_edge_frame(
+            frame_type="job.accepted",
+            device_id=self.config.device_id,
+            sequence=sequence,
+            payload={"attempt_id": attempt_id},
+            job_id=job_id,
+            from_client=True,
+        )
+        created = self.spool.accept_job_with_frame(
+            job_id=job_id,
+            attempt_id=attempt_id,
+            tool_id=tool_id,
+            payload_hash=payload_hash,
+            event_id=str(frame.event_id),
+            sequence=sequence,
+            wire_json=frame.wire_json(),
+        )
+        return created, frame
+
     async def _emit_terminal(
         self,
         frame_type: str,
@@ -270,20 +335,26 @@ class EdgeWorker:
         state: str,
     ) -> EdgeFrame:
         sequence = self.spool.next_outbound_sequence()
-        frame = make_edge_frame(
-            frame_type=frame_type,
-            device_id=self.config.device_id,
-            sequence=sequence,
-            payload=payload,
-            job_id=job_id,
-            from_client=True,
-        )
+        try:
+            frame = make_edge_frame(
+                frame_type=frame_type,
+                device_id=self.config.device_id,
+                sequence=sequence,
+                payload=payload,
+                job_id=job_id,
+                from_client=True,
+            )
+            wire_json = frame.wire_json()
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise EdgeTerminalPayloadError(
+                "Edge terminal payload is not protocol-safe"
+            ) from exc
         self.spool.queue_terminal(
             job_id=job_id,
             state=state,
             event_id=str(frame.event_id),
             sequence=sequence,
-            wire_json=frame.wire_json(),
+            wire_json=wire_json,
         )
         return frame
 

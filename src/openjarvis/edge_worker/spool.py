@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from openjarvis.edge_worker.outbound_frames import persist_normal_outbound
 from openjarvis.edge_worker.spool_errors import EdgeSpoolCapacityError
 from openjarvis.edge_worker.terminal_outcomes import (
     TERMINAL_STATES,
@@ -169,38 +170,14 @@ class EdgeWorkerSpool:
             return True
 
     def queue_outbound(self, event_id: str, sequence: int, wire_json: str) -> None:
-        wire_bytes = len(wire_json.encode("utf-8"))
         with self._transaction() as connection:
-            existing = connection.execute(
-                "SELECT sequence, wire_json, terminal_job_id FROM outbound_frames "
-                "WHERE event_id = ?",
-                (event_id,),
-            ).fetchone()
-            if existing is not None:
-                identity_changed = (
-                    int(existing["sequence"]) != sequence
-                    or existing["wire_json"] != wire_json
-                    or existing["terminal_job_id"] is not None
-                )
-                if identity_changed:
-                    raise ValueError("Edge outbound event identity mismatch")
-                return
-            stats = connection.execute(
-                "SELECT COUNT(*) AS frame_count, "
-                "COALESCE(SUM(LENGTH(CAST(wire_json AS BLOB))), 0) AS byte_count "
-                "FROM outbound_frames WHERE terminal_job_id IS NULL"
-            ).fetchone()
-            if (
-                int(stats["frame_count"]) >= self.max_frames
-                or int(stats["byte_count"]) + wire_bytes > self.max_bytes
-            ):
-                raise EdgeSpoolCapacityError(
-                    "Edge outbound spool capacity reached; durable event was not queued"
-                )
-            connection.execute(
-                "INSERT INTO outbound_frames"
-                "(event_id, sequence, wire_json, created_at) VALUES (?, ?, ?, ?)",
-                (event_id, sequence, wire_json, time.time()),
+            persist_normal_outbound(
+                connection,
+                event_id=event_id,
+                sequence=sequence,
+                wire_json=wire_json,
+                max_frames=self.max_frames,
+                max_bytes=self.max_bytes,
             )
 
     def queue_terminal(
@@ -254,9 +231,18 @@ class EdgeWorkerSpool:
                 'WHERE wire_json LIKE \'%"type":"edge.register"%\''
             ).rowcount
 
-    def accept_job(
-        self, *, job_id: str, attempt_id: str, tool_id: str, payload_hash: str
+    def accept_job_with_frame(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        tool_id: str,
+        payload_hash: str,
+        event_id: str,
+        sequence: int,
+        wire_json: str,
     ) -> bool:
+        """Atomically admit a job together with its durable acceptance frame."""
         now = time.time()
         with self._transaction() as connection:
             existing = connection.execute(
@@ -265,13 +251,24 @@ class EdgeWorkerSpool:
             if existing is not None:
                 if (
                     existing["attempt_id"] != attempt_id
+                    or existing["tool_id"] != tool_id
                     or existing["payload_hash"] != payload_hash
                 ):
                     raise ValueError("Edge job identity mismatch")
-                return False
-            reserve_terminal_slot(
-                connection, reserve_frames=self.terminal_reserve_frames
+            else:
+                reserve_terminal_slot(
+                    connection, reserve_frames=self.terminal_reserve_frames
+                )
+            persist_normal_outbound(
+                connection,
+                event_id=event_id,
+                sequence=sequence,
+                wire_json=wire_json,
+                max_frames=self.max_frames,
+                max_bytes=self.max_bytes,
             )
+            if existing is not None:
+                return False
             connection.execute(
                 "INSERT INTO worker_jobs(job_id, attempt_id, tool_id, payload_hash, "
                 "state, accepted_at, updated_at) VALUES (?, ?, ?, ?, 'ACCEPTED', ?, ?)",

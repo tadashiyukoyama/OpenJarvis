@@ -5,4 +5,8 @@ class EdgeSpoolCapacityError(RuntimeError):
     """The durable outbound queue reached its configured safety boundary."""
 
 
-__all__ = ["EdgeSpoolCapacityError"]
+class EdgeTerminalPayloadError(ValueError):
+    """A terminal result cannot be represented by the bounded Edge protocol."""
+
+
+__all__ = ["EdgeSpoolCapacityError", "EdgeTerminalPayloadError"]

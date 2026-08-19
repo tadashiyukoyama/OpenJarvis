@@ -5,7 +5,10 @@ from __future__ import annotations
 import sqlite3
 import time
 
-from openjarvis.edge_worker.spool_errors import EdgeSpoolCapacityError
+from openjarvis.edge_worker.spool_errors import (
+    EdgeSpoolCapacityError,
+    EdgeTerminalPayloadError,
+)
 from openjarvis.server.jarvis_agent.edge.frames import MAX_EDGE_FRAME_BYTES
 
 TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "UNKNOWN"})
@@ -65,7 +68,9 @@ def persist_terminal_outcome(
         raise ValueError("Invalid Edge terminal job state")
     wire_bytes = len(wire_json.encode("utf-8"))
     if wire_bytes > MAX_EDGE_FRAME_BYTES:
-        raise ValueError("Edge terminal frame exceeds the protocol size limit")
+        raise EdgeTerminalPayloadError(
+            "Edge terminal frame exceeds the protocol size limit"
+        )
 
     existing = connection.execute(
         "SELECT sequence, wire_json, terminal_job_id FROM outbound_frames "

@@ -58,6 +58,19 @@ _ERROR_MAP = {
 
 logger = logging.getLogger(__name__)
 
+_HISTORY_MAX_ITEMS = 30
+_HISTORY_CONTENT_BUDGET_BYTES = 128 * 1024
+_HISTORY_MESSAGE_MAX_BYTES = 8 * 1024
+
+
+def _bounded_utf8(value: str, max_bytes: int) -> tuple[str, bool]:
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value, False
+    if max_bytes <= 0:
+        return "", True
+    return encoded[:max_bytes].decode("utf-8", errors="ignore"), True
+
 
 def _subscribe_thread_or_raise(
     runtime: CodexConversationRuntime,
@@ -223,7 +236,7 @@ class CodexEdgeExecutor:
         thread_id = str(context.get("codex_thread_id") or "").strip()
         if not thread_id:
             raise ValueError("Codex thread is required")
-        limit = min(100, max(1, int(arguments.get("limit") or 16)))
+        limit = min(_HISTORY_MAX_ITEMS, max(1, int(arguments.get("limit") or 16)))
         cursor = arguments.get("cursor")
         cursor = cursor if isinstance(cursor, str) and cursor else None
         items_view = arguments.get("items_view")
@@ -235,15 +248,23 @@ class CodexEdgeExecutor:
             items_view=items_view,
             timeout_seconds=10.0,
         )
-        messages = [
-            {
-                "message_id": item.message_id,
-                "role": item.role,
-                "content": item.content[:8_000],
-                "timestamp": item.timestamp,
-            }
-            for item in page.history.messages[-limit:]
-        ]
+        remaining = _HISTORY_CONTENT_BUDGET_BYTES
+        messages: list[dict[str, Any]] = []
+        for item in page.history.messages[-limit:]:
+            content, truncated = _bounded_utf8(
+                item.content,
+                min(_HISTORY_MESSAGE_MAX_BYTES, remaining),
+            )
+            remaining -= len(content.encode("utf-8"))
+            messages.append(
+                {
+                    "message_id": item.message_id,
+                    "role": item.role,
+                    "content": content,
+                    "content_truncated": truncated,
+                    "timestamp": item.timestamp,
+                }
+            )
         return {
             "status": "completed",
             "summary": "Histórico Codex carregado.",
