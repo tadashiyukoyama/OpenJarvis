@@ -516,16 +516,16 @@ class CodexConversationRuntime:
     def thread_is_busy(self, thread_id: str) -> bool:
         """Return whether the app-server reports the thread as active.
 
-        ``thread/resume`` with ``excludeTurns`` returns current metadata without
-        loading the long persisted conversation and also ensures cross-client
-        notifications are joined. Unknown or ``systemError`` states fail closed.
+        ``thread/read`` without turns returns current metadata without loading
+        the persisted conversation or trying to acquire the thread writer.
+        Unknown or ``systemError`` states fail closed.
         """
 
         self._ensure_open()
         thread_id = _non_empty_string(thread_id, "thread_id")
         result = self._client.request(
-            "thread/resume",
-            {"threadId": thread_id, "excludeTurns": True},
+            "thread/read",
+            {"threadId": thread_id, "includeTurns": False},
             timeout_seconds=_THREAD_STATUS_REQUEST_TIMEOUT_SECONDS,
         )
         if not isinstance(result, dict) or not isinstance(result.get("thread"), dict):

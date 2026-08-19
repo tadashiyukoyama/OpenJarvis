@@ -457,12 +457,12 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.assertFalse(self.runtime.thread_is_busy("thread-idle"))
         self.assertEqual(
             self.client.request_timeouts[-1],
-            ("thread/resume", 10.0),
+            ("thread/read", 10.0),
         )
         self.assertIn(
             (
-                "thread/resume",
-                {"threadId": "thread-busy", "excludeTurns": True},
+                "thread/read",
+                {"threadId": "thread-busy", "includeTurns": False},
             ),
             self.client.calls,
         )
