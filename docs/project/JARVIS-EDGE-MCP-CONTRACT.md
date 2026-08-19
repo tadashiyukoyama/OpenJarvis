@@ -2,9 +2,12 @@
 
 Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Implementation base: `4b2b16ab6ffce6f100180cfa40780f8296690515`
-Branch: `codex/vps-edge-mcp`
+Last verified: 2026-08-19
+Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
+Branch: `codex/edge-codex-live-relay`
+Supersedes: none
+Superseded by: none
 
 ## Purpose
 
@@ -16,6 +19,13 @@ deployment, DNS change, credential change or external mutation.
 The AceleraChat contract remains unchanged at `2026-08-18.2`. AceleraChat owns
 e-mail, WhatsApp, contacts and conversations. The Edge Worker owns no provider
 identity and does not create a second Agent Core.
+
+Traceable implementation checkpoints after the baseline are:
+
+- `9433229c124a9dc048ab83dd683f621e13008665`: durable reconnect replay;
+- `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`: selected-task turn dispatch;
+- `19fb8585a80ae70d5f1c999923a5e2bece9e950c`: ordered execution-state relay;
+- `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority.
 
 ## Topology and authority
 
@@ -38,6 +48,12 @@ flowchart LR
 | MCP facade | map the current canonical catalog to MCP STDIO | call legacy `ToolExecutor`, expose `codex.*` or start/control the worker |
 | Codex app-server | own Codex authentication, projects, tasks, turns and native approvals | listen outside loopback |
 | PWA | show exact approvals and canonical results | authorize by voice or invent a tool |
+
+In VPS mode, AceleraChat is enforced as the only customer e-mail and WhatsApp
+authority. The legacy Gmail, Gmail/IMAP, WhatsApp and Baileys connector IDs are
+absent from connector discovery and fail closed on direct access. Legacy source
+routes are not mounted. An unknown backend path returns a JSON `404`; it can
+never be mistaken for a successful SPA navigation.
 
 ## Public and local surfaces
 
@@ -102,6 +118,13 @@ duplicate events and sequence rollback fail closed.
   state implicitly.
 - The worker spool contains only frames/results for jobs already accepted or
   completed. It is not a queue of future approved commands.
+- The spool is bounded by both frame count and encoded bytes. Defaults are
+  10,000 frames and 64 MiB, with replay pages of 100 frames; all three are
+  configurable through the documented Edge environment variables.
+- `edge.register` is transient control traffic and is never persisted as an
+  application frame. After `edge.registered`, the worker reconciles the Core
+  acknowledgement high-water mark, replays unacknowledged durable frames in
+  pages, and only then sends `edge.resume`.
 
 If a worker is offline before offer/acceptance, the action fails as
 `DEVICE_OFFLINE`; a user must create and approve a new proposal after recovery.
@@ -146,6 +169,14 @@ The Edge Worker reuses the existing local app-server protocol:
 - final public history is reconciled by stable message identity;
 - the app-server remains unauthenticated only because it is loopback-only.
 
+The OpenJarvis UI starts work in the selected existing task only through
+`POST /v1/codex/threads/{thread_id}/turns`. The closed request contains
+`project_cwd`, `message`, `client_user_message_id` and `conversation_id`.
+The server derives the Edge job identity from the selected task and request; the
+browser cannot choose a provider job ID. The SSE response begins with
+`agent_turn_start`, uses the existing bounded completion chunks, emits one
+stable public error code when necessary and terminates with `[DONE]`.
+
 Remote Core reads use bounded Edge jobs. The UI first dispatches the internal
 `codex.subscribe` capability, which performs the lightweight `thread/resume`
 subscription on the Worker connection without starting a turn. Public
@@ -173,6 +204,11 @@ omitted presentation event.
 History remains the canonical reconciliation authority after completion,
 reconnect or process restart. The OpenJarvis UI receives live states and public
 output from the relay; it does not infer execution from generic job progress.
+The public execution stream is restricted to `turn_started`, `item_started`,
+`item_completed`, `status_changed` and `turn_completed`, preserving the Edge
+`event_id` and monotonic sequence. The frontend rejects stale sequences and
+tracks whether the active writer is the local send or a remote task event, so a
+real external turn is not confused with stale UI state.
 Codex Desktop cross-client rendering remains subject to the experimental
 app-server WebSocket behavior. The internal `codex.desktop_refresh` capability
 therefore executes the documented Desktop remount on Windows after completion;

@@ -2,10 +2,13 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Working tree base: `4b2b16ab6ffce6f100180cfa40780f8296690515`
-Branch: `codex/vps-edge-mcp`
+Last verified: 2026-08-19
+Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
+Branch: `codex/edge-codex-live-relay`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
+Supersedes: none
+Superseded by: none
 
 This is the canonical entry point for project memory. Code and generated
 contracts remain the executable source of truth; dated operational reports are
@@ -13,14 +16,14 @@ evidence, not current architecture.
 
 | Document | Status | Responsibility | Last verified | Applicable implementation |
 |---|---|---|---|---|
-| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-18 | AceleraChat working tree |
-| `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-18 | AceleraChat working tree |
+| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-19 | `f08b6c3` |
+| `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-19 | `f08b6c3` |
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-18 | AceleraChat working tree |
-| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-18 | Edge/MCP working tree |
+| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `f08b6c3` |
 | `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-18 | AceleraChat working tree |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-18 | Edge/MCP working tree |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `f08b6c3` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
-| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-09 | `0ee7e1b` |
+| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `19fb858` |
 | `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-08-18 | AceleraChat working tree |
 | `KNOWN-ISSUES.md` | CANONICAL | proven current risks and scoped acceptance status | 2026-08-18 | AceleraChat working tree |
 | `REPOSITORY-MAP.md` | CANONICAL | Git roots, remotes and synchronization history | 2026-07-17 | historical foundation |

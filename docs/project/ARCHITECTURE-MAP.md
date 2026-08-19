@@ -2,10 +2,13 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Working tree base: `4b2b16ab6ffce6f100180cfa40780f8296690515`
-Branch: `codex/vps-edge-mcp`
+Last verified: 2026-08-19
+Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
+Branch: `codex/edge-codex-live-relay`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
+Supersedes: none
+Superseded by: none
 
 ## System boundary
 
@@ -64,7 +67,7 @@ flowchart LR
 
 ## Runtime composition
 
-| Surface | Address or path | Current role |
+| Surface | Address or path | Configured role |
 |---|---|---|
 | Frontend | `127.0.0.1:5173` | Chat, Jarvis and Data Sources UI |
 | Backend | `127.0.0.1:8127` | OpenJarvis API and Jarvis Agent Core |
@@ -74,10 +77,11 @@ flowchart LR
 | Runtime root | `D:\dev\runtime\openjarvis` | logs, backups and visual evidence; legacy direct-provider state remains preserved but inactive |
 | Rollback source | `C:\Users\Cesar\.openjarvis` | preserved and inactive after the controlled copy |
 
-The table above is the currently accepted local runtime. The prepared production
-composition adds one Core container bound to VPS loopback, OpenResty on 443 and
-one persistent Windows Edge Worker. Those components are implemented as source
-and release artifacts but are not installed or claimed live yet.
+The table above records configured addresses, not proof that a process is
+currently running. The prepared production composition adds one Core container
+bound to VPS loopback, OpenResty on 443 and one persistent Windows Edge Worker.
+Those components are implemented as source and release artifacts but are not
+installed or claimed live by this correction.
 
 ## Source and provider model
 
@@ -101,9 +105,18 @@ rollback, but they are not composed into the active Jarvis orchestrator and are
 filtered from Data Sources. Provider connection and QR/account administration
 belong to AceleraChat, not to the OpenJarvis browser.
 
+That boundary is enforced, not merely presented: in VPS mode the legacy customer
+source router is absent, the four direct connector IDs are hidden and rejected,
+and unknown backend routes return JSON `404` instead of falling through to the
+SPA. Local mode retains the legacy routes only for compatibility and rollback.
+
 ## Public contracts
 
 - API prefix: `/v1/jarvis/agent`.
+- Selected existing Codex task turn:
+  `POST /v1/codex/threads/{thread_id}/turns`.
+- Selected-task synchronization:
+  `GET /v1/codex/threads/{thread_id}/events`.
 - Generated OpenAPI artifact: `contracts/jarvis-agent.openapi.json`.
 - Generated frontend types:
   `frontend/src/features/jarvis/api/generated-contracts.ts`.

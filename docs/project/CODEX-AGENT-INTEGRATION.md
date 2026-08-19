@@ -2,9 +2,13 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Functional implementation: `0ee7e1b75975a8f977d671e57b17673c533b5338`
-Branch: `codex/vps-edge-mcp`
+Last verified: 2026-08-19
+Applies to SHA: `19fb8585a80ae70d5f1c999923a5e2bece9e950c`
+Functional dispatch: `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`
+Functional state relay: `19fb8585a80ae70d5f1c999923a5e2bece9e950c`
+Branch: `codex/edge-codex-live-relay`
+Supersedes: none
+Superseded by: none
 
 ## Contract
 
@@ -20,6 +24,13 @@ The Jarvis Agent Core exposes three typed capabilities:
 | `codex_get_status` | read | automatic | bounded availability/busy status |
 | `codex_read_recent_history` | read | automatic | sanitized recent public history |
 | `codex_delegate_task` | delegation | visual, one use | accepted job followed by canonical completion event |
+
+The selected OpenJarvis conversation uses a separate explicit UI transport:
+`POST /v1/codex/threads/{thread_id}/turns`. Its request is closed to
+`project_cwd`, `message`, `client_user_message_id` and `conversation_id`. The
+server preserves the exact task and client message identities and derives the
+idempotent Edge job; the browser does not submit a provider `job_id` or a new
+thread identifier.
 
 ## Delegation sequence
 
@@ -91,11 +102,18 @@ complete public response is then written to the Jarvis timeline, OpenJarvis Chat
 and structured context. Reasoning, internal tool payloads and credentials are
 excluded.
 
+Real app-server lifecycle signals are delivered as ordered `execution` SSE
+events for turn start/completion, item start/completion and status changes. They
+retain the sanitized Edge `event_id` and sequence. Public message/delta events
+are flushed before their associated execution signal, stale sequences are
+ignored, and canonical history repairs a missed presentation event without
+starting another turn.
+
 If the Codex job finishes after the voice session closes, the backend keeps the
 job and bounded result summary. The next session for the same project/thread can
 recover it without replaying the old user transcript.
 
-## Current runtime validation
+## Last runtime validation (historical, not current activation)
 
 - Codex process: listening on `127.0.0.1:8131`; the direct generic
   `/health` path is not part of its contract and returns HTTP 400.
@@ -110,6 +128,9 @@ recover it without replaying the old user transcript.
 - A real delegation was not approved or dispatched during this implementation.
 - Busy, duplicate, timeout, close and async job behavior are covered by fakes and
   contract tests.
+
+No Codex app-server, Edge Worker, browser or shared Desktop runtime was started
+while implementing SHAs `9433229`, `bd0fe4d`, `19fb858` and `f08b6c3`.
 
 ## Prepared VPS and Edge path
 

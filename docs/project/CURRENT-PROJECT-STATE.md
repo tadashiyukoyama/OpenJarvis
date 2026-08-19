@@ -3,16 +3,31 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Working tree base: `601685121ee518a2ef2ac0b6136f6ee12119220b`
+Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Remote publication: this correction is local and not pushed; the source snapshot
 remains private at `https://github.com/tadashiyukoyama/openjarvis-codex`
+Supersedes: none
+Superseded by: none
 
 ## Codex live Edge relay correction — 2026-08-19
 
 Branch `codex/edge-codex-live-relay`, based on
-`601685121ee518a2ef2ac0b6136f6ee12119220b`, corrects the split between job
-completion and visible Codex state without activating the runtime:
+`393031e9eec9e8583d0b8958ae399c40dd5148d3`, now has four auditable logical
+checkpoints without activating the runtime:
+
+- `9433229c124a9dc048ab83dd683f621e13008665` bounds the durable spool,
+  reconciles acknowledgement high-water and replays before `edge.resume`;
+- `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf` adds the explicit selected-task
+  turn endpoint and server-derived idempotent Edge job;
+- `19fb8585a80ae70d5f1c999923a5e2bece9e950c` relays ordered real execution
+  state and distinguishes local from remote active writers;
+- `f08b6c3fa69318b13ad9053eea307f1ee9f90323` enforces AceleraChat as the VPS
+  e-mail/WhatsApp authority and prevents SPA success responses for unknown APIs.
+
+Together, those checkpoints correct the split between job completion and
+visible Codex state:
 
 - sanitized app-server events are coalesced and relayed as ordered non-job
   `codex.event` frames;
@@ -33,6 +48,10 @@ completion and visible Codex state without activating the runtime:
   it is absent, releases only the exact listener PID before failing closed;
 - no persistent User/Machine redirect, scheduled shared listener or second
   app-server is introduced.
+- the UI dispatches only to the immutable selected Codex task through
+  `POST /v1/codex/threads/{thread_id}/turns`;
+- VPS-mode direct Gmail/IMAP and WhatsApp/Baileys routes are not mounted and
+  their connector IDs fail closed.
 
 No Codex turn, Desktop launch, browser action, VPS change, credential change or
 external message was performed while implementing this correction. The real
@@ -46,9 +65,10 @@ proposes functions; the backend owns capability, policy, approval, idempotency,
 dispatch, provider-event reconciliation, jobs, context and canonical results.
 
 Direct Gmail/IMAP and Baileys code/state remain preserved but dormant. They are
-not in the active Jarvis catalog and no longer appear as connection controls in
-Data Sources. The earlier direct-provider acceptance below remains historical
-evidence; it is not evidence of a live AceleraChat deployment.
+not in the active Jarvis catalog, no longer appear as connection controls in
+Data Sources and are inaccessible through VPS connector/source routes. The
+earlier direct-provider acceptance below remains historical evidence; it is not
+evidence of a live AceleraChat deployment.
 
 The hybrid VPS/Windows boundary is now implemented locally: a VPS-mode Core,
 outbound authenticated Edge WSS, durable Edge jobs/leases, a persistent Windows
@@ -201,16 +221,17 @@ user-operated acceptance is recorded below.
 
 | Field | Current value |
 |---|---|
-| Canonical repository | `D:\dev\workspaces\openjarvis` |
-| Branch | `codex/vps-edge-mcp` |
-| Current HEAD/base | `4b2b16ab6ffce6f100180cfa40780f8296690515` |
-| AceleraChat integration | local checkpoint `4b2b16ab`; no push from this branch |
+| Current release worktree | `D:\dev\workspaces\openjarvis-edge-relay` |
+| Branch | `codex/edge-codex-live-relay` |
+| Correction baseline | `393031e9eec9e8583d0b8958ae399c40dd5148d3` |
+| Implementation checkpoints | `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3` |
+| AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
 | Distribution remote | `https://github.com/tadashiyukoyama/openjarvis-codex.git` (private) |
-| Push/PR | clean snapshot on `main`; no PR |
-| Additional worktree | none created for this implementation |
+| Push/PR | prior clean snapshot on `main`; this correction has not been pushed and has no PR |
+| Current implementation workspace | isolated `openjarvis-edge-relay` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
 | Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
 

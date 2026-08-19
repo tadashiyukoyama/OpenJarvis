@@ -65,6 +65,9 @@ def test_release_examples_contain_placeholders_not_active_secrets() -> None:
     assert "ws://127.0.0.1:8131" in examples[1]
     assert "/local-agent" in examples[1]
     assert r"\\.\pipe\openjarvis-agent-mcp" in examples[1]
+    assert "OPENJARVIS_EDGE_SPOOL_MAX_FRAMES=10000" in examples[1]
+    assert "OPENJARVIS_EDGE_SPOOL_MAX_BYTES=67108864" in examples[1]
+    assert "OPENJARVIS_EDGE_REPLAY_BATCH_SIZE=100" in examples[1]
     assert r"\\.\pipe\openjarvis-agent-mcp" in examples[2]
 
 

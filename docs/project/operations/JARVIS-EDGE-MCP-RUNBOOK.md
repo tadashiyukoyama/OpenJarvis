@@ -2,9 +2,12 @@
 
 Status: CANONICAL — INSTALLATION NOT YET AUTHORIZED
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Implementation base: `4b2b16ab6ffce6f100180cfa40780f8296690515`
-Branch: `codex/vps-edge-mcp`
+Last verified: 2026-08-19
+Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
+Branch: `codex/edge-codex-live-relay`
+Supersedes: none
+Superseded by: none
 
 ## Safety boundary
 
@@ -22,7 +25,8 @@ redacted paths.
 
 Required repositories and contracts:
 
-- OpenJarvis: `D:\dev\workspaces\openjarvis`;
+- current release worktree: `D:\dev\workspaces\openjarvis-edge-relay`;
+- reusable local Python environment: `D:\dev\workspaces\openjarvis\.venv`;
 - AceleraChat release contract: `2026-08-18.2`;
 - Edge schemas: `contracts/edge/v1`;
 - Agent OpenAPI: `contracts/jarvis-agent.openapi.json`;
@@ -40,7 +44,7 @@ digest. Never deploy from a working tree, archive or copied `node_modules`.
 Run read-only checks:
 
 ```powershell
-Set-Location -LiteralPath D:\dev\workspaces\openjarvis
+Set-Location -LiteralPath D:\dev\workspaces\openjarvis-edge-relay
 git status --short --branch
 git rev-parse HEAD
 git worktree list --porcelain
@@ -65,16 +69,14 @@ Use the existing locked environments; do not install a missing dependency just
 to make the gate green without approval.
 
 ```powershell
-$python = '.\.venv\Scripts\python.exe'
-$ruff = '.\.venv\Scripts\ruff.exe'
-$env:PYTHONPATH = 'src'
+$sourceRoot = 'D:\dev\workspaces\openjarvis-edge-relay'
+$python = 'D:\dev\workspaces\openjarvis\.venv\Scripts\python.exe'
+$env:PYTHONPATH = Join-Path $sourceRoot 'src'
+Set-Location -LiteralPath $sourceRoot
 
-& $python -m pytest tests/server/jarvis_agent tests/edge_worker tests/mcp -q
-& $ruff check src/openjarvis/server/jarvis_agent src/openjarvis/edge_worker `
-  src/openjarvis/mcp tests/server/jarvis_agent tests/edge_worker tests/mcp
-& $ruff format --check src/openjarvis/server/jarvis_agent `
-  src/openjarvis/edge_worker src/openjarvis/mcp tests/server/jarvis_agent `
-  tests/edge_worker tests/mcp
+& $python -m pytest -q
+& $python -m ruff check .
+& $python -m ruff format --check src tests
 & $python scripts/workspace/export-jarvis-agent-contracts.py --check
 
 Push-Location frontend
@@ -122,6 +124,15 @@ appears only in the two private Windows files.
 
 Before release, confirm selected inbox IDs from the AceleraChat API. Never infer
 them by display name.
+
+Keep the bounded replay controls explicit in the private Edge configuration:
+
+- `OPENJARVIS_EDGE_SPOOL_MAX_FRAMES=10000`;
+- `OPENJARVIS_EDGE_SPOOL_MAX_BYTES=67108864`;
+- `OPENJARVIS_EDGE_REPLAY_BATCH_SIZE=100`.
+
+Changing them requires a measured capacity review; removing a limit is not an
+accepted troubleshooting step.
 
 ## Gate 3 — Windows Edge Worker installation
 
@@ -253,6 +264,10 @@ Activation order:
     browser-supplied action header and injects the trusted loopback header.
 13. Closing the isolated tracked Desktop sentinel releases the exact listener
     even when another private Desktop exists; PID/path mismatch stops nothing.
+14. Unknown `/v1/*` paths return JSON `404`, never the frontend `index.html`.
+15. Direct Gmail/IMAP and WhatsApp/Baileys source routes are absent in VPS mode,
+    blocked connector IDs are omitted from discovery and direct access returns
+    `404`.
 
 Required failure smokes:
 
@@ -271,10 +286,13 @@ A first mutation requires a separate authorization naming channel, inbox,
 controlled recipient, exact content, time and observer.
 
 The same-task Codex acceptance turn is also a separate authorization. For that
-test, capture in order: `turn_started`, at least one public delta or completed
-assistant message, `turn_completed`, canonical history reconciliation and the
-final Desktop remount. Confirm that a duplicate Edge frame does not duplicate
-text and that no hidden second turn remains active.
+test, call only `POST /v1/codex/threads/{thread_id}/turns` with the selected
+immutable task, project root, client message ID and conversation ID. Capture in
+order: `agent_turn_start`, `turn_started`, at least one public delta or completed
+assistant message, item/status events when present, `turn_completed`, canonical
+history reconciliation and the final Desktop remount. Confirm that a duplicate
+Edge frame does not duplicate text and that no hidden second turn remains
+active.
 
 ## Rotation and revocation
 
@@ -308,9 +326,11 @@ OpenJarvis volume. Rollback does not delete state.
 8. restore the Windows source to the recorded prior SHA only after preserving
    the current patch/evidence.
 
-Current source rollback point is the local AceleraChat checkpoint
-`4b2b16ab6ffce6f100180cfa40780f8296690515`. The earlier observed base is
-`ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`.
+The source rollback point for this correction is
+`393031e9eec9e8583d0b8958ae399c40dd5148d3`. Preserve evidence first, then
+revert logical checkpoints in reverse order when a narrower rollback is proven
+safe: `f08b6c3`, `19fb858`, `bd0fe4d`, `9433229`. Do not mix a source rollback
+with deletion of Edge/Core ledgers.
 
 ## Troubleshooting matrix
 
@@ -326,6 +346,8 @@ Current source rollback point is the local AceleraChat checkpoint
 | accepted job has no final result | Edge spool, attempt, lease and history | reconcile; never retry uncertain mutation |
 | PWA health fails | authenticated `/health`, CSP and generated Workbox asset | test exact gateway routes |
 | webhook gap | per-resource sequence and read-only backfill | reconcile without provider mutation |
+| unknown API returns the PWA | backend namespace guard and deployed SHA | stop the release; an unknown `/v1/*` must be JSON `404` |
+| direct Gmail/WhatsApp appears on VPS | `OPENJARVIS_CORE_MODE`, connector discovery and route inventory | stop the release; AceleraChat must remain the sole authority |
 
 ## Evidence and completion report
 
