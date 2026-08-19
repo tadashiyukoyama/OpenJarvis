@@ -86,6 +86,7 @@ class EdgeWorker:
             spool=self.spool,
             executor=self.executor,
             emit=self._emit,
+            emit_terminal=self._emit_terminal,
         )
 
     async def run_forever(self, stop: asyncio.Event | None = None) -> None:
@@ -229,6 +230,61 @@ class EdgeWorker:
             from_client=True,
         )
         self.spool.queue_outbound(str(frame.event_id), sequence, frame.wire_json())
+        return frame
+
+    async def _emit_terminal(
+        self,
+        frame_type: str,
+        payload: Mapping[str, Any],
+        *,
+        job_id: str,
+        state: str,
+    ) -> EdgeFrame:
+        connection, lock = self._connection, self._send_lock
+        if connection is None or lock is None:
+            return self._queue_terminal_frame(
+                frame_type, payload, job_id=job_id, state=state
+            )
+        async with lock:
+            frame = self._queue_terminal_frame(
+                frame_type, payload, job_id=job_id, state=state
+            )
+            if self._handshake_complete:
+                try:
+                    await connection.send(frame.wire_json())
+                except Exception as exc:
+                    self._handshake_complete = False
+                    logger.warning(
+                        "Edge terminal event retained for replay after send "
+                        "failure: %s",
+                        type(exc).__name__,
+                    )
+            return frame
+
+    def _queue_terminal_frame(
+        self,
+        frame_type: str,
+        payload: Mapping[str, Any],
+        *,
+        job_id: str,
+        state: str,
+    ) -> EdgeFrame:
+        sequence = self.spool.next_outbound_sequence()
+        frame = make_edge_frame(
+            frame_type=frame_type,
+            device_id=self.config.device_id,
+            sequence=sequence,
+            payload=payload,
+            job_id=job_id,
+            from_client=True,
+        )
+        self.spool.queue_terminal(
+            job_id=job_id,
+            state=state,
+            event_id=str(frame.event_id),
+            sequence=sequence,
+            wire_json=frame.wire_json(),
+        )
         return frame
 
     async def _emit_codex_event(self, payload: Mapping[str, Any]) -> EdgeFrame:

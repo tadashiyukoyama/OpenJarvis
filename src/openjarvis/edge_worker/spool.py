@@ -11,6 +11,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from openjarvis.edge_worker.spool_errors import EdgeSpoolCapacityError
+from openjarvis.edge_worker.terminal_outcomes import (
+    TERMINAL_STATES,
+    migrate_terminal_schema,
+    persist_terminal_outcome,
+    reserve_terminal_slot,
+)
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS worker_state (
     key TEXT PRIMARY KEY,
@@ -29,7 +37,8 @@ CREATE TABLE IF NOT EXISTS outbound_frames (
     event_id TEXT PRIMARY KEY,
     sequence INTEGER NOT NULL UNIQUE,
     wire_json TEXT NOT NULL,
-    created_at REAL NOT NULL
+    created_at REAL NOT NULL,
+    terminal_job_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS worker_jobs (
@@ -47,10 +56,6 @@ ON worker_jobs(state, updated_at);
 """
 
 
-class EdgeSpoolCapacityError(RuntimeError):
-    """The durable outbound queue reached its configured safety boundary."""
-
-
 @dataclass(frozen=True, slots=True)
 class PendingOutboundFrame:
     sequence: int
@@ -64,16 +69,19 @@ class EdgeWorkerSpool:
         *,
         max_frames: int = 10_000,
         max_bytes: int = 64 * 1024 * 1024,
+        terminal_reserve_frames: int = 64,
     ) -> None:
-        if max_frames <= 0 or max_bytes <= 0:
+        if max_frames <= 0 or max_bytes <= 0 or terminal_reserve_frames <= 0:
             raise ValueError("Edge spool limits must be positive")
         self.path = path
         self.max_frames = max_frames
         self.max_bytes = max_bytes
+        self.terminal_reserve_frames = terminal_reserve_frames
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         with self._transaction() as connection:
             connection.executescript(_SCHEMA)
+            migrate_terminal_schema(connection)
             integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
             if integrity != "ok":
                 raise RuntimeError("Edge worker spool integrity check failed")
@@ -164,13 +172,15 @@ class EdgeWorkerSpool:
         wire_bytes = len(wire_json.encode("utf-8"))
         with self._transaction() as connection:
             existing = connection.execute(
-                "SELECT sequence, wire_json FROM outbound_frames WHERE event_id = ?",
+                "SELECT sequence, wire_json, terminal_job_id FROM outbound_frames "
+                "WHERE event_id = ?",
                 (event_id,),
             ).fetchone()
             if existing is not None:
                 identity_changed = (
                     int(existing["sequence"]) != sequence
                     or existing["wire_json"] != wire_json
+                    or existing["terminal_job_id"] is not None
                 )
                 if identity_changed:
                     raise ValueError("Edge outbound event identity mismatch")
@@ -178,7 +188,7 @@ class EdgeWorkerSpool:
             stats = connection.execute(
                 "SELECT COUNT(*) AS frame_count, "
                 "COALESCE(SUM(LENGTH(CAST(wire_json AS BLOB))), 0) AS byte_count "
-                "FROM outbound_frames"
+                "FROM outbound_frames WHERE terminal_job_id IS NULL"
             ).fetchone()
             if (
                 int(stats["frame_count"]) >= self.max_frames
@@ -191,6 +201,27 @@ class EdgeWorkerSpool:
                 "INSERT INTO outbound_frames"
                 "(event_id, sequence, wire_json, created_at) VALUES (?, ?, ?, ?)",
                 (event_id, sequence, wire_json, time.time()),
+            )
+
+    def queue_terminal(
+        self,
+        *,
+        job_id: str,
+        state: str,
+        event_id: str,
+        sequence: int,
+        wire_json: str,
+    ) -> None:
+        """Atomically persist a terminal frame and its local job outcome."""
+        with self._transaction() as connection:
+            persist_terminal_outcome(
+                connection,
+                reserve_frames=self.terminal_reserve_frames,
+                job_id=job_id,
+                state=state,
+                event_id=event_id,
+                sequence=sequence,
+                wire_json=wire_json,
             )
 
     def acknowledge(self, sequence: int) -> None:
@@ -238,6 +269,9 @@ class EdgeWorkerSpool:
                 ):
                     raise ValueError("Edge job identity mismatch")
                 return False
+            reserve_terminal_slot(
+                connection, reserve_frames=self.terminal_reserve_frames
+            )
             connection.execute(
                 "INSERT INTO worker_jobs(job_id, attempt_id, tool_id, payload_hash, "
                 "state, accepted_at, updated_at) VALUES (?, ?, ?, ?, 'ACCEPTED', ?, ?)",
@@ -245,14 +279,23 @@ class EdgeWorkerSpool:
             )
             return True
 
-    def transition(self, job_id: str, state: str, terminal_event_id: str = "") -> None:
+    def transition(self, job_id: str, state: str) -> None:
+        if state in TERMINAL_STATES:
+            raise ValueError("Terminal Edge transitions must use queue_terminal")
         with self._transaction() as connection:
-            connection.execute(
-                "UPDATE worker_jobs SET state = ?, updated_at = ?, "
-                "terminal_event_id = COALESCE(NULLIF(?, ''), terminal_event_id) "
-                "WHERE job_id = ?",
-                (state, time.time(), terminal_event_id, job_id),
-            )
+            changed = connection.execute(
+                "UPDATE worker_jobs SET state = ?, updated_at = ? WHERE job_id = ?",
+                (state, time.time(), job_id),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("Edge job transition references an unknown job")
+
+    def job_state(self, job_id: str) -> str | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT state FROM worker_jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
+        return None if row is None else str(row["state"])
 
     def active_job_ids(self) -> list[str]:
         with self._connect() as connection:
@@ -265,12 +308,15 @@ class EdgeWorkerSpool:
     def recover_interrupted(self) -> list[dict[str, Any]]:
         with self._transaction() as connection:
             rows = connection.execute(
-                "SELECT job_id, attempt_id, tool_id FROM worker_jobs WHERE state IN "
-                "('ACCEPTED', 'RUNNING', 'WAITING_APPROVAL') ORDER BY accepted_at"
+                "SELECT job_id, attempt_id, tool_id FROM worker_jobs "
+                "WHERE terminal_event_id IS NULL AND (state IN "
+                "('ACCEPTED', 'RUNNING', 'WAITING_APPROVAL', 'RECOVERY_PENDING') "
+                "OR state = 'UNKNOWN') ORDER BY accepted_at"
             ).fetchall()
             connection.execute(
-                "UPDATE worker_jobs SET state = 'UNKNOWN', updated_at = ? "
-                "WHERE state IN ('ACCEPTED', 'RUNNING', 'WAITING_APPROVAL')",
+                "UPDATE worker_jobs SET state = 'RECOVERY_PENDING', updated_at = ? "
+                "WHERE terminal_event_id IS NULL AND state IN "
+                "('ACCEPTED', 'RUNNING', 'WAITING_APPROVAL', 'UNKNOWN')",
                 (time.time(),),
             )
             return [dict(row) for row in rows]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -106,3 +107,145 @@ def test_spool_reconciles_high_water_and_removes_legacy_registration(
     assert [item.sequence for item in spool.pending_frames()] == [2]
     spool.reconcile_outbound_sequence(7)
     assert spool.next_outbound_sequence() == 8
+
+
+def test_terminal_outcome_uses_bounded_reserve_and_is_atomic(tmp_path: Path) -> None:
+    path = tmp_path / "terminal.sqlite3"
+    spool = EdgeWorkerSpool(path, max_frames=1, max_bytes=80, terminal_reserve_frames=1)
+    assert spool.accept_job(
+        job_id="job-1",
+        attempt_id="attempt-1",
+        tool_id="codex.delegate",
+        payload_hash="a" * 64,
+    )
+    spool.transition("job-1", "RUNNING")
+    spool.queue_outbound("event-1", 1, '{"event_id":"event-1"}')
+
+    with pytest.raises(EdgeSpoolCapacityError, match="capacity"):
+        spool.queue_outbound("event-2", 2, '{"event_id":"event-2"}')
+
+    terminal_wire = '{"event_id":"terminal-1","type":"job.succeeded"}'
+    spool.queue_terminal(
+        job_id="job-1",
+        state="SUCCEEDED",
+        event_id="terminal-1",
+        sequence=3,
+        wire_json=terminal_wire,
+    )
+
+    assert spool.job_state("job-1") == "SUCCEEDED"
+    assert [item.sequence for item in spool.pending_frames()] == [1, 3]
+    reopened = EdgeWorkerSpool(
+        path, max_frames=1, max_bytes=80, terminal_reserve_frames=1
+    )
+    assert reopened.job_state("job-1") == "SUCCEEDED"
+    reopened.queue_terminal(
+        job_id="job-1",
+        state="SUCCEEDED",
+        event_id="terminal-1",
+        sequence=3,
+        wire_json=terminal_wire,
+    )
+
+
+def test_terminal_reserve_blocks_admission_until_delivery_is_acknowledged(
+    tmp_path: Path,
+) -> None:
+    spool = EdgeWorkerSpool(tmp_path / "reserve.sqlite3", terminal_reserve_frames=1)
+    assert spool.accept_job(
+        job_id="job-1",
+        attempt_id="attempt-1",
+        tool_id="codex.delegate",
+        payload_hash="a" * 64,
+    )
+    with pytest.raises(EdgeSpoolCapacityError, match="new job"):
+        spool.accept_job(
+            job_id="job-2",
+            attempt_id="attempt-2",
+            tool_id="codex.delegate",
+            payload_hash="b" * 64,
+        )
+
+    spool.queue_terminal(
+        job_id="job-1",
+        state="SUCCEEDED",
+        event_id="terminal-1",
+        sequence=1,
+        wire_json='{"event_id":"terminal-1"}',
+    )
+    with pytest.raises(EdgeSpoolCapacityError, match="new job"):
+        spool.accept_job(
+            job_id="job-2",
+            attempt_id="attempt-2",
+            tool_id="codex.delegate",
+            payload_hash="b" * 64,
+        )
+
+    spool.acknowledge(1)
+    assert spool.accept_job(
+        job_id="job-2",
+        attempt_id="attempt-2",
+        tool_id="codex.delegate",
+        payload_hash="b" * 64,
+    )
+
+
+def test_interrupted_job_remains_recoverable_until_terminal_frame_is_durable(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "recovery.sqlite3"
+    spool = EdgeWorkerSpool(path)
+    assert spool.accept_job(
+        job_id="job-1",
+        attempt_id="attempt-1",
+        tool_id="codex.delegate",
+        payload_hash="a" * 64,
+    )
+    spool.transition("job-1", "RUNNING")
+
+    expected = [
+        {
+            "job_id": "job-1",
+            "attempt_id": "attempt-1",
+            "tool_id": "codex.delegate",
+        }
+    ]
+    assert spool.recover_interrupted() == expected
+    assert spool.job_state("job-1") == "RECOVERY_PENDING"
+    assert EdgeWorkerSpool(path).recover_interrupted() == expected
+
+    spool.queue_terminal(
+        job_id="job-1",
+        state="UNKNOWN",
+        event_id="terminal-1",
+        sequence=1,
+        wire_json='{"event_id":"terminal-1","type":"job.failed"}',
+    )
+    assert spool.job_state("job-1") == "UNKNOWN"
+    assert EdgeWorkerSpool(path).recover_interrupted() == []
+
+
+def test_existing_spool_schema_adds_terminal_marker_without_data_loss(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE outbound_frames (event_id TEXT PRIMARY KEY, "
+            "sequence INTEGER NOT NULL UNIQUE, wire_json TEXT NOT NULL, "
+            "created_at REAL NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO outbound_frames VALUES (?, ?, ?, ?)",
+            ("legacy-1", 1, '{"event_id":"legacy-1"}', 1.0),
+        )
+
+    spool = EdgeWorkerSpool(path)
+
+    assert [item.sequence for item in spool.pending_frames()] == [1]
+    with sqlite3.connect(path) as connection:
+        columns = {
+            str(row[1])
+            for row in connection.execute("PRAGMA table_info(outbound_frames)")
+        }
+    assert "terminal_job_id" in columns
