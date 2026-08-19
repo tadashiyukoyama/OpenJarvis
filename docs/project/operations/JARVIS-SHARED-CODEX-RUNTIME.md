@@ -86,6 +86,13 @@ Before Desktop receives a process-scoped redirect, all gates must pass:
    `initialized`;
 7. after launch, Desktop has a connection to 8131 and no private app-server
    child.
+8. the lifecycle guardian owns the exact listener PID and remains alive while
+   Desktop is connected.
+
+The launcher uses a unique guardian log for each session and does not report
+`RUNNING_SHARED_OPT_IN` until it observes `guardian_started`. If that bounded
+handshake fails, it terminates only the guardian process it created and the
+verified listener PID; it never terminates Codex Desktop.
 
 An HTTP response alone cannot prove protocol compatibility. The initialize
 probe is limited to one MiB and five seconds.
@@ -99,6 +106,10 @@ probe is limited to one MiB and five seconds.
   executable with `on-request` and `workspace-write` defaults.
 - `Start-OpenJarvisCodexDesktop.ps1`: opt-in preflight, process-scoped redirect
   and normal-Codex fallback.
+- `Watch-OpenJarvisSharedCodexSession.ps1`: observes the verified session and
+  tracks the exact main-window process and releases only its exact listener
+  after that Desktop session has fully exited. Auxiliary Electron processes do
+  not keep the listener alive indefinitely.
 - `Manage-OpenJarvisSharedCodexTask.ps1`: read-only status/validation and
   explicit removal of the retired scheduled-task authority.
 - `start-openjarvis-codex.cmd`: visible opt-in shortcut entrypoint.
@@ -143,6 +154,7 @@ Required state:
 - `ProtocolInitialized = true`;
 - `DesktopShared = true`;
 - `PrivateAppServerCount = 0`;
+- `GuardianProcessId` identifies a running hidden guardian;
 - User and Machine redirects are empty.
 
 No message, e-mail, reaction, campaign or provider mutation belongs to this
@@ -159,6 +171,33 @@ cutover. Voice confirmation alone is not authority.
 | ready, health or initialize probe fails | remove only a newly started verified listener, then start normal Codex; withhold fallback if any listener remains |
 | Desktop opens a private server instead of joining | stop only the newly started verified shared listener and preserve normal Desktop |
 | Edge starts before shared server | remain offline/reconnecting without hidden job execution |
+| Desktop exits normally | guardian waits for the tracked main-window PID to disappear, stops only the verified listener PID and clears its matching state file |
+| auxiliary `ChatGPT.exe` remains after the main window exits | guardian may stop only the recorded listener PID through detached-session recovery; it never stops the auxiliary process |
+| listener PID/path changes while guarded | guardian fails closed and stops nothing |
+
+## Regressions that this mode must not repeat
+
+The 2026-08-19 controlled attempt exposed two independent failures:
+
+1. the Worker completed a turn and persisted its answer, but the shared Desktop
+   stayed visually idle and did not render execution or the answer;
+2. after `Exit`, the independent listener was not released, so normal/private
+   Desktop reported another active instance until Windows was restarted.
+
+The observed sequence was: the operator sent `voltei`; the backend completed
+and persisted the assistant answer; Desktop showed no running state or answer;
+a second message behaved like input queued behind an invisible turn; closing
+with `X` and then using tray `Exit` did not release the separate listener; a
+normal launch then reported that Codex was already open elsewhere. This exact
+symptom chain is a mandatory regression record, not evidence that the turn was
+lost.
+
+The first is addressed by the sanitized Edge event relay plus canonical
+history and Windows-side Desktop remount. The second is addressed by the
+listener-identity and main-window guardian. An initialize-only probe is not
+acceptance for either defect. A release requires event-contract tests, a
+lifecycle test on an isolated port and one separately authorized same-task
+turn.
 
 ## One-time retirement of the old authority
 
@@ -182,8 +221,9 @@ owners. It never deletes threads, credentials, project state or Codex logs.
 
 ## Rollback
 
-Close a shared Desktop normally. With Desktop closed, stop only the exact
-current managed runtime through `Stop-OpenJarvisSharedCodexOwner`, then launch
+Close a shared Desktop normally. The guardian should release the exact current
+managed runtime automatically. If it does not, keep Desktop closed, inspect the
+recorded owner PID/path and use `Stop-OpenJarvisSharedCodexOwner`; then launch
 Codex from its normal installed shortcut. Because there is no persistent
 redirect, normal startup does not depend on port 8131.
 

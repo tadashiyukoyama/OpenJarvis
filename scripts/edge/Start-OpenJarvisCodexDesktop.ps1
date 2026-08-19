@@ -146,6 +146,7 @@ $previous = [ordered]@{
         'CODEX_APP_SERVER_WS_URL', 'Process'
     )
 }
+$desktopLaunch = $null
 try {
     [Environment]::SetEnvironmentVariable(
         'CODEX_HOME', $config.CodexHome, 'Process'
@@ -154,8 +155,8 @@ try {
         'CODEX_APP_SERVER_WS_URL', $config.SharedUrl, 'Process'
     )
     try {
-        Start-Process -FilePath $config.DesktopExe `
-            -WorkingDirectory $config.Repository | Out-Null
+        $desktopLaunch = Start-Process -FilePath $config.DesktopExe `
+            -WorkingDirectory $config.Repository -PassThru
     }
     catch {
         if ([bool]$server.Started) {
@@ -201,12 +202,114 @@ catch {
     }
     throw
 }
-[pscustomobject]@{
-    SharedUrl = $config.SharedUrl
-    RuntimeId = $config.RuntimeId
-    AppServerStarted = [bool]$server.Started
-    DesktopProcessCount = $joined.DesktopProcessCount
-    SharedConnected = $joined.SharedConnected
-    PrivateAppServerCount = $joined.PrivateAppServerCount
-    Status = 'RUNNING_SHARED_OPT_IN'
+$owner = Get-OpenJarvisSharedCodexOwner -Config $config
+if ($null -eq $owner -or -not $owner.Valid) {
+    throw 'Shared Codex owner changed before lifecycle guardian startup.'
+}
+$guardianScript = Join-Path $PSScriptRoot 'Watch-OpenJarvisSharedCodexSession.ps1'
+$guardianHost = (Get-Process -Id $PID).Path
+$guardian = $null
+$guardianLogPath = Join-Path $config.LogDirectory (
+    'shared-session-guardian-{0}-{1}.log' -f `
+        $owner.ProcessId, [guid]::NewGuid().ToString('N')
+)
+try {
+    $desktopSessionProcesses = @(
+        Get-Process -Name ChatGPT -ErrorAction Stop |
+            Where-Object {
+                $_.Path -and $_.Path.Equals(
+                    $config.DesktopExe,
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -and $_.MainWindowHandle -ne 0
+            }
+    )
+    if ($desktopSessionProcesses.Count -lt 1 -and $null -ne $desktopLaunch -and
+        -not $desktopLaunch.HasExited -and $desktopLaunch.Path.Equals(
+            $config.DesktopExe, [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+        $desktopSessionProcesses = @($desktopLaunch)
+    }
+    if ($desktopSessionProcesses.Count -lt 1) {
+        throw 'Shared Desktop main process disappeared before guardian startup.'
+    }
+    $desktopProcessIds = @(
+        $desktopSessionProcesses | Select-Object -ExpandProperty Id
+    )
+    $guardian = Start-Process -FilePath $guardianHost -ArgumentList @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $guardianScript,
+        '-Repository', $config.Repository,
+        '-Port', [string]$Port,
+        '-ExpectedOwnerProcessId', [string]$owner.ProcessId,
+        '-ExpectedDesktopProcessIds', ($desktopProcessIds -join ','),
+        '-LogPathOverride', $guardianLogPath
+    ) -WindowStyle Hidden -PassThru
+
+    $guardianReady = $false
+    $guardianDeadline = [DateTime]::UtcNow.AddSeconds(15)
+    while ([DateTime]::UtcNow -lt $guardianDeadline -and
+        -not $guardian.HasExited) {
+        if ((Test-Path -LiteralPath $guardianLogPath -PathType Leaf) -and
+            (Select-String -LiteralPath $guardianLogPath `
+                -SimpleMatch 'event=guardian_started' -Quiet)) {
+            $guardianReady = $true
+            break
+        }
+        Start-Sleep -Milliseconds 100
+        $guardian.Refresh()
+    }
+    if (-not $guardianReady -or $guardian.HasExited) {
+        throw 'Shared Codex lifecycle guardian did not become ready.'
+    }
+
+    if (Test-Path -LiteralPath $config.StatePath -PathType Leaf) {
+        $state = Get-Content -LiteralPath $config.StatePath -Raw |
+            ConvertFrom-Json
+        $state | Add-Member -NotePropertyName guardian_process_id `
+            -NotePropertyValue $guardian.Id -Force
+        $state | Add-Member -NotePropertyName guardian_log_path `
+            -NotePropertyValue $guardianLogPath -Force
+        $state | Add-Member -NotePropertyName desktop_process_count `
+            -NotePropertyValue $joined.DesktopProcessCount -Force
+        $state | ConvertTo-Json -Depth 4 | Set-Content `
+            -LiteralPath $config.StatePath -Encoding UTF8
+    }
+    [pscustomobject]@{
+        SharedUrl = $config.SharedUrl
+        RuntimeId = $config.RuntimeId
+        AppServerStarted = [bool]$server.Started
+        DesktopProcessCount = $joined.DesktopProcessCount
+        SharedConnected = $joined.SharedConnected
+        PrivateAppServerCount = $joined.PrivateAppServerCount
+        GuardianProcessId = $guardian.Id
+        Status = 'RUNNING_SHARED_OPT_IN'
+    }
+}
+catch {
+    $startupError = $_
+    if ($null -ne $guardian -and -not $guardian.HasExited) {
+        Stop-Process -Id $guardian.Id -Force -ErrorAction SilentlyContinue
+        $guardian.WaitForExit(5000) | Out-Null
+    }
+    $failedOwner = Get-OpenJarvisSharedCodexOwner -Config $config
+    if ($null -ne $failedOwner -and $failedOwner.Valid -and
+        $failedOwner.ProcessId -eq $owner.ProcessId) {
+        Stop-OpenJarvisSharedCodexOwner -Config $config `
+            -AllowDetachedDesktopRecovery `
+            -ExpectedProcessId $owner.ProcessId -Confirm:$false
+    }
+    if (Test-Path -LiteralPath $config.StatePath -PathType Leaf) {
+        try {
+            $failedState = Get-Content -LiteralPath $config.StatePath -Raw |
+                ConvertFrom-Json
+            if ([int]$failedState.process_id -eq $owner.ProcessId) {
+                Remove-Item -LiteralPath $config.StatePath -Force
+            }
+        }
+        catch {
+            # Preserve an unrecognized state file for operator inspection.
+        }
+    }
+    throw $startupError
 }

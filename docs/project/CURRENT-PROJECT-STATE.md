@@ -2,10 +2,41 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Working tree base: `4b2b16ab6ffce6f100180cfa40780f8296690515`
-Branch: `codex/vps-edge-mcp`
-Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
+Last verified: 2026-08-19
+Working tree base: `601685121ee518a2ef2ac0b6136f6ee12119220b`
+Branch: `codex/edge-codex-live-relay`
+Remote publication: this correction is local and not pushed; the source snapshot
+remains private at `https://github.com/tadashiyukoyama/openjarvis-codex`
+
+## Codex live Edge relay correction — 2026-08-19
+
+Branch `codex/edge-codex-live-relay`, based on
+`601685121ee518a2ef2ac0b6136f6ee12119220b`, corrects the split between job
+completion and visible Codex state without activating the runtime:
+
+- sanitized app-server events are coalesced and relayed as ordered non-job
+  `codex.event` frames;
+- Core deduplicates the existing Edge `event_id`/sequence and feeds the
+  canonical Codex SSE synchronizer;
+- operational audit rows retain event identity/state only and never duplicate
+  public conversation text;
+- `codex.subscribe` establishes the Worker-side thread subscription before
+  live synchronization;
+- canonical history remains the recovery path for reconnects and missed
+  events;
+- `codex.desktop_refresh` moves the documented Desktop remount from the Linux
+  VPS to the Windows Worker;
+- a hidden lifecycle guardian releases only the verified listener after
+  the tracked main-window Desktop process actually exits, preventing auxiliary
+  Electron processes from reproducing the stale-owner/reboot failure;
+- the launcher waits for a unique `guardian_started` acknowledgement and, if
+  it is absent, releases only the exact listener PID before failing closed;
+- no persistent User/Machine redirect, scheduled shared listener or second
+  app-server is introduced.
+
+No Codex turn, Desktop launch, browser action, VPS change, credential change or
+external message was performed while implementing this correction. The real
+same-task turn and opt-in launcher lifecycle remain controlled acceptance gates.
 
 ## Executive status
 

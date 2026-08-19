@@ -25,6 +25,7 @@ from openjarvis.server.api_routes import (
 )
 from openjarvis.server.app import create_app
 from openjarvis.server.codex_history_reader import CodexHistoryReader
+from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 
 
 class FakeCodexRuntime:
@@ -298,6 +299,62 @@ def test_codex_desktop_refresh_validates_thread_and_dispatches(monkeypatch) -> N
     assert opened == ["thread-a"]
     assert invalid.status_code == 400
     assert invalid.json() == {"detail": "Invalid Codex thread identifier"}
+
+
+def test_codex_desktop_refresh_uses_remote_runtime_dispatch(monkeypatch) -> None:
+    class EdgeRuntime(FakeCodexRuntime):
+        def __init__(self) -> None:
+            super().__init__()
+            self.refreshed: list[str] = []
+
+        def desktop_refresh(self, thread_id: str) -> str:
+            self.refreshed.append(thread_id)
+            return f"codex://threads/{thread_id}"
+
+    runtime = EdgeRuntime()
+    monkeypatch.setattr(api_routes, "_is_loopback_request", lambda _request: True)
+    monkeypatch.setattr(
+        "openjarvis.integrations.codex_desktop.open_codex_thread_in_desktop",
+        lambda _thread_id: (_ for _ in ()).throw(
+            AssertionError("VPS must not dispatch a Windows URI locally")
+        ),
+    )
+    app = create_app(None, "codex", codex_runtime=runtime)
+
+    response = TestClient(app).post(
+        "/v1/codex/threads/thread-a/desktop-refresh",
+        headers={"X-OpenJarvis-Local-Action": "codex-desktop-refresh"},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["uri"] == "codex://threads/thread-a"
+    assert runtime.refreshed == ["thread-a"]
+    assert runtime.resumed_threads == []
+
+
+def test_codex_desktop_refresh_preserves_remote_offline_error(monkeypatch) -> None:
+    class OfflineRuntime(FakeCodexRuntime):
+        @staticmethod
+        def desktop_refresh(_thread_id: str) -> str:
+            raise JarvisAgentError(
+                "DEVICE_OFFLINE",
+                "O computador com Codex está offline.",
+                status_code=503,
+            )
+
+    monkeypatch.setattr(api_routes, "_is_loopback_request", lambda _request: True)
+    app = create_app(None, "codex", codex_runtime=OfflineRuntime())
+
+    response = TestClient(app).post(
+        "/v1/codex/threads/thread-a/desktop-refresh",
+        headers={"X-OpenJarvis-Local-Action": "codex-desktop-refresh"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "DEVICE_OFFLINE",
+        "message": "O computador com Codex está offline.",
+    }
 
 
 def test_codex_thread_events_starts_with_canonical_snapshot() -> None:

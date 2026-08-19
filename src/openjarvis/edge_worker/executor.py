@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import ntpath
 import threading
 from collections.abc import Callable, Mapping
@@ -29,8 +30,19 @@ from openjarvis.core.conversation_identity import (
 from openjarvis.edge_worker.approvals import CodexApprovalBridge
 from openjarvis.edge_worker.config import EdgeWorkerConfig
 from openjarvis.integrations.codex_app_server import CodexAppServerClient
-from openjarvis.integrations.codex_conversation import CodexConversationRuntime
-from openjarvis.integrations.codex_protocol import CodexAppServerConfig
+from openjarvis.integrations.codex_conversation import (
+    CodexConversationClosed,
+    CodexConversationRuntime,
+    CodexConversationTimeout,
+)
+from openjarvis.integrations.codex_protocol import (
+    CodexAppServerConfig,
+    CodexConversationEvent,
+    CodexInvalidStateError,
+    CodexRequestError,
+    CodexRequestTimeout,
+    is_codex_active_writer_error,
+)
 
 _ERROR_MAP = {
     CODEX_CONVERSATION_BUSY: "CODEX_BUSY",
@@ -44,16 +56,50 @@ _ERROR_MAP = {
     CODEX_CONVERSATION_SESSION_CLOSED: "SESSION_CLOSED",
 }
 
+logger = logging.getLogger(__name__)
+
+
+def _subscribe_thread_or_raise(
+    runtime: CodexConversationRuntime,
+    thread_id: str,
+    *,
+    timeout_seconds: float,
+) -> None:
+    try:
+        runtime.thread_subscribe(thread_id, timeout_seconds=timeout_seconds)
+    except (CodexConversationClosed, CodexInvalidStateError) as exc:
+        raise RuntimeError("SESSION_CLOSED") from exc
+    except (CodexRequestTimeout, CodexConversationTimeout) as exc:
+        raise RuntimeError("CODEX_THREAD_RESUME_TIMEOUT") from exc
+    except CodexRequestError as exc:
+        code = (
+            "CODEX_BUSY"
+            if is_codex_active_writer_error(exc)
+            else "CODEX_THREAD_INVALID"
+        )
+        raise RuntimeError(code) from exc
+    except ValueError as exc:
+        raise RuntimeError("CODEX_THREAD_INVALID") from exc
+
 
 class CodexEdgeExecutor:
     capabilities = frozenset(
-        {"codex.status", "codex.history", "codex.catalog", "codex.delegate"}
+        {
+            "codex.status",
+            "codex.history",
+            "codex.catalog",
+            "codex.subscribe",
+            "codex.desktop_refresh",
+            "codex.delegate",
+        }
     )
 
     def __init__(
         self,
         config: EdgeWorkerConfig,
         approvals: CodexApprovalBridge,
+        event_sink: Callable[[CodexConversationEvent], None] | None = None,
+        event_flush: Callable[[], None] | None = None,
     ) -> None:
         self._config = config
         self._approvals = approvals
@@ -61,6 +107,22 @@ class CodexEdgeExecutor:
         self._client: CodexAppServerClient | None = None
         self._runtime: CodexConversationRuntime | None = None
         self._agent: CodexAgent | None = None
+        self._event_sink = event_sink
+        self._event_flush = event_flush
+        self._event_subscription: int | None = None
+
+    def set_event_sink(
+        self,
+        event_sink: Callable[[CodexConversationEvent], None],
+        event_flush: Callable[[], None] | None = None,
+    ) -> None:
+        if not callable(event_sink):
+            raise TypeError("Codex event sink must be callable")
+        with self._lock:
+            if self._client is not None:
+                raise RuntimeError("Codex event sink must be set before startup")
+            self._event_sink = event_sink
+            self._event_flush = event_flush
 
     def start(self) -> None:
         with self._lock:
@@ -87,14 +149,20 @@ class CodexEdgeExecutor:
                 turn_wait_timeout_seconds=self._config.job_timeout_seconds,
                 turn_queue_timeout_seconds=self._config.job_timeout_seconds,
             )
+            if self._event_sink is not None:
+                self._event_subscription = runtime.subscribe_events(self._event_sink)
 
     def close(self) -> None:
         with self._lock:
             runtime, client = self._runtime, self._client
+            subscription = self._event_subscription
             self._runtime = None
             self._agent = None
             self._client = None
+            self._event_subscription = None
         if runtime is not None:
+            if subscription is not None:
+                runtime.unsubscribe_events(subscription)
             runtime.close()
         if client is not None:
             client.close()
@@ -117,6 +185,10 @@ class CodexEdgeExecutor:
             return self._history(runtime, arguments, context)
         if tool_id == "codex.catalog":
             return self._catalog(runtime)
+        if tool_id == "codex.subscribe":
+            return self._subscribe(runtime, arguments, context)
+        if tool_id == "codex.desktop_refresh":
+            return self._desktop_refresh(runtime, context)
         if tool_id == "codex.delegate":
             progress("validating", "Validando projeto e conversa Codex.")
             with self._approvals.activate(job_id, attempt_id):
@@ -210,6 +282,51 @@ class CodexEdgeExecutor:
             "references": {},
         }
 
+    @staticmethod
+    def _subscribe(
+        runtime: CodexConversationRuntime,
+        arguments: Mapping[str, Any],
+        context: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        thread_id = str(context.get("codex_thread_id") or "").strip()
+        if not thread_id:
+            raise ValueError("Codex thread is required")
+        timeout_seconds = min(
+            10.0,
+            max(1.0, float(arguments.get("timeout_seconds") or 10.0)),
+        )
+        _subscribe_thread_or_raise(
+            runtime,
+            thread_id,
+            timeout_seconds=timeout_seconds,
+        )
+        return {
+            "status": "completed",
+            "summary": "Conversa Codex assinada no worker.",
+            "data": {"subscribed": True},
+            "references": {"thread_id": thread_id},
+        }
+
+    @staticmethod
+    def _desktop_refresh(
+        runtime: CodexConversationRuntime, context: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        from openjarvis.integrations.codex_desktop import (
+            open_codex_thread_in_desktop,
+        )
+
+        thread_id = str(context.get("codex_thread_id") or "").strip()
+        if not thread_id:
+            raise ValueError("Codex thread is required")
+        _subscribe_thread_or_raise(runtime, thread_id, timeout_seconds=10.0)
+        uri = open_codex_thread_in_desktop(thread_id)
+        return {
+            "status": "completed",
+            "summary": "Conversa remontada no Codex Desktop.",
+            "data": {"refreshed": True, "uri": uri},
+            "references": {"thread_id": thread_id},
+        }
+
     def _delegate(
         self,
         agent: CodexAgent,
@@ -244,6 +361,16 @@ class CodexEdgeExecutor:
             raise RuntimeError(
                 _ERROR_MAP.get(str(exc), "EXTERNAL_RESULT_UNKNOWN")
             ) from exc
+        finally:
+            event_flush = getattr(self, "_event_flush", None)
+            if event_flush is not None:
+                try:
+                    event_flush()
+                except Exception as exc:
+                    logger.warning(
+                        "Codex public event flush failed; history will reconcile: %s",
+                        type(exc).__name__,
+                    )
         return {
             "status": "completed",
             "summary": str(result.content)[:20_000],

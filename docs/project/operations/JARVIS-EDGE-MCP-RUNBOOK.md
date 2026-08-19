@@ -165,6 +165,13 @@ Acceptance:
 - stopping Codex/MCP does not stop the worker;
 - worker offline appears offline at the Core.
 
+Internal Codex transport capabilities advertised by the Worker are
+`codex.status`, `codex.history`, `codex.catalog`, `codex.subscribe`,
+`codex.desktop_refresh` and `codex.delegate`. The subscription and Desktop
+refresh capabilities are transport plumbing and are not added to the public
+MCP catalog. `codex.subscribe` must complete before the Core marks a selected
+conversation live.
+
 ## Gate 4 — Codex MCP configuration
 
 Copy the example block from
@@ -237,8 +244,15 @@ Activation order:
 6. Edge Worker connects and advertises Codex capabilities.
 7. MCP initializes and lists filtered tools.
 8. PWA opens on desktop and tablet.
-9. SSE/poll reconciliation and ephemeral Gemini token pass.
-10. Codex status/history read jobs complete.
+9. SSE event relay, history reconciliation and ephemeral Gemini token pass.
+10. Codex status/history/subscribe read jobs complete.
+11. A sanitized `codex.event` fixture crosses Worker -> WSS -> Core exactly
+    once, including after replay of the same `event_id`.
+12. Desktop refresh is routed to `codex.desktop_refresh` on Windows; the VPS
+    does not dispatch `codex://` itself. The authenticated gateway strips a
+    browser-supplied action header and injects the trusted loopback header.
+13. Closing the isolated tracked Desktop sentinel releases the exact listener
+    even when another private Desktop exists; PID/path mismatch stops nothing.
 
 Required failure smokes:
 
@@ -255,6 +269,12 @@ Required failure smokes:
 No message, reaction, campaign, broadcast or e-mail may be sent in this gate.
 A first mutation requires a separate authorization naming channel, inbox,
 controlled recipient, exact content, time and observer.
+
+The same-task Codex acceptance turn is also a separate authorization. For that
+test, capture in order: `turn_started`, at least one public delta or completed
+assistant message, `turn_completed`, canonical history reconciliation and the
+final Desktop remount. Confirm that a duplicate Edge frame does not duplicate
+text and that no hidden second turn remains active.
 
 ## Rotation and revocation
 

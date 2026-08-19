@@ -34,8 +34,32 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   (globalThis as unknown as { localStorage?: MemoryStorage }).localStorage =
     undefined;
+});
+
+describe('requestCodexDesktopRefresh', () => {
+  it('preserves a structured public Edge error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          detail: {
+            code: 'DEVICE_OFFLINE',
+            message: 'O computador com Codex está offline.',
+          },
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { requestCodexDesktopRefresh } = await freshApi();
+
+    await expect(requestCodexDesktopRefresh('thread-1')).rejects.toThrow(
+      'DEVICE_OFFLINE: O computador com Codex está offline.',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 async function freshApi() {

@@ -1168,6 +1168,7 @@ async def codex_thread_desktop_refresh(thread_id: str, request: Request):
         codex_thread_uri,
         open_codex_thread_in_desktop,
     )
+    from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 
     if request.headers.get("x-openjarvis-local-action") != (
         _CODEX_DESKTOP_ACTION_HEADER
@@ -1184,18 +1185,32 @@ async def codex_thread_desktop_refresh(thread_id: str, request: Request):
     runtime = getattr(request.app.state, "codex_runtime", None)
     if runtime is None or not callable(getattr(runtime, "thread_subscribe", None)):
         raise HTTPException(status_code=503, detail="Codex history is not available")
+    desktop_refresh = getattr(runtime, "desktop_refresh", None)
     try:
-        await asyncio.to_thread(
-            runtime.thread_subscribe,
-            thread_id,
-            timeout_seconds=_CODEX_HISTORY_REQUEST_TIMEOUT_SECONDS,
-        )
-    except Exception as exc:
-        logger.warning("Desktop refresh rejected unknown thread %s: %s", thread_id, exc)
-        raise HTTPException(status_code=404, detail="Codex thread not found") from exc
-
-    try:
-        opened_uri = await asyncio.to_thread(open_codex_thread_in_desktop, thread_id)
+        if callable(desktop_refresh):
+            # The authenticated Windows worker subscribes and dispatches the
+            # URI in one job. The VPS must not repeat the subscription or try
+            # to open a Windows protocol locally.
+            opened_uri = await asyncio.to_thread(desktop_refresh, thread_id)
+        else:
+            await asyncio.to_thread(
+                runtime.thread_subscribe,
+                thread_id,
+                timeout_seconds=_CODEX_HISTORY_REQUEST_TIMEOUT_SECONDS,
+            )
+            opened_uri = await asyncio.to_thread(
+                open_codex_thread_in_desktop,
+                thread_id,
+            )
+    except JarvisAgentError as exc:
+        status_code = {
+            "CODEX_THREAD_INVALID": 404,
+            "CODEX_BUSY": 409,
+            "DEVICE_OFFLINE": 503,
+            "SESSION_CLOSED": 503,
+            "CODEX_THREAD_RESUME_TIMEOUT": 504,
+        }.get(exc.code, exc.status_code)
+        raise HTTPException(status_code=status_code, detail=exc.as_dict()) from exc
     except CodexDesktopUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except OSError as exc:
@@ -1204,6 +1219,9 @@ async def codex_thread_desktop_refresh(thread_id: str, request: Request):
             status_code=503,
             detail="Codex Desktop protocol dispatch failed",
         ) from exc
+    except Exception as exc:
+        logger.warning("Desktop refresh rejected thread %s: %s", thread_id, exc)
+        raise HTTPException(status_code=404, detail="Codex thread not found") from exc
 
     return {
         "status": "accepted",

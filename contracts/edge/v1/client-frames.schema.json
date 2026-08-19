@@ -114,6 +114,204 @@
       "title": "ApprovalRequiredPayload",
       "type": "object"
     },
+    "codex.event": {
+      "$defs": {
+        "CodexPublicMessagePayload": {
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "maxLength": 20000,
+              "title": "Content",
+              "type": "string"
+            },
+            "message_id": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Message Id",
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "user",
+                "assistant"
+              ],
+              "title": "Role",
+              "type": "string"
+            },
+            "timestamp": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Timestamp"
+            }
+          },
+          "required": [
+            "message_id",
+            "role",
+            "content"
+          ],
+          "title": "CodexPublicMessagePayload",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Sanitized app-server notification relayed by the Windows worker.",
+      "properties": {
+        "event_schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Event Schema Version",
+          "type": "string"
+        },
+        "event_type": {
+          "enum": [
+            "text_delta",
+            "turn_started",
+            "turn_completed",
+            "item_started",
+            "item_completed",
+            "status_changed"
+          ],
+          "title": "Event Type",
+          "type": "string"
+        },
+        "item_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Item Id"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxProperties": 16,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "method": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "public_action_summary": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Public Action Summary"
+        },
+        "public_message": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CodexPublicMessagePayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "public_text_delta": {
+          "anyOf": [
+            {
+              "maxLength": 16384,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Public Text Delta"
+        },
+        "terminal_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "STARTING",
+                "RUNNING",
+                "COMPLETED",
+                "FAILED",
+                "INTERRUPTED",
+                "CANCELLED",
+                "UNKNOWN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Terminal Status"
+        },
+        "thread_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Thread Id",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        }
+      },
+      "required": [
+        "method",
+        "thread_id",
+        "event_type"
+      ],
+      "title": "CodexEventPayload",
+      "type": "object"
+    },
     "edge.goodbye": {
       "additionalProperties": false,
       "properties": {

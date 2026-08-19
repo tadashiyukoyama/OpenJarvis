@@ -82,6 +82,30 @@ def test_edge_frame_rejects_wrong_direction_and_oversized_body() -> None:
         parse_edge_frame("{" + "x" * 100 + "}", from_client=True, max_bytes=10)
 
 
+def test_codex_event_is_public_non_job_frame() -> None:
+    value = _frame(
+        "codex.event",
+        {
+            "event_schema_version": "1.0",
+            "method": "turn/started",
+            "thread_id": "thread-1",
+            "turn_id": "turn-1",
+            "event_type": "turn_started",
+            "terminal_status": "RUNNING",
+            "metadata": {},
+        },
+    )
+
+    parsed = parse_edge_frame(json.dumps(value), from_client=True)
+    assert parsed.job_id is None
+    assert parsed.validated_payload(from_client=True).model_dump()["thread_id"] == (
+        "thread-1"
+    )
+    value["job_id"] = "job-forbidden"
+    with pytest.raises(ValidationError):
+        parse_edge_frame(json.dumps(value), from_client=True)
+
+
 def test_make_edge_frame_serializes_utc_and_validates_payload() -> None:
     frame = make_edge_frame(
         frame_type="edge.heartbeat_ack",
@@ -167,9 +191,14 @@ def test_versioned_edge_fixtures_match_runtime_contract() -> None:
         (fixtures / "core-job-offer.valid.json").read_text(encoding="utf-8"),
         from_client=False,
     )
+    codex_event = parse_edge_frame(
+        (fixtures / "client-codex-event.valid.json").read_text(encoding="utf-8"),
+        from_client=True,
+    )
 
     assert client.type == "edge.register"
     assert core.type == "job.offer"
+    assert codex_event.type == "codex.event"
     with pytest.raises(ValidationError):
         parse_edge_frame(
             (fixtures / "client-register.invalid.json").read_text(encoding="utf-8"),

@@ -14,6 +14,60 @@ $repository = [System.IO.Path]::GetFullPath(
 )
 $validationRoot = 'D:\dev\runtime\openjarvis\validation'
 $validationPrefix = "$validationRoot\"
+
+
+function Remove-ValidatedProtocolArtifact {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $candidate = [System.IO.Path]::GetFullPath($Path)
+    if (-not $candidate.StartsWith(
+        $validationPrefix, [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "Refusing to remove unsafe path: $candidate"
+    }
+    $cleanupError = $null
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
+            if ([System.IO.Directory]::Exists($candidate)) {
+                $extendedPath = '\\?\' + $candidate
+                foreach ($file in [System.IO.Directory]::EnumerateFiles(
+                    $extendedPath,
+                    '*',
+                    [System.IO.SearchOption]::AllDirectories
+                )) {
+                    try {
+                        [System.IO.File]::SetAttributes(
+                            $file,
+                            [System.IO.FileAttributes]::Normal
+                        )
+                    }
+                    catch [System.IO.FileNotFoundException] {
+                        # Cache files may disappear while enumeration is in progress.
+                    }
+                    catch [System.IO.DirectoryNotFoundException] {
+                        # A concurrent cache cleanup can remove a parent directory.
+                    }
+                }
+                [System.IO.Directory]::Delete($extendedPath, $true)
+            }
+            $cleanupError = $null
+            break
+        }
+        catch [System.IO.DirectoryNotFoundException] {
+            $cleanupError = $null
+            break
+        }
+        catch {
+            $cleanupError = $_
+            Start-Sleep -Milliseconds (200 * $attempt)
+        }
+    }
+    if ($null -ne $cleanupError -and [System.IO.Directory]::Exists($candidate)) {
+        throw $cleanupError
+    }
+}
+
+
 if ($CleanupArtifactsOnly) {
     if (Get-NetTCPConnection -LocalPort $Port -State Listen `
         -ErrorAction SilentlyContinue) {
@@ -24,13 +78,7 @@ if ($CleanupArtifactsOnly) {
         -Filter 'shared-codex-protocol-*' -ErrorAction SilentlyContinue |
         ForEach-Object {
             $candidate = [System.IO.Path]::GetFullPath($_.FullName)
-            if (-not $candidate.StartsWith(
-                $validationPrefix,
-                [System.StringComparison]::OrdinalIgnoreCase
-            )) {
-                throw "Refusing to remove unsafe path: $candidate"
-            }
-            Remove-Item -LiteralPath $candidate -Recurse -Force
+            Remove-ValidatedProtocolArtifact -Path $candidate
             $removed++
         }
     [pscustomobject]@{
@@ -67,8 +115,13 @@ $config = Get-OpenJarvisSharedCodexConfig `
     -Repository $OpenJarvisRepository -Port $Port
 $oldHome = [Environment]::GetEnvironmentVariable('CODEX_HOME', 'Process')
 $process = $null
+$guardianProcess = $null
+$rejectedGuardianProcess = $null
+$desktopSentinel = $null
 $result = $null
 $managedStopValidated = $false
+$guardianStopValidated = $false
+$guardianIdentityRejected = $false
 try {
     [Environment]::SetEnvironmentVariable(
         'CODEX_HOME', $probeCodexHome, 'Process'
@@ -137,9 +190,94 @@ try {
         StaleRuntimeRejected = $staleRuntimeRejected
         ClosedPortRejected = $false
         ManagedStopValidated = $false
+        GuardianStopValidated = $false
+        GuardianIdentityRejected = $false
         ThreadOrTurnSent = $false
         Status = 'ISOLATED_PROTOCOL_SMOKE_PASSED'
     }
+
+    $desktopSentinel = Start-Process -FilePath (Get-Process -Id $PID).Path `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 120') `
+        -WindowStyle Hidden -PassThru
+    $guardianState = Join-Path $probeRoot 'guardian-state.json'
+    $guardianLog = Join-Path $probeRoot 'guardian.log'
+    @{ process_id = $process.Id } | ConvertTo-Json | Set-Content `
+        -LiteralPath $guardianState -Encoding UTF8
+    $guardianScript = Join-Path `
+        $repository 'scripts\edge\Watch-OpenJarvisSharedCodexSession.ps1'
+    $rejectedGuardianProcess = Start-Process `
+        -FilePath (Get-Process -Id $PID).Path -ArgumentList @(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', $guardianScript,
+            '-Repository', $OpenJarvisRepository,
+            '-Port', [string]$Port,
+            '-ExpectedOwnerProcessId', [string]$process.Id,
+            '-ExpectedDesktopProcessIds', [string]$desktopSentinel.Id,
+            '-ExpectedDesktopExecutablePath', 'D:\invalid\not-powershell.exe',
+            '-StatePathOverride', $guardianState,
+            '-LogPathOverride', (Join-Path $probeRoot 'guardian-rejected.log')
+        ) -WindowStyle Hidden -PassThru
+    $rejectedDeadline = [DateTime]::UtcNow.AddSeconds(15)
+    while ([DateTime]::UtcNow -lt $rejectedDeadline -and
+        -not $rejectedGuardianProcess.HasExited) {
+        Start-Sleep -Milliseconds 100
+        $rejectedGuardianProcess.Refresh()
+    }
+    $ownerAfterRejectedGuardian = Get-OpenJarvisSharedCodexOwner -Config $config
+    if (-not $rejectedGuardianProcess.HasExited -or
+        $rejectedGuardianProcess.ExitCode -ne 2 -or
+        $null -eq $ownerAfterRejectedGuardian -or
+        $ownerAfterRejectedGuardian.ProcessId -ne $process.Id) {
+        throw 'Guardian path mismatch did not fail closed.'
+    }
+    $guardianIdentityRejected = $true
+    $result.GuardianIdentityRejected = $true
+    $guardianProcess = Start-Process -FilePath (Get-Process -Id $PID).Path `
+        -ArgumentList @(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', $guardianScript,
+            '-Repository', $OpenJarvisRepository,
+            '-Port', [string]$Port,
+            '-ExpectedOwnerProcessId', [string]$process.Id,
+            '-ExpectedDesktopProcessIds', [string]$desktopSentinel.Id,
+            '-ExpectedDesktopExecutablePath', (Get-Process -Id $PID).Path,
+            '-PollMilliseconds', '100',
+            '-DesktopExitStableSeconds', '1',
+            '-StatePathOverride', $guardianState,
+            '-LogPathOverride', $guardianLog
+        ) -WindowStyle Hidden -PassThru
+    $guardianReadyDeadline = [DateTime]::UtcNow.AddSeconds(15)
+    $guardianReady = $false
+    while ([DateTime]::UtcNow -lt $guardianReadyDeadline -and
+        -not $guardianProcess.HasExited) {
+        if ((Test-Path -LiteralPath $guardianLog -PathType Leaf) -and
+            (Select-String -LiteralPath $guardianLog `
+                -SimpleMatch 'event=guardian_started' -Quiet)) {
+            $guardianReady = $true
+            break
+        }
+        Start-Sleep -Milliseconds 100
+        $guardianProcess.Refresh()
+    }
+    if (-not $guardianReady -or $guardianProcess.HasExited) {
+        throw 'Lifecycle guardian exited before the tracked Desktop sentinel.'
+    }
+    Stop-Process -Id $desktopSentinel.Id -Force
+    $desktopSentinel.WaitForExit(5000) | Out-Null
+    $guardianDeadline = [DateTime]::UtcNow.AddSeconds(10)
+    while ([DateTime]::UtcNow -lt $guardianDeadline -and `
+        -not $guardianProcess.HasExited) {
+        Start-Sleep -Milliseconds 100
+        $guardianProcess.Refresh()
+    }
+    if (-not $guardianProcess.HasExited -or $guardianProcess.ExitCode -ne 0 -or
+        (Get-OpenJarvisSharedCodexOwner -Config $config)) {
+        throw 'Lifecycle guardian did not release the isolated shared runtime.'
+    }
+    $guardianStopValidated = $true
+    $result.GuardianStopValidated = $true
 }
 catch {
     $stderr = Join-Path $probeRoot 'stderr.log'
@@ -151,6 +289,19 @@ catch {
 }
 finally {
     [Environment]::SetEnvironmentVariable('CODEX_HOME', $oldHome, 'Process')
+    if ($null -ne $desktopSentinel -and -not $desktopSentinel.HasExited) {
+        Stop-Process -Id $desktopSentinel.Id -Force
+        $desktopSentinel.WaitForExit(5000) | Out-Null
+    }
+    if ($null -ne $guardianProcess -and -not $guardianProcess.HasExited) {
+        Stop-Process -Id $guardianProcess.Id -Force
+        $guardianProcess.WaitForExit(5000) | Out-Null
+    }
+    if ($null -ne $rejectedGuardianProcess -and
+        -not $rejectedGuardianProcess.HasExited) {
+        Stop-Process -Id $rejectedGuardianProcess.Id -Force
+        $rejectedGuardianProcess.WaitForExit(5000) | Out-Null
+    }
     $ownerToStop = Get-OpenJarvisSharedCodexOwner -Config $config
     if ($null -ne $ownerToStop -and $ownerToStop.Valid) {
         Stop-OpenJarvisSharedCodexOwner -Config $config `
@@ -177,11 +328,12 @@ finally {
         )) {
             throw "Refusing to remove unsafe path: $probeRoot"
         }
-        Remove-Item -LiteralPath $probeRoot -Recurse -Force
+        Remove-ValidatedProtocolArtifact -Path $probeRoot
     }
 }
 
-$result.ManagedStopValidated = $managedStopValidated
+$result.ManagedStopValidated = $managedStopValidated -or $guardianStopValidated
+$result.GuardianIdentityRejected = $guardianIdentityRejected
 $result.ClosedPortRejected = -not (
     Test-OpenJarvisSharedCodexProtocol `
         -SharedUrl "ws://127.0.0.1:$Port" -TimeoutSeconds 2

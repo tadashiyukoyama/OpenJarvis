@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class EdgePayload(BaseModel):
@@ -42,6 +42,60 @@ class JobProgressPayload(JobAttemptPayload):
     stage: str = Field(min_length=1, max_length=64)
     summary: str = Field(default="", max_length=1_000)
     progress_percent: int | None = Field(default=None, ge=0, le=100)
+
+
+class CodexPublicMessagePayload(EdgePayload):
+    message_id: str = Field(min_length=1, max_length=256)
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=20_000)
+    timestamp: float | None = None
+
+
+class CodexEventPayload(EdgePayload):
+    """Sanitized app-server notification relayed by the Windows worker."""
+
+    event_schema_version: Literal["1.0"] = "1.0"
+    method: str = Field(min_length=1, max_length=128)
+    thread_id: str = Field(min_length=1, max_length=256)
+    turn_id: str | None = Field(default=None, min_length=1, max_length=256)
+    item_id: str | None = Field(default=None, min_length=1, max_length=256)
+    event_type: Literal[
+        "text_delta",
+        "turn_started",
+        "turn_completed",
+        "item_started",
+        "item_completed",
+        "status_changed",
+    ]
+    public_text_delta: str | None = Field(default=None, max_length=16_384)
+    public_message: CodexPublicMessagePayload | None = None
+    public_action_summary: str | None = Field(default=None, max_length=1_000)
+    terminal_status: (
+        Literal[
+            "STARTING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "INTERRUPTED",
+            "CANCELLED",
+            "UNKNOWN",
+        ]
+        | None
+    ) = None
+    metadata: dict[str, str | int | float | bool | None] = Field(
+        default_factory=dict, max_length=16
+    )
+
+    @model_validator(mode="after")
+    def require_public_signal(self) -> "CodexEventPayload":
+        if not (
+            self.public_text_delta
+            or self.public_message is not None
+            or self.public_action_summary
+            or self.event_type in {"turn_started", "turn_completed", "status_changed"}
+        ):
+            raise ValueError("Codex event has no public signal")
+        return self
 
 
 class ApprovalRequiredPayload(JobAttemptPayload):
@@ -127,6 +181,7 @@ CLIENT_PAYLOADS: dict[str, type[EdgePayload]] = {
     "job.accepted": JobAttemptPayload,
     "job.rejected": JobRejectedPayload,
     "job.progress": JobProgressPayload,
+    "codex.event": CodexEventPayload,
     "approval.required": ApprovalRequiredPayload,
     "job.succeeded": JobSucceededPayload,
     "job.failed": JobFailedPayload,
@@ -150,6 +205,8 @@ __all__ = [
     "CORE_PAYLOADS",
     "ApprovalRequiredPayload",
     "ApprovalResolvedPayload",
+    "CodexEventPayload",
+    "CodexPublicMessagePayload",
     "EdgePayload",
     "JobOfferPayload",
     "JobSucceededPayload",

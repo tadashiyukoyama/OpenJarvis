@@ -86,6 +86,24 @@ async function recoverCanonicalAssistantResponse(
   return '';
 }
 
+async function refreshCodexDesktopBestEffort(
+  threadId: string,
+  phase: 'before' | 'after',
+): Promise<void> {
+  try {
+    await requestCodexDesktopRefresh(threadId);
+  } catch (error) {
+    useAppStore.getState().addLogEntry({
+      timestamp: Date.now(),
+      level: 'warn',
+      category: 'server',
+      message: `Codex Desktop ${phase}-turn refresh unavailable: ${
+        error instanceof Error ? error.message : 'unknown error'
+      }`,
+    });
+  }
+}
+
 /**
  * The single OpenJarvis -> Codex conversation dispatcher.
  *
@@ -166,6 +184,11 @@ export async function sendCodexConversationMessage(
       message: `Request (${options.origin ?? 'chat'}): request_id=${userMessage.id} text_length=${message.length} model=${model}`,
     });
     options.onProgress?.({ phase: 'queued', text: message });
+    if (initial.settings.refreshCodexDesktop !== false) {
+      // Remount before dispatch so the Desktop connection subscribes to the
+      // selected thread before another app-server client starts the turn.
+      await refreshCodexDesktopBestEffort(conversation.codexThreadId, 'before');
+    }
     options.onProgress?.({ phase: 'running', text: message });
 
     let lastFlush = 0;
@@ -294,18 +317,7 @@ export async function sendCodexConversationMessage(
       telemetry,
     );
     if (initial.settings.refreshCodexDesktop !== false) {
-      try {
-        await requestCodexDesktopRefresh(conversation.codexThreadId);
-      } catch (error) {
-        useAppStore.getState().addLogEntry({
-          timestamp: Date.now(),
-          level: 'warn',
-          category: 'server',
-          message: `Codex Desktop refresh unavailable: ${
-            error instanceof Error ? error.message : 'unknown error'
-          }`,
-        });
-      }
+      await refreshCodexDesktopBestEffort(conversation.codexThreadId, 'after');
     }
     options.onProgress?.({ phase: 'complete', text: accumulated });
     return accumulated;

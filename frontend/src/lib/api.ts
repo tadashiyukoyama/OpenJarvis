@@ -213,7 +213,14 @@ export async function requestCodexDesktopRefresh(
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `Codex Desktop refresh failed: ${res.status}`);
+    const detail = body?.detail;
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : typeof detail?.message === 'string'
+          ? `${detail.code ? `${detail.code}: ` : ''}${detail.message}`
+          : `Codex Desktop refresh failed: ${res.status}`;
+    throw new Error(message);
   }
   return res.json();
 }

@@ -18,5 +18,4 @@ def test_vps_factory_uses_edge_runtime_and_minimal_health(
     with TestClient(app) as client:
         assert client.get("/healthz").json() == {"status": "ok"}
         assert client.get("/v1/models").json()["data"][0]["id"] == "codex"
-        assert app.state.codex_runtime.poll_history_only is True
-        assert app.state.codex_runtime.history_poll_interval_seconds == 10.0
+        assert app.state.codex_runtime.poll_history_only is False

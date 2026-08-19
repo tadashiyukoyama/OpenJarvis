@@ -319,19 +319,30 @@ function Stop-OpenJarvisSharedCodexOwner {
     param(
         [Parameter(Mandatory)]$Config,
         [switch]$AllowStaleManagedRuntime,
-        [switch]$AllowUnsharedDesktopRecovery
+        [switch]$AllowUnsharedDesktopRecovery,
+        [switch]$AllowDetachedDesktopRecovery,
+        [int]$ExpectedProcessId = 0
     )
 
+    if ($AllowDetachedDesktopRecovery -and $ExpectedProcessId -lt 1) {
+        throw 'Detached Desktop recovery requires the expected listener PID.'
+    }
     $topology = Get-OpenJarvisDesktopCodexTopology -Config $Config
     if ($topology.DesktopRunning) {
-        if (-not $AllowUnsharedDesktopRecovery -or
-            $topology.SharedConnected -or
-            $topology.PrivateAppServerCount -lt 1) {
+        $unsharedRecovery = (
+            $AllowUnsharedDesktopRecovery -and
+            -not $topology.SharedConnected -and
+            $topology.PrivateAppServerCount -gt 0
+        )
+        if (-not $unsharedRecovery -and -not $AllowDetachedDesktopRecovery) {
             throw 'Close Codex Desktop normally before stopping a shared runtime.'
         }
     }
     $owner = Get-OpenJarvisSharedCodexOwner -Config $Config
     if ($null -eq $owner) { return }
+    if ($ExpectedProcessId -gt 0 -and $owner.ProcessId -ne $ExpectedProcessId) {
+        throw 'Shared Codex listener identity changed; nothing was stopped.'
+    }
     if (-not $owner.Managed -or -not $owner.RecognizedRuntime) {
         throw "Port $($Config.Port) has an unrelated owner; nothing was stopped."
     }

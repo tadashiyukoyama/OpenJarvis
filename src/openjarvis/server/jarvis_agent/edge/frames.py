@@ -25,6 +25,7 @@ ClientFrameType = Literal[
     "job.accepted",
     "job.rejected",
     "job.progress",
+    "codex.event",
     "approval.required",
     "job.succeeded",
     "job.failed",

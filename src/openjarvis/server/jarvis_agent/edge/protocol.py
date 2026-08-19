@@ -105,7 +105,17 @@ class EdgeProtocol:
             metadata["capability_count"] = len(payload.get("capabilities") or [])
         if "active_job_ids" in payload:
             metadata["active_job_count"] = len(payload.get("active_job_ids") or [])
-        for key in ("attempt_id", "stage", "code", "status", "kind", "approval_id"):
+        for key in (
+            "attempt_id",
+            "stage",
+            "code",
+            "status",
+            "kind",
+            "approval_id",
+            "event_type",
+            "thread_id",
+            "turn_id",
+        ):
             value = payload.get(key)
             if isinstance(value, (str, int, float, bool)):
                 metadata[key] = value

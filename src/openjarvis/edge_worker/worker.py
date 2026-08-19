@@ -12,6 +12,7 @@ from typing import Any
 from websockets.asyncio.client import ClientConnection, connect
 
 from openjarvis.edge_worker.approvals import CodexApprovalBridge
+from openjarvis.edge_worker.codex_events import CodexEventRelay
 from openjarvis.edge_worker.config import EdgeWorkerConfig
 from openjarvis.edge_worker.executor import CodexEdgeExecutor
 from openjarvis.edge_worker.job_runner import EdgeJobRunner
@@ -67,7 +68,14 @@ class EdgeWorker:
             self._send_required_from_thread,
             timeout_seconds=config.approval_timeout_seconds,
         )
+        self.codex_events = CodexEventRelay(self._emit_codex_event)
         self.executor = executor or CodexEdgeExecutor(config, self.approvals)
+        set_event_sink = getattr(self.executor, "set_event_sink", None)
+        if callable(set_event_sink):
+            set_event_sink(
+                self.codex_events.submit,
+                self.codex_events.flush_from_thread,
+            )
         self.jobs = EdgeJobRunner(
             spool=self.spool,
             executor=self.executor,
@@ -76,6 +84,7 @@ class EdgeWorker:
 
     async def run_forever(self, stop: asyncio.Event | None = None) -> None:
         stop = stop or asyncio.Event()
+        self.codex_events.start(asyncio.get_running_loop())
         delay = self.config.reconnect_min_seconds
         try:
             while not stop.is_set():
@@ -191,6 +200,9 @@ class EdgeWorker:
             await connection.send(frame.wire_json())
         return frame
 
+    async def _emit_codex_event(self, payload: Mapping[str, Any]) -> EdgeFrame:
+        return await self._emit("codex.event", payload)
+
     async def _replay_spool(self) -> None:
         connection, lock = self._connection, self._send_lock
         if connection is None or lock is None:
@@ -223,6 +235,7 @@ class EdgeWorker:
 
     async def close(self) -> None:
         await self.jobs.close()
+        await self.codex_events.close()
         connection = self._connection
         if connection is not None:
             try:

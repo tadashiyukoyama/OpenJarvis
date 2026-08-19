@@ -101,6 +101,7 @@ def test_windows_shared_codex_runtime_is_explicit_versioned_and_fail_safe() -> N
     manager = _text("scripts/edge/Manage-OpenJarvisSharedCodexTask.ps1")
     server = _text("scripts/edge/Start-OpenJarvisSharedCodex.ps1")
     desktop = _text("scripts/edge/Start-OpenJarvisCodexDesktop.ps1")
+    guardian = _text("scripts/edge/Watch-OpenJarvisSharedCodexSession.ps1")
     shortcut = _text("scripts/edge/start-openjarvis-codex.cmd")
     smoke = _text("tests/windows/Invoke-SharedCodexProtocolSmoke.ps1")
     runbook = _text("docs/project/operations/JARVIS-SHARED-CODEX-RUNTIME.md")
@@ -145,7 +146,28 @@ def test_windows_shared_codex_runtime_is_explicit_versioned_and_fail_safe() -> N
     assert "NORMAL_CODEX_RECOVERED_AFTER_SHARED_JOIN_FAILURE" in desktop
     assert "Normal fallback was withheld" in desktop
     assert "Codex Desktop is already open in normal/private mode" in desktop
-    assert "Stop-Process" not in desktop
+    assert "Stop-Process -Id $guardian.Id -Force" in desktop
+    assert "Stop-Process -Name ChatGPT" not in desktop
+    assert "Stop-Process -Id $desktopLaunch.Id" not in desktop
+    assert "Stop-Process -Id $desktopProcessIds" not in desktop
+    assert "Watch-OpenJarvisSharedCodexSession.ps1" in desktop
+    assert "-WindowStyle Hidden" in desktop
+    assert "event=guardian_started" in desktop
+    assert "Shared Codex lifecycle guardian did not become ready" in desktop
+    assert "-LogPathOverride', $guardianLogPath" in desktop
+    assert "-ExpectedProcessId $owner.ProcessId" in desktop
+    assert "[int]$failedState.process_id -eq $owner.ProcessId" in desktop
+    assert "ExpectedOwnerProcessId" in guardian
+    assert "ExpectedDesktopProcessIds" in guardian
+    assert "ExpectedDesktopExecutablePath" in guardian
+    assert "MainWindowHandle -ne 0" in desktop
+    assert "AllowDetachedDesktopRecovery" in guardian
+    assert "ExpectedProcessId $ExpectedOwnerProcessId" in guardian
+    assert "GuardianStopValidated" in smoke
+    assert "Get-OpenJarvisSharedCodexOwner" in guardian
+    assert "Stop-OpenJarvisSharedCodexOwner" in guardian
+    assert "desktop_exit_released_owner" in guardian
+    assert "owner_identity_changed" in guardian
     assert "'User'" not in desktop and "'Machine'" not in desktop
     assert "WindowStyle Hidden" not in shortcut
 

@@ -146,10 +146,40 @@ The Edge Worker reuses the existing local app-server protocol:
 - final public history is reconciled by stable message identity;
 - the app-server remains unauthenticated only because it is loopback-only.
 
-Remote Core reads use bounded Edge jobs. Remote history synchronization is
-poll-based reconciliation because the Edge process and Codex Desktop are
-separate app-server clients; token-by-token cross-process mirroring is not
-claimed.
+Remote Core reads use bounded Edge jobs. The UI first dispatches the internal
+`codex.subscribe` capability, which performs the lightweight `thread/resume`
+subscription on the Worker connection without starting a turn. Public
+app-server notifications then follow this ordered path:
+
+```text
+app-server -> Worker sanitizer/coalescer -> codex.event -> Edge WSS/spool
+           -> Core deduplication -> Codex runtime proxy -> existing SSE sync
+```
+
+`codex.event` is not a job and carries no `job_id`. It contains only an
+allowlisted thread/turn/item identity, public text, public user/assistant
+message, public action summary, terminal status and scalar metadata. Reasoning,
+raw JSON-RPC parameters, credentials and command internals cannot enter the
+frame. Text deltas are coalesced for at most 50 ms or 4096 characters; terminal
+and message events flush pending text first. The existing Edge sequence and
+durable Worker spool provide ordering and replay; the Core Edge ledger stores
+only the payload hash plus non-content metadata needed for deduplication and
+audit. The operational event ledger likewise records only IDs, state and
+content-presence flags, never message text. The in-memory relay is bounded to
+512 pending frames. Under pathological pressure it evicts text or intermediate
+item signals before the newest terminal signal; canonical history repairs any
+omitted presentation event.
+
+History remains the canonical reconciliation authority after completion,
+reconnect or process restart. The OpenJarvis UI receives live states and public
+output from the relay; it does not infer execution from generic job progress.
+Codex Desktop cross-client rendering remains subject to the experimental
+app-server WebSocket behavior. The internal `codex.desktop_refresh` capability
+therefore executes the documented Desktop remount on Windows after completion;
+the VPS never attempts to open a Windows URI locally. A remote browser cannot
+forge this operation: the authenticated same-origin gateway removes any client
+action header, injects its trusted loopback header, and only then forwards the
+request to the Core.
 
 ## MCP local contract
 
@@ -169,7 +199,10 @@ for JSON-RPC; diagnostics use standard error. The facade:
 
 The STDIO process receives only the local named-pipe token. The persistent Edge
 Worker separately owns the Core-relay Bearer and performs a path-allowlisted
-HTTPS call. Closing Codex or STDIO does not stop the Edge Worker.
+HTTPS call. Closing Codex or STDIO does not stop the Edge Worker. Closing the
+opt-in shared Codex Desktop does stop only its verified loopback app-server
+through the session guardian; the Worker remains alive and reports Codex
+offline until the next explicit shared launch.
 
 ## Persistence and retention
 

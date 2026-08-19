@@ -117,7 +117,9 @@ describe('shared Codex conversation dispatcher', () => {
     expect(result).toBe('Resposta real');
     expect(harness.resetCount).toBe(2);
     expect(harness.streamChat).toHaveBeenCalledTimes(1);
-    expect(harness.refreshCodexDesktop).toHaveBeenCalledWith('thread-a');
+    expect(harness.refreshCodexDesktop).toHaveBeenCalledTimes(2);
+    expect(harness.refreshCodexDesktop).toHaveBeenNthCalledWith(1, 'thread-a');
+    expect(harness.refreshCodexDesktop).toHaveBeenNthCalledWith(2, 'thread-a');
     const [request] = harness.streamChat.mock.calls[0];
     expect(request).toMatchObject({
       model: 'codex',
@@ -151,6 +153,7 @@ describe('shared Codex conversation dispatcher', () => {
 
     await expect(sendCodexConversationMessage('mensagem')).resolves.toBe('persistida');
     expect(harness.state.conversations[0].messages.at(-1)?.content).toBe('persistida');
+    expect(harness.refreshCodexDesktop).toHaveBeenCalledTimes(2);
   });
 
   it('treats a structured SSE agent error as a failed dispatch', async () => {
@@ -159,7 +162,7 @@ describe('shared Codex conversation dispatcher', () => {
     });
 
     await expect(sendCodexConversationMessage('mensagem')).rejects.toThrow('CODEX_BUSY');
-    expect(harness.refreshCodexDesktop).not.toHaveBeenCalled();
+    expect(harness.refreshCodexDesktop).toHaveBeenCalledTimes(1);
     expect(harness.state.conversations[0].messages.at(-1)?.content).toContain(
       'Falha de envio: CODEX_BUSY',
     );
@@ -182,7 +185,7 @@ describe('shared Codex conversation dispatcher', () => {
     await expect(sendCodexConversationMessage('mensagem')).rejects.toThrow(
       'CODEX_THREAD_STATUS_TIMEOUT',
     );
-    expect(harness.refreshCodexDesktop).not.toHaveBeenCalled();
+    expect(harness.refreshCodexDesktop).toHaveBeenCalledTimes(1);
   });
 
   it('recovers the canonical Codex answer when the stream has no content delta', async () => {

@@ -194,6 +194,74 @@ def test_edge_job_round_trip_and_status(tmp_path: Path) -> None:
     assert result["summary"] == "Codex online."
 
 
+def test_edge_codex_event_is_deduplicated_and_published(tmp_path: Path) -> None:
+    app, orchestrator = _app(tmp_path)
+    received: list[dict] = []
+    token = orchestrator.edge.subscribe_codex_events(received.append)
+    with TestClient(app) as client:
+        with client.websocket_connect(
+            "/edge",
+            headers={
+                "X-OpenJarvis-Device-ID": "desktop-1",
+                "Authorization": "Bearer edge-secret",
+            },
+        ) as websocket:
+            websocket.send_text(
+                _client_frame(
+                    "edge.register",
+                    1,
+                    {
+                        "worker_version": "test",
+                        "platform": "windows",
+                        "capabilities": ["codex.subscribe"],
+                    },
+                )
+            )
+            assert (
+                parse_edge_frame(websocket.receive_text(), from_client=False).type
+                == "edge.registered"
+            )
+            wire = _client_frame(
+                "codex.event",
+                2,
+                {
+                    "event_schema_version": "1.0",
+                    "method": "turn/started",
+                    "thread_id": "thread-1",
+                    "turn_id": "turn-1",
+                    "event_type": "turn_started",
+                    "terminal_status": "RUNNING",
+                    "metadata": {},
+                },
+            )
+            websocket.send_text(wire)
+            assert (
+                parse_edge_frame(websocket.receive_text(), from_client=False).type
+                == "edge.heartbeat_ack"
+            )
+            websocket.send_text(wire)
+            assert (
+                parse_edge_frame(websocket.receive_text(), from_client=False).type
+                == "edge.heartbeat_ack"
+            )
+
+    assert orchestrator.edge.unsubscribe_codex_events(token) is True
+    asyncio.run(orchestrator.close_async())
+    assert len(received) == 1
+    assert received[0]["thread_id"] == "thread-1"
+    assert received[0]["edge_sequence"] == 2
+    events = orchestrator.events.after(0, 100)
+    assert [event["event_type"] for event in events].count("codex_edge_event") == 1
+    audit_payload = next(
+        event["payload"]
+        for event in events
+        if event["event_type"] == "codex_edge_event"
+    )
+    assert audit_payload["has_public_message"] is False
+    assert "public_message" not in audit_payload
+    assert "public_text_delta" not in audit_payload
+
+
 def test_edge_device_revocation_requires_visual_channel(tmp_path: Path) -> None:
     app, orchestrator = _app(tmp_path)
     orchestrator.store.upsert_edge_device(

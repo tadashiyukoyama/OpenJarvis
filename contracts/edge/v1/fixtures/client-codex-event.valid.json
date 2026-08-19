@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "event_id": "0b5899a5-826d-4bd9-ad96-1b42f419e9cb",
+  "type": "codex.event",
+  "device_id": "workstation-1",
+  "occurred_at": "2026-08-19T12:00:00Z",
+  "sequence": 7,
+  "payload": {
+    "event_schema_version": "1.0",
+    "method": "turn/completed",
+    "thread_id": "thread-example",
+    "turn_id": "turn-example",
+    "event_type": "turn_completed",
+    "public_message": {
+      "message_id": "message-example",
+      "role": "assistant",
+      "content": "Resposta pública sanitizada.",
+      "timestamp": 1787140800.0
+    },
+    "terminal_status": "COMPLETED",
+    "metadata": {
+      "status": "completed"
+    }
+  }
+}

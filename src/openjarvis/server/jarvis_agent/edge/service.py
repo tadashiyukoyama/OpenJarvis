@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
@@ -56,6 +57,11 @@ class EdgeService:
             registry=self.registry,
             protocol=self.protocol,
         )
+        self._codex_event_lock = threading.RLock()
+        self._codex_event_subscriptions: dict[
+            int, Callable[[Mapping[str, Any]], None]
+        ] = {}
+        self._next_codex_event_subscription = 1
 
     def status(self) -> dict[str, Any]:
         return self.registry.status()
@@ -104,6 +110,8 @@ class EdgeService:
                 self.approvals.record(
                     self._assignment(connection, frame, payload), payload
                 )
+            elif frame.type == "codex.event":
+                self._publish_codex_event(frame, payload)
             elif frame.job_id:
                 self.jobs.handle(connection, frame, payload)
         # A heartbeat acknowledges every client frame persisted up to this
@@ -141,7 +149,24 @@ class EdgeService:
         )
 
     async def close(self) -> None:
+        with self._codex_event_lock:
+            self._codex_event_subscriptions.clear()
         await self.registry.close()
+
+    def subscribe_codex_events(
+        self, callback: Callable[[Mapping[str, Any]], None]
+    ) -> int:
+        if not callable(callback):
+            raise TypeError("Codex event callback must be callable")
+        with self._codex_event_lock:
+            token = self._next_codex_event_subscription
+            self._next_codex_event_subscription += 1
+            self._codex_event_subscriptions[token] = callback
+            return token
+
+    def unsubscribe_codex_events(self, token: int) -> bool:
+        with self._codex_event_lock:
+            return self._codex_event_subscriptions.pop(token, None) is not None
 
     async def revoke_device(self, device_id: str) -> bool:
         revoked = await self.registry.revoke(device_id)
@@ -165,6 +190,34 @@ class EdgeService:
                 "EDGE_JOB_INVALID", "A tentativa Edge não corresponde ao job."
             )
         return assignment
+
+    def _publish_codex_event(
+        self, frame: EdgeFrame, payload: Mapping[str, Any]
+    ) -> None:
+        public_payload = dict(payload)
+        public_payload["edge_event_id"] = str(frame.event_id)
+        public_payload["edge_sequence"] = frame.sequence
+        self.events.emit(
+            "codex_edge_event",
+            payload={
+                "edge_event_id": str(frame.event_id),
+                "edge_sequence": frame.sequence,
+                "thread_id": payload.get("thread_id"),
+                "turn_id": payload.get("turn_id"),
+                "event_type": payload.get("event_type"),
+                "terminal_status": payload.get("terminal_status"),
+                "has_public_delta": bool(payload.get("public_text_delta")),
+                "has_public_message": payload.get("public_message") is not None,
+                "has_public_action": bool(payload.get("public_action_summary")),
+            },
+        )
+        with self._codex_event_lock:
+            callbacks = tuple(self._codex_event_subscriptions.values())
+        for callback in callbacks:
+            try:
+                callback(public_payload)
+            except Exception:
+                continue
 
 
 __all__ = ["EdgeService"]
