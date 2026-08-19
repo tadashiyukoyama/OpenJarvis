@@ -224,16 +224,27 @@ class EdgeJobRunner:
         if not isinstance(result, Mapping):
             raise EdgeTerminalPayloadError("Edge executor returned an invalid result")
         try:
-            data = result.get("data")
-            references = result.get("references")
+            data = result.get("data", {})
+            references = result.get("references", {})
+        except Exception as exc:
+            raise EdgeTerminalPayloadError(
+                "Edge executor result could not be inspected"
+            ) from exc
+        if not isinstance(data, Mapping):
+            raise EdgeTerminalPayloadError(
+                "Edge executor result field 'data' must be a mapping"
+            )
+        if not isinstance(references, Mapping):
+            raise EdgeTerminalPayloadError(
+                "Edge executor result field 'references' must be a mapping"
+            )
+        try:
             return {
                 "attempt_id": attempt_id,
                 "status": str(result.get("status") or "completed"),
                 "summary": str(result.get("summary") or "Concluído.")[:20_000],
-                "data": dict(data) if isinstance(data, Mapping) else {},
-                "references": (
-                    dict(references) if isinstance(references, Mapping) else {}
-                ),
+                "data": dict(data),
+                "references": dict(references),
             }
         except Exception as exc:
             raise EdgeTerminalPayloadError(

@@ -66,6 +66,23 @@ class _InvalidResultExecutor(_SuccessfulExecutor):
         return None
 
 
+class _MalformedNestedResultExecutor(_SuccessfulExecutor):
+    def __init__(self, field: str) -> None:
+        super().__init__()
+        self._field = field
+
+    def execute(self, **_: Any) -> dict[str, Any]:
+        self.calls += 1
+        result = {
+            "status": "completed",
+            "summary": "Resultado local concluído.",
+            "data": {},
+            "references": {},
+        }
+        result[self._field] = ["must-not-disappear"]
+        return result
+
+
 class _FailingConnection:
     async def send(self, _: str) -> None:
         raise ConnectionError("offline")
@@ -321,6 +338,28 @@ async def test_invalid_executor_result_becomes_small_durable_unknown_result(
     assert executor.calls == 1
     assert spool.job_state("job-1") == "UNKNOWN"
     assert terminal.type == "job.failed"
+    assert terminal.payload["result_unknown"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["data", "references"])
+async def test_malformed_nested_result_becomes_small_durable_unknown_result(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    spool = EdgeWorkerSpool(tmp_path / "edge.sqlite3", terminal_reserve_frames=1)
+    executor = _MalformedNestedResultExecutor(field)
+    worker = EdgeWorker(_config(tmp_path), spool=spool, executor=executor)  # type: ignore[arg-type]
+    _accept_job(spool)
+
+    await worker.jobs._run("job-1", _job_payload(), threading.Event())
+
+    terminal = parse_edge_frame(spool.pending_frames()[-1].wire_json, from_client=True)
+    assert executor.calls == 1
+    assert spool.job_state("job-1") == "UNKNOWN"
+    assert spool.active_job_ids() == []
+    assert terminal.type == "job.failed"
+    assert terminal.payload["code"] == "EXTERNAL_RESULT_UNKNOWN"
     assert terminal.payload["result_unknown"] is True
 
 
