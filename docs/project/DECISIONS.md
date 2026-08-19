@@ -533,3 +533,19 @@ Superseded by: none
   threat model, authorization and acceptance gate.
 - Evidence: release gateway allowlist, local MCP entry point and canonical Edge
   contract.
+
+## OJ-JARVIS-D41 - Every accepted Edge job owns bounded terminal capacity
+
+- Decision: job admission reserves one of 64 terminal spool slots. The worker
+  persists the terminal frame and local terminal state in the same SQLite
+  transaction; normal progress and Codex events cannot consume this reserve.
+- Reason: with one undifferentiated full spool, both `job.succeeded` and the
+  fallback `job.failed` could be rejected, leaving completed work marked
+  `RUNNING` and violating reconciliation guarantees.
+- Consequence: the normal partition remains bounded at 10,000 frames/64 MiB,
+  the terminal partition is separately bounded at 64 protocol-sized frames/16
+  MiB, and an unacknowledged terminal frame blocks equivalent new admission.
+  Interrupted jobs remain recoverable until their `UNKNOWN` event is durable.
+- Evidence: code SHA `28744c74ff30278a658e0606f378c1c15f5f93ad` and
+  full-spool, send-failure, restart, admission and additive-schema tests on
+  2026-08-19.

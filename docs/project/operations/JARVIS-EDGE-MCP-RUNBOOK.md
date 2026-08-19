@@ -3,7 +3,7 @@
 Status: CANONICAL — INSTALLATION NOT YET AUTHORIZED
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
@@ -165,6 +165,13 @@ Keep the bounded replay controls explicit in the private Edge configuration:
 Changing them requires a measured capacity review; removing a limit is not an
 accepted troubleshooting step.
 
+These variables bound the normal event partition. Code SHA `28744c7` also
+reserves exactly 64 terminal frames, each limited by the 256 KiB Edge protocol
+maximum. This fixed 16 MiB reserve is not a second general-purpose spool and is
+not runtime-configurable. Do not reduce or reuse it without proving that the
+maximum of 64 simultaneously reported active jobs can still persist a terminal
+outcome each.
+
 ## Gate 3 — Windows Edge Worker installation
 
 This gate requires separate authorization because it registers a persistent
@@ -177,6 +184,13 @@ Preconditions:
 - private env file is readable only by Cesar's Windows account;
 - WSS hostname has valid TLS;
 - no existing task/process owns the same device ID or pipe.
+
+Before the first Worker start at SHA `28744c7`, stop the Worker if it exists,
+copy its local SQLite spool to the dated backup directory and run
+`PRAGMA integrity_check` against the copy. Startup adds the nullable
+`terminal_job_id` marker and its partial unique index idempotently, then runs an
+integrity check. This is a local additive schema migration; it does not touch
+the VPS or AceleraChat databases. Never delete the backup during rollout.
 
 Validate scripts without installing:
 
@@ -310,6 +324,11 @@ Required failure smokes:
 - nested approval accepts/denies only the displayed hash;
 - stale session callback is ignored;
 - Core and worker restart reconcile without repeating mutation;
+- fill the normal spool partition, complete both a successful and failing local
+  job, and prove neither remains `RUNNING` and each has one replayable terminal
+  frame;
+- exhaust the terminal reservation and prove the next offer is rejected before
+  execution, then acknowledge one terminal frame and prove admission resumes;
 - no endpoint reaches public 8131.
 
 No message, reaction, campaign, broadcast or e-mail may be sent in this gate.
@@ -360,8 +379,8 @@ OpenJarvis volume. Rollback does not delete state.
 The source rollback point for this correction is
 `393031e9eec9e8583d0b8958ae399c40dd5148d3`. Preserve evidence first, then
 revert logical checkpoints in reverse order when a narrower rollback is proven
-safe: `f08b6c3`, `19fb858`, `bd0fe4d`, `9433229`. Do not mix a source rollback
-with deletion of Edge/Core ledgers.
+safe: `28744c7`, `f08b6c3`, `19fb858`, `bd0fe4d`, `9433229`. Do not mix a
+source rollback with deletion of Edge/Core ledgers.
 
 ## Troubleshooting matrix
 
@@ -374,7 +393,7 @@ with deletion of Edge/Core ledgers.
 | Codex busy | selected task state | fail fast; no hidden queue |
 | `active writer` while Desktop appears idle | inspect the opt-in topology, exact runtime owner and private Desktop child | follow `JARVIS-SHARED-CODEX-RUNTIME.md`; never persist a redirect or create another thread |
 | approval never appears | action/job correlation and SSE/poll cursor | do not approve through voice or API shortcut |
-| accepted job has no final result | Edge spool, attempt, lease and history | reconcile; never retry uncertain mutation |
+| accepted job has no final result | normal spool, terminal reserve, `terminal_event_id`, attempt, lease and history | keep the ledger; reconcile or replay, never retry uncertain mutation |
 | PWA health fails | authenticated `/health`, CSP and generated Workbox asset | test exact gateway routes |
 | webhook gap | per-resource sequence and read-only backfill | reconcile without provider mutation |
 | unknown API returns the PWA | backend namespace guard and deployed SHA | stop the release; an unknown `/v1/*` must be JSON `404` |

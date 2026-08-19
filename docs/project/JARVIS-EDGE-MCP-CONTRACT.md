@@ -3,7 +3,7 @@
 Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
@@ -25,7 +25,8 @@ Traceable implementation checkpoints after the baseline are:
 - `9433229c124a9dc048ab83dd683f621e13008665`: durable reconnect replay;
 - `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`: selected-task turn dispatch;
 - `19fb8585a80ae70d5f1c999923a5e2bece9e950c`: ordered execution-state relay;
-- `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority.
+- `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority;
+- `28744c74ff30278a658e0606f378c1c15f5f93ad`: atomic terminal outcome reserve.
 
 ## Topology and authority
 
@@ -118,9 +119,15 @@ duplicate events and sequence rollback fail closed.
   state implicitly.
 - The worker spool contains only frames/results for jobs already accepted or
   completed. It is not a queue of future approved commands.
-- The spool is bounded by both frame count and encoded bytes. Defaults are
-  10,000 frames and 64 MiB, with replay pages of 100 frames; all three are
-  configurable through the documented Edge environment variables.
+- The normal spool partition is bounded by both frame count and encoded bytes.
+  Defaults are 10,000 frames and 64 MiB, with replay pages of 100 frames; all
+  three are configurable through the documented Edge environment variables.
+- A separate non-configurable reserve holds at most 64 terminal frames of at
+  most 256 KiB each. The total default upper bound is therefore 10,064 frames
+  and 80 MiB; the reserve cannot become a general event queue.
+- Job admission reserves one terminal slot before execution. Terminal frame and
+  local terminal state are written in one SQLite transaction. Delivery failure
+  leaves that frame pending for replay and never converts success into failure.
 - `edge.register` is transient control traffic and is never persisted as an
   application frame. After `edge.registered`, the worker reconciles the Core
   acknowledgement high-water mark, replays unacknowledged durable frames in
@@ -142,12 +149,14 @@ heartbeats, voice streaming or approval delivery.
 ```text
 APPROVED -> OFFERED -> ACCEPTED -> RUNNING
                                 -> WAITING_APPROVAL -> RUNNING
-                                -> SUCCEEDED | FAILED | CANCELLED | EXPIRED
+                                -> SUCCEEDED | FAILED | CANCELLED | UNKNOWN | EXPIRED
 ```
 
 - Core assigns stable `job_id`, immutable payload hash, attempt and lease.
 - Offer acceptance has a separate short timeout.
 - Only accepted/running jobs survive a connection loss for reconciliation.
+- Interrupted work remains `RECOVERY_PENDING` locally until its `UNKNOWN`
+  terminal frame is durable; a restart republishes it rather than losing it.
 - A duplicate terminal job returns its stored outcome and does not execute.
 - Cancellation uses Codex interruption only when the app-server supports it.
 - An uncertain external outcome is `UNKNOWN`; there is no automatic retry.

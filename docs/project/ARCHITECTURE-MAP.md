@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `f08b6c3fa69318b13ad9053eea307f1ee9f90323`
+Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
@@ -61,7 +61,7 @@ flowchart LR
 | Adapters | translate canonical calls to AceleraChat or Codex | decide whether an action is authorized |
 | Provider ledger | correlate accepted AceleraChat writes, signed events, per-resource sequence and backfill | retry an external mutation or treat HTTP acceptance as delivery |
 | Edge registry/ledger | authenticate devices, offer accepted jobs, own attempts/leases and reconcile results | queue commands for an offline device |
-| Windows Edge Worker | maintain outbound WSS, execute accepted Codex work and relay MCP through local IPC | authorize, expose 8131 or become a second Core |
+| Windows Edge Worker | maintain outbound WSS, execute accepted Codex work, persist terminal outcomes atomically and relay MCP through local IPC | authorize, expose 8131 or become a second Core |
 | Local MCP facade | present the filtered canonical catalog to Codex over STDIO | expose Codex recursion or call legacy executors |
 | SQLite store | transactional state, idempotency, jobs, context, opaque references and events | persist credentials, audio or long-lived full transcripts |
 
