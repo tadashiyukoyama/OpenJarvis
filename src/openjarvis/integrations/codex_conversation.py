@@ -105,6 +105,7 @@ _MAX_EARLY_EVENTS = 256
 _MAX_COMPLETED_TURNS = 128
 _TURN_RECONCILE_INTERVAL_SECONDS = 0.5
 _TURN_RECONCILE_REQUEST_TIMEOUT_SECONDS = 2.0
+_THREAD_STATUS_REQUEST_TIMEOUT_SECONDS = 10.0
 _THREAD_INACTIVE_STATUS_TYPES = frozenset({"idle", "notLoaded"})
 
 
@@ -525,7 +526,7 @@ class CodexConversationRuntime:
         result = self._client.request(
             "thread/resume",
             {"threadId": thread_id, "excludeTurns": True},
-            timeout_seconds=_TURN_RECONCILE_REQUEST_TIMEOUT_SECONDS,
+            timeout_seconds=_THREAD_STATUS_REQUEST_TIMEOUT_SECONDS,
         )
         if not isinstance(result, dict) or not isinstance(result.get("thread"), dict):
             raise CodexConversationProtocolError("thread status returned no thread")

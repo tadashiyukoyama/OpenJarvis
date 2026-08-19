@@ -81,6 +81,7 @@ class FakeConversationClient:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, object]] = []
+        self.request_timeouts: list[tuple[str, float | None]] = []
         self.callback = None
         self.next_turn = 1
         self.emit_before_turn_response = False
@@ -97,8 +98,8 @@ class FakeConversationClient:
         return True
 
     def request(self, method, params=None, *, timeout_seconds=None):
-        del timeout_seconds
         self.calls.append((method, params))
+        self.request_timeouts.append((method, timeout_seconds))
         if method in {"thread/start", "thread/resume"}:
             thread_id = params.get("threadId", "thread-1")
             status = (
@@ -454,6 +455,10 @@ class CodexConversationRuntimeTests(unittest.TestCase):
 
         self.assertTrue(self.runtime.thread_is_busy("thread-busy"))
         self.assertFalse(self.runtime.thread_is_busy("thread-idle"))
+        self.assertEqual(
+            self.client.request_timeouts[-1],
+            ("thread/resume", 10.0),
+        )
         self.assertIn(
             (
                 "thread/resume",
