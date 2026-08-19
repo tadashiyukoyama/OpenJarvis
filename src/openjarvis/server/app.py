@@ -7,7 +7,7 @@ import pathlib
 import time
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from openjarvis.server.analytics_routes import router as analytics_router
@@ -404,7 +404,9 @@ def create_app(
         except Exception as exc:
             logger.debug("Webhook routes init skipped: %s", exc)
 
-    # Serve static frontend assets if the static/ directory exists
+    # Serve static frontend assets when present. The catch-all is registered
+    # unconditionally so a source-only Core still returns the stable backend
+    # error envelope instead of FastAPI's environment-dependent default 404.
     static_dir = pathlib.Path(__file__).parent / "static"
     if static_dir.is_dir():
         assets_dir = static_dir / "assets"
@@ -415,21 +417,22 @@ def create_app(
                 name="static-assets",
             )
 
-        @app.get("/{full_path:path}")
-        async def spa_catch_all(full_path: str):
-            """Serve static files directly, fall back to index.html for SPA routes."""
-            if is_backend_path(full_path):
-                return backend_not_found_response()
+    @app.get("/{full_path:path}")
+    async def spa_catch_all(full_path: str):
+        """Serve static files directly, fall back to index.html for SPA routes."""
+        if is_backend_path(full_path):
+            return backend_not_found_response()
+        if static_dir.is_dir():
             if full_path:
                 candidate = (static_dir / full_path).resolve()
                 # Path traversal prevention
                 resolved_root = static_dir.resolve()
                 if candidate.is_relative_to(resolved_root) and candidate.is_file():
                     return FileResponse(candidate, headers=_NO_CACHE_HEADERS)
-            return FileResponse(
-                static_dir / "index.html",
-                headers=_NO_CACHE_HEADERS,
-            )
+            index_path = static_dir / "index.html"
+            if index_path.is_file():
+                return FileResponse(index_path, headers=_NO_CACHE_HEADERS)
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
     return app
 

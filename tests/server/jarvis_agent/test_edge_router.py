@@ -239,15 +239,31 @@ def test_edge_codex_event_is_deduplicated_and_published(tmp_path: Path) -> None:
                 },
             )
             websocket.send_text(wire)
-            assert (
-                parse_edge_frame(websocket.receive_text(), from_client=False).type
-                == "edge.heartbeat_ack"
+            websocket.send_text(
+                _client_frame(
+                    "edge.heartbeat",
+                    3,
+                    {"active_job_ids": []},
+                )
             )
+            first_ack = parse_edge_frame(
+                websocket.receive_text(), from_client=False
+            )
+            assert first_ack.type == "edge.heartbeat_ack"
+            assert first_ack.payload["acknowledged_sequence"] == 3
             websocket.send_text(wire)
-            assert (
-                parse_edge_frame(websocket.receive_text(), from_client=False).type
-                == "edge.heartbeat_ack"
+            websocket.send_text(
+                _client_frame(
+                    "edge.heartbeat",
+                    4,
+                    {"active_job_ids": []},
+                )
             )
+            replay_ack = parse_edge_frame(
+                websocket.receive_text(), from_client=False
+            )
+            assert replay_ack.type == "edge.heartbeat_ack"
+            assert replay_ack.payload["acknowledged_sequence"] == 4
 
     assert orchestrator.edge.unsubscribe_codex_events(token) is True
     asyncio.run(orchestrator.close_async())
