@@ -59,7 +59,9 @@ async def test_registration_does_not_ack_offline_frames_before_replay(
     _queue_heartbeat(spool)
     _queue_heartbeat(spool)
     worker = EdgeWorker(
-        _config(tmp_path), spool=spool, executor=_FakeExecutor()  # type: ignore[arg-type]
+        _config(tmp_path),
+        spool=spool,
+        executor=_FakeExecutor(),  # type: ignore[arg-type]
     )
     connection = _FakeConnection()
     worker._connection = connection  # type: ignore[assignment]
@@ -103,7 +105,9 @@ async def test_core_ack_prunes_only_confirmed_frames_and_advances_sequence(
     _queue_heartbeat(spool)
     _queue_heartbeat(spool)
     worker = EdgeWorker(
-        _config(tmp_path), spool=spool, executor=_FakeExecutor()  # type: ignore[arg-type]
+        _config(tmp_path),
+        spool=spool,
+        executor=_FakeExecutor(),  # type: ignore[arg-type]
     )
 
     registered = make_edge_frame(

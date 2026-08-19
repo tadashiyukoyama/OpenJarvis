@@ -47,12 +47,8 @@ class CodexTurnRequest(BaseModel):
 
     project_cwd: str = Field(min_length=3, max_length=1_024)
     message: str = Field(min_length=1, max_length=20_000)
-    client_user_message_id: str = Field(
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"
-    )
-    conversation_id: str = Field(
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"
-    )
+    client_user_message_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$")
+    conversation_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$")
 
 
 def _error_code(exc: BaseException) -> str:
@@ -64,9 +60,7 @@ def _error_code(exc: BaseException) -> str:
     return value if value in _PUBLIC_CODES else "EXTERNAL_RESULT_UNKNOWN"
 
 
-def _chunk(
-    chunk_id: str, content: str | None = None, *, finished: bool = False
-) -> str:
+def _chunk(chunk_id: str, content: str | None = None, *, finished: bool = False) -> str:
     chunk = ChatCompletionChunk(
         id=chunk_id,
         model="codex",

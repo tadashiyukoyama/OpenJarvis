@@ -220,7 +220,7 @@ class EdgeWorkerSpool:
         with self._transaction() as connection:
             return connection.execute(
                 "DELETE FROM outbound_frames "
-                "WHERE wire_json LIKE '%\"type\":\"edge.register\"%'"
+                'WHERE wire_json LIKE \'%"type":"edge.register"%\''
             ).rowcount
 
     def accept_job(

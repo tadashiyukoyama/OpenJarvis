@@ -100,9 +100,7 @@ def test_spool_reconciles_high_water_and_removes_legacy_registration(
     spool.queue_outbound(
         "register-1", 1, '{"type":"edge.register","event_id":"register-1"}'
     )
-    spool.queue_outbound(
-        "event-2", 2, '{"type":"edge.heartbeat","event_id":"event-2"}'
-    )
+    spool.queue_outbound("event-2", 2, '{"type":"edge.heartbeat","event_id":"event-2"}')
 
     assert spool.discard_legacy_registration_frames() == 1
     assert [item.sequence for item in spool.pending_frames()] == [2]

@@ -88,9 +88,7 @@ except ImportError:
     ConnectRequest = None  # type: ignore[assignment,misc]
 
 
-def create_connectors_router(
-    *, blocked_connector_ids: frozenset[str] = frozenset()
-):
+def create_connectors_router(*, blocked_connector_ids: frozenset[str] = frozenset()):
     """Return an APIRouter with /connectors endpoints.
 
     Importing FastAPI inside the factory avoids a hard import-time

@@ -118,8 +118,7 @@ def test_edge_job_round_trip_and_status(tmp_path: Path) -> None:
             assert registered.type == "edge.registered"
             assert registered.payload["acknowledged_sequence"] == 0
             assert (
-                orchestrator.store.edge_sequences("desktop-1")["inbound_sequence"]
-                == 0
+                orchestrator.store.edge_sequences("desktop-1")["inbound_sequence"] == 0
             )
             status = client.get("/v1/jarvis/agent/edge/status").json()
             assert status["connected_devices"] == 1

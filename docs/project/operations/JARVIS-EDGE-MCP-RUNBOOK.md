@@ -74,9 +74,33 @@ $python = 'D:\dev\workspaces\openjarvis\.venv\Scripts\python.exe'
 $env:PYTHONPATH = Join-Path $sourceRoot 'src'
 Set-Location -LiteralPath $sourceRoot
 
-& $python -m pytest -q
-& $python -m ruff check .
-& $python -m ruff format --check src tests
+$testTargets = @(
+  'tests/server/jarvis_agent',
+  'tests/edge_worker',
+  'tests/mcp',
+  'tests/server/test_codex_turn_dispatch.py',
+  'tests/server/test_codex_sync_events.py',
+  'tests/server/test_codex_history_reader.py',
+  'tests/server/test_codex_catalog.py',
+  'tests/server/test_channel_authority.py',
+  'tests/server/test_spa_fallback.py',
+  'tests/server/test_connectors_router.py',
+  'tests/server/test_jarvis_sources_router.py',
+  'tests/integrations/test_codex_conversation.py',
+  'tests/integrations/test_codex_app_server_websocket.py',
+  'tests/integrations/test_codex_app_server.py',
+  'tests/agents/test_codex_agent.py'
+)
+& $python -m pytest -q @testTargets
+& $python -m ruff check src/openjarvis/server src/openjarvis/edge_worker `
+  src/openjarvis/integrations/codex_protocol.py src/openjarvis/mcp `
+  tests/server tests/edge_worker tests/integrations/test_codex_conversation.py `
+  tests/integrations/test_codex_app_server_websocket.py `
+  tests/integrations/test_codex_app_server.py tests/mcp `
+  tests/agents/test_codex_agent.py
+& $python -m ruff format --check src/openjarvis/server `
+  src/openjarvis/edge_worker src/openjarvis/integrations/codex_protocol.py `
+  src/openjarvis/mcp tests/server tests/edge_worker tests/mcp
 & $python scripts/workspace/export-jarvis-agent-contracts.py --check
 
 Push-Location frontend
@@ -85,6 +109,13 @@ npm exec tsc -- --noEmit
 npm run build
 Pop-Location
 ```
+
+The repository-wide upstream suite is a diagnostic, not this release gate: it
+contains unrelated optional-provider and external-integration tests. If it is
+run, compare every failure against the correction baseline before changing code.
+On 2026-08-19 its first failure was the unchanged
+`test_security_without_engine_keeps_capability_and_audit`; no file involved in
+that failure differs between the baseline and this branch.
 
 Also parse every `scripts/edge/*.ps1` and `.psm1` with the PowerShell AST parser.
 When Docker is available, render `docker compose config`, build by full SHA and

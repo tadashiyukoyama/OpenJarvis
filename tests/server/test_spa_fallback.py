@@ -22,6 +22,5 @@ def test_backend_not_found_uses_stable_public_envelope() -> None:
 
     assert response.status_code == 404
     assert response.body == (
-        b'{"error":{"code":"route_not_found",'
-        b'"message":"Backend route not found."}}'
+        b'{"error":{"code":"route_not_found","message":"Backend route not found."}}'
     )

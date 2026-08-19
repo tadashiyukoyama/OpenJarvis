@@ -326,9 +326,7 @@ class CodexEdgeRuntimeProxy:
         metadata = value.get("metadata")
         return CodexConversationEvent(
             method=str(value.get("method") or "codex/event"),
-            event_id=CodexEdgeRuntimeProxy._optional_string(
-                value.get("edge_event_id")
-            ),
+            event_id=CodexEdgeRuntimeProxy._optional_string(value.get("edge_event_id")),
             sequence=(
                 int(value["edge_sequence"])
                 if isinstance(value.get("edge_sequence"), int)

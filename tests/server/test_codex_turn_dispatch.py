@@ -69,9 +69,7 @@ def test_codex_turn_returns_stable_sse_error_without_internal_details() -> None:
 
 def test_codex_turn_fails_closed_without_runtime_or_valid_contract() -> None:
     with TestClient(_app(None)) as client:
-        unavailable = client.post(
-            "/v1/codex/threads/thread-1/turns", json=_payload()
-        )
+        unavailable = client.post("/v1/codex/threads/thread-1/turns", json=_payload())
         invalid = client.post(
             "/v1/codex/threads/invalid%20thread/turns", json=_payload()
         )
