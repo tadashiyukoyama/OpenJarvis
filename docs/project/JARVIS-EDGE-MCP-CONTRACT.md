@@ -3,7 +3,7 @@
 Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
+Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
@@ -28,7 +28,10 @@ Traceable implementation checkpoints after the baseline are:
 - `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority;
 - `28744c74ff30278a658e0606f378c1c15f5f93ad`: atomic terminal outcome reserve;
 - `7e45f1ab3193fce21f69d3b3c51a32122492b02b`: atomic acceptance and bounded
-  terminal result enforcement.
+  terminal result enforcement;
+- `11ad8f4b868a4265ac1bda88868689e331cb8204`: strict nested result mappings;
+- `11a6c424c33af6db899cdffed609bef5e01b5ee8`: focused bounded-history
+  serialization.
 
 ## Topology and authority
 
@@ -137,6 +140,9 @@ duplicate events and sequence rollback fail closed.
   leave the job active: it becomes a small durable `UNKNOWN` / `job.failed` /
   `EXTERNAL_RESULT_UNKNOWN` result. Arbitrary mutation results are never silently
   truncated or automatically retried.
+- Omitted `data` and `references` fields normalize to empty mappings. If either
+  field is present, it must be a mapping; any other type uses the same durable
+  `UNKNOWN` outcome and can never be recorded as `SUCCEEDED`.
 - `edge.register` is transient control traffic and is never persisted as an
   application frame. After `edge.registered`, the worker reconciles the Core
   acknowledgement high-water mark, replays unacknowledged durable frames in

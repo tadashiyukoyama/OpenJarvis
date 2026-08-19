@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
+Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Remote publication: this correction is local and not pushed; the source snapshot
@@ -14,7 +14,7 @@ Superseded by: none
 ## Codex live Edge relay correction — 2026-08-19
 
 Branch `codex/edge-codex-live-relay`, based on
-`393031e9eec9e8583d0b8958ae399c40dd5148d3`, now has six auditable logical
+`393031e9eec9e8583d0b8958ae399c40dd5148d3`, now has eight auditable logical
 checkpoints without activating the runtime:
 
 - `9433229c124a9dc048ab83dd683f621e13008665` bounds the durable spool,
@@ -28,7 +28,11 @@ checkpoints without activating the runtime:
 - `28744c74ff30278a658e0606f378c1c15f5f93ad` reserves bounded terminal capacity
   and atomically persists each accepted Edge job outcome with its replay frame;
 - `7e45f1ab3193fce21f69d3b3c51a32122492b02b` makes admission atomic with the
-  durable `job.accepted` frame and bounds invalid or oversized terminal results.
+  durable `job.accepted` frame and bounds invalid or oversized terminal results;
+- `11ad8f4b868a4265ac1bda88868689e331cb8204` rejects present `data` or
+  `references` fields that are not mappings instead of silently replacing them;
+- `11a6c424c33af6db899cdffed609bef5e01b5ee8` isolates bounded Codex-history
+  serialization in a focused module and restores the physical module limit.
 
 Together, those checkpoints correct the split between job completion and
 visible Codex state:
@@ -61,19 +65,27 @@ Independent audits first found that a full normal spool could reject both
 `job.succeeded` and the fallback `job.failed`, leaving a local job `RUNNING`.
 After that correction, two more admission/protocol paths were reproduced: a
 normal spool full during `job.accepted` left an unexecuted job `ACCEPTED`, and a
-terminal result above 256 KiB left a completed local operation `RUNNING`.
+terminal result above 256 KiB left a completed local operation `RUNNING`. A
+fourth audit then proved that non-mapping nested `data` or `references` values
+were silently replaced by empty objects while the job became `SUCCEEDED`.
 
-Code SHA `7e45f1a` closes all three paths. The worker now writes the local
+Final code SHA `11a6c42` closes all four paths. The worker now writes the local
 `ACCEPTED` row and its normal `job.accepted` replay frame in one SQLite
 transaction; capacity failure rolls back both and the executor is not started.
 Every admitted job still owns one of 64 terminal slots. A valid terminal frame
 and local terminal state are committed together. An invalid, non-serializable
 or oversized success result is replaced by a small durable `job.failed` with
 state `UNKNOWN`, code `EXTERNAL_RESULT_UNKNOWN` and no automatic retry. This is
-an explicit unknown outcome, not silent result truncation. Codex history is the
+an explicit unknown outcome, not silent result truncation. Missing `data` and
+`references` fields normalize to empty mappings; present fields must be mappings
+or the same durable unknown outcome is used. Codex history is the
 only proactively paginated payload: at most 30 messages, 8 KiB of UTF-8 content
 per message and 128 KiB of content per page, with `content_truncated` and the
 canonical cursors retained.
+
+The production Edge modules touched by this correction are all below 400
+physical lines: `executor.py` 388, `worker.py` 399, `spool.py` 337,
+`job_runner.py` 328 and `history_payload.py` 55.
 
 The normal partition remains bounded at 10,000 frames and 64 MiB; the dedicated
 terminal partition remains bounded at 64 frames and 16 MiB. A transport send
@@ -251,7 +263,7 @@ user-operated acceptance is recorded below.
 | Current release worktree | `D:\dev\workspaces\openjarvis-edge-relay` |
 | Branch | `codex/edge-codex-live-relay` |
 | Correction baseline | `393031e9eec9e8583d0b8958ae399c40dd5148d3` |
-| Implementation checkpoints | `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3`, `28744c7`, `7e45f1a` |
+| Implementation checkpoints | `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3`, `28744c7`, `7e45f1a`, `11ad8f4`, `11a6c42` |
 | AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
@@ -369,18 +381,19 @@ overwritten. The C: rollback was not deleted.
 | Generated OpenAPI/TypeScript contracts | regenerated and parity check passed |
 | Python compileall, PowerShell parser and `git diff --check` | passed |
 
-Edge/MCP directed validation at code SHA `7e45f1a`:
+Edge/MCP directed validation at code SHA `11a6c42`:
 
-- 531 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
+- 533 directed Python tests and 4 subtests passed for Agent Core, Edge Worker,
   MCP and the selected Codex integration boundaries;
-- the isolated Edge Worker matrix passed 50 tests, including atomic admission,
-  full-spool rollback, invalid/oversized result fallback and failed-send replay;
+- the isolated Edge Worker matrix passed 52 tests, including atomic admission,
+  full-spool rollback, invalid/oversized/nested result fallback and failed-send
+  replay;
 - 100 frontend tests passed in 25 files;
 - TypeScript no-emit check passed;
 - 14 Edge named-pipe tests passed, including an actual authenticated Windows
   pipe round trip;
 - generated Agent and Edge contracts match runtime schemas;
-- four new Edge PowerShell files parse successfully;
+- all ten Edge PowerShell files parse successfully;
 - static release-artifact policy tests pass;
 - full-spool regressions prove atomic admission plus acceptance frame, atomic
   success/failure, bounded terminal fallback, replay after send failure,

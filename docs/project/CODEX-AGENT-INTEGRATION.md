@@ -3,10 +3,10 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
+Applies to SHA: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
 Functional dispatch: `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`
 Functional state relay: `19fb8585a80ae70d5f1c999923a5e2bece9e950c`
-Durable admission and terminal outcome: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
+Durable admission and terminal outcome: `11a6c424c33af6db899cdffed609bef5e01b5ee8`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
 Superseded by: none
@@ -138,7 +138,7 @@ recover it without replaying the old user transcript.
 
 No Codex app-server, Edge Worker, browser or shared Desktop runtime was started
 while implementing SHAs `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3` and
-`28744c7`, nor while implementing `7e45f1a`.
+`28744c7`, nor while implementing `7e45f1a`, `11ad8f4` or `11a6c42`.
 
 ## Prepared VPS and Edge path
 
