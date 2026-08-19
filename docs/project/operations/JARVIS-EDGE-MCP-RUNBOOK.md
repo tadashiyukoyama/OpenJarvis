@@ -3,7 +3,7 @@
 Status: CANONICAL — INSTALLATION NOT YET AUTHORIZED
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
@@ -110,6 +110,13 @@ npm run build
 Pop-Location
 ```
 
+Current local evidence for code SHA `7e45f1a`: 531 directed Python tests plus
+4 subtests, 50 isolated Edge Worker tests and 100 frontend tests passed.
+TypeScript, Vite/PWA, Ruff check/format, generated contracts, `compileall`, ten
+Edge PowerShell parses, Compose YAML, MCP TOML and `git diff --check` also
+passed. These are local gates only; they do not replace the pending container,
+OpenResty, WSS, same-task turn or visual smokes.
+
 The repository-wide upstream suite is a diagnostic, not this release gate: it
 contains unrelated optional-provider and external-integration tests. If it is
 run, compare every failure against the correction baseline before changing code.
@@ -165,12 +172,19 @@ Keep the bounded replay controls explicit in the private Edge configuration:
 Changing them requires a measured capacity review; removing a limit is not an
 accepted troubleshooting step.
 
-These variables bound the normal event partition. Code SHA `28744c7` also
-reserves exactly 64 terminal frames, each limited by the 256 KiB Edge protocol
+These variables bound the normal event partition. Code SHA `7e45f1a` retains a
+reserve of exactly 64 terminal frames, each limited by the 256 KiB Edge protocol
 maximum. This fixed 16 MiB reserve is not a second general-purpose spool and is
 not runtime-configurable. Do not reduce or reuse it without proving that the
 maximum of 64 simultaneously reported active jobs can still persist a terminal
 outcome each.
+
+Admission is valid only when the worker job row and its `job.accepted` frame
+commit together. A full normal partition must produce no local job and no
+executor call. A valid accepted job owns terminal capacity; an invalid,
+non-serializable or oversized terminal result must become the small durable
+`UNKNOWN` outcome. Never enlarge the frame limit, truncate an arbitrary
+mutation silently or retry it to make this gate pass.
 
 ## Gate 3 — Windows Edge Worker installation
 
@@ -185,7 +199,7 @@ Preconditions:
 - WSS hostname has valid TLS;
 - no existing task/process owns the same device ID or pipe.
 
-Before the first Worker start at SHA `28744c7`, stop the Worker if it exists,
+Before the first Worker start at SHA `7e45f1a`, stop the Worker if it exists,
 copy its local SQLite spool to the dated backup directory and run
 `PRAGMA integrity_check` against the copy. Startup adds the nullable
 `terminal_job_id` marker and its partial unique index idempotently, then runs an
@@ -379,8 +393,8 @@ OpenJarvis volume. Rollback does not delete state.
 The source rollback point for this correction is
 `393031e9eec9e8583d0b8958ae399c40dd5148d3`. Preserve evidence first, then
 revert logical checkpoints in reverse order when a narrower rollback is proven
-safe: `28744c7`, `f08b6c3`, `19fb858`, `bd0fe4d`, `9433229`. Do not mix a
-source rollback with deletion of Edge/Core ledgers.
+safe: `7e45f1a`, `28744c7`, `f08b6c3`, `19fb858`, `bd0fe4d`, `9433229`. Do not
+mix a source rollback with deletion of Edge/Core ledgers.
 
 ## Troubleshooting matrix
 

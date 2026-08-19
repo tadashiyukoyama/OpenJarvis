@@ -3,7 +3,7 @@
 Status: CANONICAL — IMPLEMENTED LOCALLY, DEPLOYMENT PENDING
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
@@ -26,7 +26,9 @@ Traceable implementation checkpoints after the baseline are:
 - `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`: selected-task turn dispatch;
 - `19fb8585a80ae70d5f1c999923a5e2bece9e950c`: ordered execution-state relay;
 - `f08b6c3fa69318b13ad9053eea307f1ee9f90323`: VPS channel authority;
-- `28744c74ff30278a658e0606f378c1c15f5f93ad`: atomic terminal outcome reserve.
+- `28744c74ff30278a658e0606f378c1c15f5f93ad`: atomic terminal outcome reserve;
+- `7e45f1ab3193fce21f69d3b3c51a32122492b02b`: atomic acceptance and bounded
+  terminal result enforcement.
 
 ## Topology and authority
 
@@ -125,9 +127,16 @@ duplicate events and sequence rollback fail closed.
 - A separate non-configurable reserve holds at most 64 terminal frames of at
   most 256 KiB each. The total default upper bound is therefore 10,064 frames
   and 80 MiB; the reserve cannot become a general event queue.
-- Job admission reserves one terminal slot before execution. Terminal frame and
-  local terminal state are written in one SQLite transaction. Delivery failure
-  leaves that frame pending for replay and never converts success into failure.
+- Job admission reserves one terminal slot and writes the local `ACCEPTED` row
+  plus its durable `job.accepted` frame in one SQLite transaction. If the normal
+  partition cannot persist that frame, neither record exists and execution does
+  not begin. A send failure after this commit leaves acceptance pending for
+  replay and does not cancel already durably admitted work.
+- Terminal frame and local terminal state are written in one SQLite transaction.
+  A success payload that is invalid, non-serializable or above 256 KiB cannot
+  leave the job active: it becomes a small durable `UNKNOWN` / `job.failed` /
+  `EXTERNAL_RESULT_UNKNOWN` result. Arbitrary mutation results are never silently
+  truncated or automatically retried.
 - `edge.register` is transient control traffic and is never persisted as an
   application frame. After `edge.registered`, the worker reconciles the Core
   acknowledgement high-water mark, replays unacknowledged durable frames in
@@ -154,6 +163,7 @@ APPROVED -> OFFERED -> ACCEPTED -> RUNNING
 
 - Core assigns stable `job_id`, immutable payload hash, attempt and lease.
 - Offer acceptance has a separate short timeout.
+- `ACCEPTED` means both the worker job and its acceptance frame are durable.
 - Only accepted/running jobs survive a connection loss for reconciliation.
 - Interrupted work remains `RECOVERY_PENDING` locally until its `UNKNOWN`
   terminal frame is durable; a restart republishes it rather than losing it.
@@ -195,6 +205,12 @@ app-server notifications then follow this ordered path:
 app-server -> Worker sanitizer/coalescer -> codex.event -> Edge WSS/spool
            -> Core deduplication -> Codex runtime proxy -> existing SSE sync
 ```
+
+An explicit `codex.history` page contains at most 30 messages, at most 8 KiB of
+UTF-8 content per message and at most 128 KiB of message content in total. Each
+entry states `content_truncated`; `next_cursor` and `backwards_cursor` remain the
+canonical continuation mechanism. This bounded read is distinct from silently
+truncating an arbitrary terminal mutation result.
 
 `codex.event` is not a job and carries no `job_id`. It contains only an
 allowlisted thread/turn/item identity, public text, public user/assistant

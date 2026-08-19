@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
@@ -20,14 +20,14 @@ documentation; the completion report must record both SHAs and prove that diff.
 
 | Document | Status | Responsibility | Last verified | Applicable implementation |
 |---|---|---|---|---|
-| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-19 | `28744c7` |
+| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-19 | `7e45f1a` |
 | `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-19 | `28744c7` |
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-18 | AceleraChat working tree |
-| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `28744c7` |
+| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `7e45f1a` |
 | `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-18 | AceleraChat working tree |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `28744c7` |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `7e45f1a` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
-| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `28744c7` |
+| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `7e45f1a` |
 | `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-08-19 | `28744c7` |
 | `KNOWN-ISSUES.md` | CANONICAL | proven current risks and scoped acceptance status | 2026-08-18 | AceleraChat working tree |
 | `REPOSITORY-MAP.md` | CANONICAL | Git roots, remotes and synchronization history | 2026-07-17 | historical foundation |

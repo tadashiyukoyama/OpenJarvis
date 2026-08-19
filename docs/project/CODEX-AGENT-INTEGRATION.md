@@ -3,10 +3,10 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Applies to SHA: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
 Functional dispatch: `bd0fe4da56f1b0b3f8c4ffce6679c202cc508ccf`
 Functional state relay: `19fb8585a80ae70d5f1c999923a5e2bece9e950c`
-Durable terminal outcome: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Durable admission and terminal outcome: `7e45f1ab3193fce21f69d3b3c51a32122492b02b`
 Branch: `codex/edge-codex-live-relay`
 Supersedes: none
 Superseded by: none
@@ -84,10 +84,16 @@ duplicate a turn.
 | resume deadline | `FAILED` / `CODEX_THREAD_RESUME_TIMEOUT` | no automatic retry |
 | dispatch deadline before known start | `FAILED` / `CODEX_DISPATCH_TIMEOUT` | no automatic retry |
 | external mutation outcome cannot be proved | `UNKNOWN` / `EXTERNAL_RESULT_UNKNOWN` | operator must inspect canonical history before retrying |
+| executor result is invalid or exceeds 256 KiB | `UNKNOWN` / `EXTERNAL_RESULT_UNKNOWN` | small durable failure replaces the unrepresentable result; no automatic retry |
 
 Status preflight uses a bounded, history-free thread read. Full history is read
 only for explicit history requests or final-result reconciliation. Optional
 history cannot block the start of Gemini Live.
+
+An explicit history page is bounded to 30 messages, 8 KiB of UTF-8 content per
+message and 128 KiB of content in total. It preserves both cursors and marks
+truncated entries. This read-only pagination rule does not authorize truncating
+an arbitrary delegation or mutation result.
 
 The selected-conversation SSE is also independent from execution resume. It
 returns `connected` immediately, publishes `synchronized` after a canonical
@@ -132,7 +138,7 @@ recover it without replaying the old user transcript.
 
 No Codex app-server, Edge Worker, browser or shared Desktop runtime was started
 while implementing SHAs `9433229`, `bd0fe4d`, `19fb858`, `f08b6c3` and
-`28744c7`.
+`28744c7`, nor while implementing `7e45f1a`.
 
 ## Prepared VPS and Edge path
 
