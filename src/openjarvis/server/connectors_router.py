@@ -88,7 +88,9 @@ except ImportError:
     ConnectRequest = None  # type: ignore[assignment,misc]
 
 
-def create_connectors_router():
+def create_connectors_router(
+    *, blocked_connector_ids: frozenset[str] = frozenset()
+):
     """Return an APIRouter with /connectors endpoints.
 
     Importing FastAPI inside the factory avoids a hard import-time
@@ -96,7 +98,7 @@ def create_connectors_router():
     this package.
     """
     try:
-        from fastapi import APIRouter, HTTPException
+        from fastapi import APIRouter, Depends, HTTPException
     except ImportError as exc:
         raise ImportError(
             "fastapi and pydantic are required for the connectors router"
@@ -107,7 +109,18 @@ def create_connectors_router():
 
     from openjarvis.core.registry import ConnectorRegistry
 
-    router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
+    blocked = frozenset(blocked_connector_ids)
+
+    def _enforce_channel_authority(request: Request) -> None:
+        connector_id = str(request.path_params.get("connector_id") or "")
+        if connector_id in blocked:
+            raise HTTPException(status_code=404, detail="Connector not found")
+
+    router = APIRouter(
+        prefix="/v1/connectors",
+        tags=["connectors"],
+        dependencies=[Depends(_enforce_channel_authority)],
+    )
 
     # ------------------------------------------------------------------
     # Helpers
@@ -115,6 +128,8 @@ def create_connectors_router():
 
     def _get_or_create(connector_id: str) -> Any:
         """Return a cached connector instance, creating it if needed."""
+        if connector_id in blocked:
+            raise HTTPException(status_code=404, detail="Connector not found")
         with _instances_lock:
             if connector_id not in _instances:
                 cls = ConnectorRegistry.get(connector_id)
@@ -327,6 +342,8 @@ def create_connectors_router():
         chunk_counts = _connector_chunk_counts()
         results = []
         for key in sorted(ConnectorRegistry.keys()):
+            if key in blocked:
+                continue
             try:
                 instance = _get_or_create(key)
                 results.append(_connector_summary(key, instance, chunk_counts))

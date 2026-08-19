@@ -12,14 +12,18 @@ from fastapi.staticfiles import StaticFiles
 
 from openjarvis.server.analytics_routes import router as analytics_router
 from openjarvis.server.api_routes import include_all_routes
+from openjarvis.server.channel_authority import ChannelAuthorityPolicy
 from openjarvis.server.comparison import comparison_router
 from openjarvis.server.connectors_router import create_connectors_router
 from openjarvis.server.dashboard import dashboard_router
 from openjarvis.server.digest_routes import create_digest_router
 from openjarvis.server.jarvis_agent import router as jarvis_agent_router
-from openjarvis.server.jarvis_sources_router import router as jarvis_sources_router
 from openjarvis.server.research_router import router as research_router
 from openjarvis.server.routes import router
+from openjarvis.server.spa_fallback import (
+    backend_not_found_response,
+    is_backend_path,
+)
 from openjarvis.server.upload_router import router as upload_router
 
 logger = logging.getLogger(__name__)
@@ -239,6 +243,8 @@ def create_app(
     # Exposed so WebSocket handlers can authenticate the handshake (the HTTP
     # AuthMiddleware never sees WS upgrade requests). Empty = auth disabled.
     app.state.api_key = api_key
+    channel_authority = ChannelAuthorityPolicy.from_env()
+    app.state.channel_authority = channel_authority.public_status()
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
@@ -324,12 +330,21 @@ def create_app(
     app.include_router(router)
     app.include_router(dashboard_router)
     app.include_router(comparison_router)
-    app.include_router(create_connectors_router())
+    app.include_router(
+        create_connectors_router(
+            blocked_connector_ids=channel_authority.blocked_connector_ids
+        )
+    )
     app.include_router(create_digest_router())
     app.include_router(upload_router)
     app.include_router(research_router)
     app.include_router(analytics_router)
-    app.include_router(jarvis_sources_router)
+    if channel_authority.mount_legacy_customer_sources:
+        from openjarvis.server.jarvis_sources_router import (
+            router as jarvis_sources_router,
+        )
+
+        app.include_router(jarvis_sources_router)
     app.include_router(jarvis_agent_router)
 
     from openjarvis.server.jarvis_agent.api.container import (
@@ -403,6 +418,8 @@ def create_app(
         @app.get("/{full_path:path}")
         async def spa_catch_all(full_path: str):
             """Serve static files directly, fall back to index.html for SPA routes."""
+            if is_backend_path(full_path):
+                return backend_not_found_response()
             if full_path:
                 candidate = (static_dir / full_path).resolve()
                 # Path traversal prevention

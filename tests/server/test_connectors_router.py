@@ -55,6 +55,37 @@ def test_connector_not_found(app):
     assert resp.status_code == 404
 
 
+def test_blocked_customer_channels_are_hidden_and_fail_closed():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from openjarvis.server.connectors_router import create_connectors_router
+
+    app = FastAPI()
+    app.include_router(
+        create_connectors_router(
+            blocked_connector_ids=frozenset(
+                {"gmail", "gmail_imap", "whatsapp", "whatsapp_baileys"}
+            )
+        )
+    )
+    with TestClient(app) as client:
+        connector_ids = {
+            item["connector_id"]
+            for item in client.get("/v1/connectors").json()["connectors"]
+        }
+        detail = client.get("/v1/connectors/gmail")
+        connect = client.post(
+            "/v1/connectors/whatsapp_baileys/connect", json={"token": "ignored"}
+        )
+
+    assert connector_ids.isdisjoint(
+        {"gmail", "gmail_imap", "whatsapp", "whatsapp_baileys"}
+    )
+    assert detail.status_code == 404
+    assert connect.status_code == 404
+
+
 def test_connect_obsidian(app, tmp_path):
     """POST /v1/connectors/obsidian/connect with a valid path marks it connected."""
     # Create a minimal vault directory so is_connected() returns True.

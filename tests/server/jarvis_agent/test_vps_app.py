@@ -19,3 +19,13 @@ def test_vps_factory_uses_edge_runtime_and_minimal_health(
         assert client.get("/healthz").json() == {"status": "ok"}
         assert client.get("/v1/models").json()["data"][0]["id"] == "codex"
         assert app.state.codex_runtime.poll_history_only is False
+        assert app.state.channel_authority["customer_channel_authority"] == (
+            "acelerachat"
+        )
+        gmail_source = client.get("/v1/jarvis/sources/gmail/status")
+        whatsapp_source = client.get("/v1/jarvis/sources/whatsapp/status")
+        assert gmail_source.status_code == 404
+        assert whatsapp_source.status_code == 404
+        assert gmail_source.json()["error"]["code"] == "route_not_found"
+        assert whatsapp_source.json()["error"]["code"] == "route_not_found"
+        assert client.get("/v1/connectors/gmail").status_code == 404
