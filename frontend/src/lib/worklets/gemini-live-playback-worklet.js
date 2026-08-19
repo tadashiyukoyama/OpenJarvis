@@ -1,8 +1,13 @@
 const DEFAULT_SAMPLE_RATE = 24_000;
-const DEFAULT_PREBUFFER_MS = 180;
+// Production diagnostics observed Gemini audio arriving in bursts separated by
+// as much as 2.386 seconds while the WebSocket and browser event loop remained
+// healthy. Start below one second for conversational latency, then grow fast
+// enough to absorb a degraded stream instead of repeatedly emitting silence.
+const DEFAULT_PREBUFFER_MS = 900;
 const MIN_PREBUFFER_MS = 120;
-const MAX_PREBUFFER_MS = 480;
-const PREBUFFER_STEP_MS = 40;
+const MAX_PREBUFFER_MS = 3_000;
+const PREBUFFER_STEP_MS = 250;
+const PREBUFFER_GROWTH_FACTOR = 2;
 // Gemini Live can generate audio faster than wall-clock playback. Preserve a
 // complete normal response instead of deleting speech when a short burst gets
 // ahead of the speaker. At 24 kHz mono Float32, two minutes use about 11 MiB.
@@ -20,6 +25,10 @@ export class AdaptivePcmQueue {
     );
     this.prebufferStepSamples = this._samples(
       options.prebufferStepMs || PREBUFFER_STEP_MS,
+    );
+    this.prebufferGrowthFactor = Math.max(
+      1,
+      Number(options.prebufferGrowthFactor || PREBUFFER_GROWTH_FACTOR),
     );
     this.initialPrebufferSamples = this._clampPrebuffer(
       this._samples(options.prebufferMs || DEFAULT_PREBUFFER_MS),
@@ -88,7 +97,10 @@ export class AdaptivePcmQueue {
       this.started = false;
       this.stableSamples = 0;
       this.targetPrebufferSamples = this._clampPrebuffer(
-        this.targetPrebufferSamples + this.prebufferStepSamples,
+        Math.max(
+          this.targetPrebufferSamples + this.prebufferStepSamples,
+          Math.ceil(this.targetPrebufferSamples * this.prebufferGrowthFactor),
+        ),
       );
     } else {
       this.stableSamples += available;

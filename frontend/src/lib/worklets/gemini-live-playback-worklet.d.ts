@@ -4,6 +4,7 @@ export interface AdaptivePcmQueueOptions {
   minimumPrebufferMs?: number;
   maximumPrebufferMs?: number;
   prebufferStepMs?: number;
+  prebufferGrowthFactor?: number;
   capacityMs?: number;
   stableWindowMs?: number;
 }

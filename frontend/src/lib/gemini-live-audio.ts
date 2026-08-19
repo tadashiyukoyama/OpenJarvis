@@ -211,9 +211,11 @@ export class PcmPlayback {
         outputChannelCount: [1],
         processorOptions: {
           sampleRate: context.sampleRate,
-          prebufferMs: 180,
+          prebufferMs: 900,
           minimumPrebufferMs: 120,
-          maximumPrebufferMs: 480,
+          maximumPrebufferMs: 3_000,
+          prebufferStepMs: 250,
+          prebufferGrowthFactor: 2,
         },
       });
       worklet.port.onmessage = (event: MessageEvent<Partial<PcmPlaybackMetrics>>) => {
