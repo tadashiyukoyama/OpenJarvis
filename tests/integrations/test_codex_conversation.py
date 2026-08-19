@@ -19,6 +19,7 @@ from openjarvis.integrations import (
     CodexConversationRuntime,
     CodexConversationTimeout,
     CodexInvalidStateError,
+    CodexRequestError,
     CodexTurnStatus,
     JsonRpcNotification,
 )
@@ -457,15 +458,29 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.assertFalse(self.runtime.thread_is_busy("thread-idle"))
         self.assertEqual(
             self.client.request_timeouts[-1],
-            ("thread/read", 10.0),
+            ("thread/resume", 10.0),
         )
         self.assertIn(
             (
-                "thread/read",
-                {"threadId": "thread-busy", "includeTurns": False},
+                "thread/resume",
+                {"threadId": "thread-busy", "excludeTurns": True},
             ),
             self.client.calls,
         )
+
+    def test_thread_busy_preflight_maps_an_active_writer_conflict(self) -> None:
+        class ActiveWriterClient(FakeConversationClient):
+            def request(self, method, params=None, *, timeout_seconds=None):
+                if method == "thread/resume":
+                    raise CodexRequestError(
+                        "thread thread-owned already has an active writer",
+                        code=-32600,
+                    )
+                return super().request(method, params, timeout_seconds=timeout_seconds)
+
+        runtime = CodexConversationRuntime(ActiveWriterClient())
+
+        self.assertTrue(runtime.thread_is_busy("thread-owned"))
 
     def test_thread_busy_preflight_fails_closed_for_system_error(self) -> None:
         self.client.thread_read_statuses["thread-error"] = {"type": "systemError"}

@@ -28,6 +28,7 @@ from .codex_protocol import (
     CodexCwdStatus,
     CodexHistoryMessage,
     CodexInvalidStateError,
+    CodexRequestError,
     CodexThreadHistory,
     CodexThreadHistoryPage,
     CodexThreadInfo,
@@ -36,6 +37,7 @@ from .codex_protocol import (
     CodexTurnResult,
     CodexTurnStatus,
     JsonRpcNotification,
+    is_codex_active_writer_error,
 )
 
 
@@ -516,18 +518,24 @@ class CodexConversationRuntime:
     def thread_is_busy(self, thread_id: str) -> bool:
         """Return whether the app-server reports the thread as active.
 
-        ``thread/read`` without turns returns current metadata without loading
-        the persisted conversation or trying to acquire the thread writer.
-        Unknown or ``systemError`` states fail closed.
+        ``thread/resume`` without turns checks whether this client can own the
+        selected thread without loading its history. A writer conflict means
+        the Desktop already owns it and therefore maps to busy. Unknown or
+        ``systemError`` states fail closed.
         """
 
         self._ensure_open()
         thread_id = _non_empty_string(thread_id, "thread_id")
-        result = self._client.request(
-            "thread/read",
-            {"threadId": thread_id, "includeTurns": False},
-            timeout_seconds=_THREAD_STATUS_REQUEST_TIMEOUT_SECONDS,
-        )
+        try:
+            result = self._client.request(
+                "thread/resume",
+                {"threadId": thread_id, "excludeTurns": True},
+                timeout_seconds=_THREAD_STATUS_REQUEST_TIMEOUT_SECONDS,
+            )
+        except CodexRequestError as exc:
+            if is_codex_active_writer_error(exc):
+                return True
+            raise
         if not isinstance(result, dict) or not isinstance(result.get("thread"), dict):
             raise CodexConversationProtocolError("thread status returned no thread")
         thread = result["thread"]

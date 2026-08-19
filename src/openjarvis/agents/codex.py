@@ -28,6 +28,7 @@ from openjarvis.integrations.codex_protocol import (
     CodexInvalidStateError,
     CodexRequestError,
     CodexRequestTimeout,
+    is_codex_active_writer_error,
 )
 
 CODEX_CONVERSATION_CONTEXT_REQUIRED = "CODEX_CONVERSATION_CONTEXT_REQUIRED"
@@ -321,6 +322,8 @@ class CodexAgent(BaseAgent):
             except (CodexRequestTimeout, CodexConversationTimeout) as exc:
                 raise CodexAgentError(CODEX_CONVERSATION_THREAD_RESUME_TIMEOUT) from exc
             except CodexRequestError as exc:
+                if is_codex_active_writer_error(exc):
+                    raise CodexAgentError(CODEX_CONVERSATION_BUSY) from exc
                 raise CodexAgentError(CODEX_CONVERSATION_THREAD_NOT_FOUND) from exc
             except Exception as exc:
                 raise CodexAgentError(
@@ -421,6 +424,8 @@ class CodexAgent(BaseAgent):
         except CodexRequestError as exc:
             self._finish_idempotent_request(request_key)
             self._emit_turn_end(turns=1, error=True)
+            if is_codex_active_writer_error(exc):
+                raise CodexAgentError(CODEX_CONVERSATION_BUSY) from exc
             raise CodexAgentError(CODEX_CONVERSATION_THREAD_NOT_FOUND) from exc
         except (CodexRequestTimeout, CodexConversationTimeout) as exc:
             if turn_id:

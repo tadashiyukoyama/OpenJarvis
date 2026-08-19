@@ -207,6 +207,13 @@ def test_explicit_codex_thread_is_subscribed_without_starting_one(
     ("failure", "expected"),
     [
         (CodexRequestTimeout("late"), CODEX_CONVERSATION_THREAD_RESUME_TIMEOUT),
+        (
+            CodexRequestError(
+                "thread desktop-thread-1 already has an active writer",
+                code=-32600,
+            ),
+            CODEX_CONVERSATION_BUSY,
+        ),
         (CodexRequestError("missing", code=-1), CODEX_CONVERSATION_THREAD_NOT_FOUND),
         (CodexConversationClosed("closed"), CODEX_CONVERSATION_SESSION_CLOSED),
     ],

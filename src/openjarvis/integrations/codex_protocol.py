@@ -49,6 +49,20 @@ class CodexRequestError(CodexAppServerError):
         self.code = code
 
 
+def is_codex_active_writer_error(error: CodexRequestError) -> bool:
+    """Identify the app-server conflict emitted for a thread owned elsewhere."""
+
+    message = str(error)
+    prefix = "thread "
+    suffix = " already has an active writer"
+    return (
+        error.code == -32600
+        and message.startswith(prefix)
+        and message.endswith(suffix)
+        and bool(message[len(prefix) : -len(suffix)].strip())
+    )
+
+
 class CodexRequestTimeout(CodexAppServerError):
     """A request did not receive a response before its deadline."""
 
@@ -447,5 +461,6 @@ __all__ = [
     "JsonRpcNotification",
     "JsonRpcResponse",
     "JsonRpcServerRequest",
+    "is_codex_active_writer_error",
     "parse_jsonrpc_envelope",
 ]
