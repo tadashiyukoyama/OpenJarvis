@@ -26,6 +26,16 @@ class _Arguments(BaseModel):
     limit: int = Field(default=16, ge=1, le=30)
 
 
+class _DelegateArguments(BaseModel):
+    """Server-resolved payload sent to the authenticated Edge Worker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_cwd: str = Field(min_length=1, max_length=1_024)
+    thread_id: str = Field(min_length=1, max_length=256)
+    command: str = Field(min_length=1, max_length=20_000)
+
+
 class EdgeCodexAdapter:
     adapter_id = "codex"
 
@@ -60,11 +70,13 @@ class EdgeCodexAdapter:
             raise JarvisAgentError(
                 "INVALID_REQUEST", "Projeto, conversa e comando Codex são obrigatórios."
             )
-        payload = {
-            "project_cwd": project,
-            "thread_id": thread_id,
-            "command": command,
-        }
+        payload = self._parse_delegate(
+            {
+                "project_cwd": project,
+                "thread_id": thread_id,
+                "command": command,
+            }
+        ).model_dump()
         return PreparedToolCall(
             payload,
             {
@@ -77,7 +89,7 @@ class EdgeCodexAdapter:
         )
 
     def preflight_delegate(self, arguments: Mapping[str, Any]) -> None:
-        del arguments
+        self._parse_delegate(arguments)
         if self._edge.select_connection("codex.delegate") is None:
             raise JarvisAgentError(
                 "DEVICE_OFFLINE",
@@ -90,10 +102,14 @@ class EdgeCodexAdapter:
     ) -> AdapterResult:
         if tool_id not in {"codex.status", "codex.history", "codex.delegate"}:
             raise JarvisAgentError("TOOL_UNAVAILABLE", "Ferramenta Codex desconhecida.")
-        self._parse(arguments)
+        execution_arguments = dict(arguments)
+        if tool_id == "codex.delegate":
+            execution_arguments = self._parse_delegate(arguments).model_dump()
+        else:
+            self._parse(arguments)
         result = self._edge.execute_job(
             tool_id=tool_id,
-            arguments=arguments,
+            arguments=execution_arguments,
             context={
                 "session_id": context.session_id,
                 "partition_key": context.partition_key,
@@ -102,7 +118,7 @@ class EdgeCodexAdapter:
                 "request_id": context.request_id,
             },
             payload_hash=payload_digest(
-                {"tool_id": tool_id, "arguments": dict(arguments)}
+                {"tool_id": tool_id, "arguments": execution_arguments}
             ),
             capability=tool_id,
             action_id=context.request_id,
@@ -125,6 +141,32 @@ class EdgeCodexAdapter:
             raise JarvisAgentError(
                 "INVALID_REQUEST", "Os argumentos da ferramenta Codex são inválidos."
             ) from exc
+
+    @classmethod
+    def _parse_delegate(cls, arguments: Mapping[str, Any]) -> _DelegateArguments:
+        try:
+            parsed = _DelegateArguments.model_validate(dict(arguments))
+        except ValidationError as exc:
+            raise JarvisAgentError(
+                "INVALID_REQUEST", "Os argumentos da ferramenta Codex são inválidos."
+            ) from exc
+        normalized = parsed.model_copy(
+            update={
+                "project_cwd": parsed.project_cwd.strip(),
+                "thread_id": parsed.thread_id.strip(),
+                "command": parsed.command.strip(),
+            }
+        )
+        if (
+            not normalized.project_cwd
+            or not normalized.thread_id
+            or not normalized.command
+            or not cls._absolute_project(normalized.project_cwd)
+        ):
+            raise JarvisAgentError(
+                "INVALID_REQUEST", "Projeto, conversa e comando Codex são obrigatórios."
+            )
+        return normalized
 
     @staticmethod
     def _absolute_project(value: str) -> bool:
