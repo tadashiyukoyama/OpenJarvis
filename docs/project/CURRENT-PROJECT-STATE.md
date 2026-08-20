@@ -3,9 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies through integration parents: deployed Core
-`846127cfa76680d11dd686ea052f5b7fdc7c4818` and distribution
-`04d49d40aeab07f3ef98b38a54baa7561b0ef7e9`
+Applies to integrated code SHA: `6d5b964178f28319081b5ff057616a4979a5efba`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication target: private `main` at
@@ -383,7 +381,8 @@ user-operated acceptance is recorded below.
 | Branch | `codex/edge-live-relay-release` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code | merge of production delegation/history SHA `846127c` with distribution SHA `04d49d4`; exact merge SHA recorded after commit |
+| Integrated code SHA | `6d5b964178f28319081b5ff057616a4979a5efba` |
+| Integrated tree | `4d88b344bcc68c3b62cfb8611a2cec6b9d2e6f79` |
 | Deployed Core source/tree | `846127cfa76680d11dd686ea052f5b7fdc7c4818` / `f250910f748f29f119a8bf4c72525015af57eb16` |
 | Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `b03a029`, `14d026f`, `04d49d4`, `846127c` |
 | AceleraChat integration | contract `2026-08-19.2`; dynamic account inbox authority |
@@ -493,11 +492,11 @@ overwritten. The C: rollback was not deleted.
 
 | Gate | Result |
 |---|---|
-| Jarvis Agent Core + Gemini directed release matrix | 173 passed; 37 upstream deprecation warnings |
+| Combined Agent Core + Gemini + Edge matrix | 266 passed; 37 upstream deprecation warnings |
 | Frontend Vitest | 112 passed in 29 files |
 | Frontend TypeScript | no-emit check passed |
 | Vite/PWA production build | passed |
-| Ruff check and format | passed; 842 Python files format-compliant |
+| Ruff check and format | passed; 1,517 Python files format-compliant |
 | Generated OpenAPI | regenerated and release tests passed |
 | PowerShell parser | 25 scripts passed |
 | Source archive audit | 2,737 entries; private/forbidden paths absent |

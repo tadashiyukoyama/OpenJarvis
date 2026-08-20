@@ -124,22 +124,39 @@ The smoke used a synthetic session and did not approve execution:
 No Codex turn, e-mail, WhatsApp message, read marker or other external mutation
 was executed.
 
-## 8. Explicit limitations
+## 8. Integrated repository state after deployment
 
-This release is not full WhatsApp Web parity and is not yet multi-inbox:
+The production deployment was followed by a source-only reconciliation with the
+newer transferred `main`. Merge SHA
+`6d5b964178f28319081b5ff057616a4979a5efba`, tree
+`4d88b344bcc68c3b62cfb8611a2cec6b9d2e6f79`, has parents `b5458c0` and
+`04d49d4`. It preserves this production correction plus the dynamic multi-inbox
+candidate, dedicated image runner and repository-transfer records.
 
-- OpenJarvis selects one authorized inbox per channel; it does not automatically
-  gain access to every active or future AceleraChat inbox.
+The combined source passed 266 Agent Core/Gemini/Edge tests, 112 frontend tests,
+TypeScript, Vite/PWA, Ruff check and Ruff format over 1,517 Python files. The
+merge itself was not deployed and did not execute an external mutation.
+
+## 9. Explicit production limitations
+
+Production image `846127c` is not full WhatsApp Web parity and is not yet
+multi-inbox:
+
+- The deployed OpenJarvis selects one authorized inbox per channel; it does not
+  automatically gain access to every active or future AceleraChat inbox.
 - WhatsApp contextual reply, reaction, provider read receipt and media send are
-  not exposed by the current OpenJarvis catalog.
+  not exposed by the deployed 16-tool catalog.
 - The selected active WhatsApp inbox is ID 20 and selected e-mail inbox is ID 16.
 - A real approved same-task Codex turn remains an operator acceptance test; it
   was deliberately not executed during release smoke.
 
-These items require a separate implementation and controlled acceptance. They
-must not be inferred from “16 of 16 tools available”.
+Integrated source SHA `6d5b964` contains the dynamic 24-tool implementation for
+all authorized inboxes plus contextual reply, reaction, provider read receipt
+and HTTPS media. Those capabilities are source-validated but still require a
+new immutable image, production preflight, backup, deploy and controlled smoke.
+They must not be inferred from the deployed “16 of 16 tools available”.
 
-## 9. Rollback
+## 10. Rollback
 
 Primary rollback target:
 
@@ -161,7 +178,7 @@ Rollback procedure:
 The new operational-event database is additive. The previous image can ignore
 it; deletion is neither required nor authorized for rollback.
 
-## 10. Change declaration
+## 11. Change declaration
 
 - Production deploy: yes, controlled and rollback-capable.
 - Database migration: no destructive migration; additive operational database

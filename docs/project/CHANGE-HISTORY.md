@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Current functional implementation: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Current integrated implementation: `6d5b964178f28319081b5ff057616a4979a5efba`
 Current publication target: private `cesaryukoyama28-eng/openjarvis-codex`, branch `main`
 Exact published documentation HEAD: recorded by the completion output after the one final push.
 Supersedes: none
@@ -11,6 +11,10 @@ Superseded by: none
 
 ## 2026-08-20 - Deterministic delegation and durable operational history
 
+- Reconciled the production delegation/history line with distribution SHA
+  `04d49d4` in merge SHA `6d5b964`, preserving the multi-inbox candidate,
+  dedicated runner and repository-transfer records without overwriting either
+  history.
 - Bound explicit spoken Codex intent to `codex.delegate` and reject conflicting
   model-selected tools before action creation.
 - Preserved exact idempotency after transcript redaction.

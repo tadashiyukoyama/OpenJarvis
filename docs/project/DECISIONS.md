@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies through code SHA `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Applies through integrated code SHA `6d5b964178f28319081b5ff057616a4979a5efba`
 Supersedes: none
 Superseded by: none
 
@@ -589,9 +589,10 @@ Superseded by: none
 - Reason: a global disabled gate prevented even a proposal from reaching the
   user, but unrestricted execution would violate the established authority and
   idempotency model.
-- Consequence: the 2026-08-20 release can create a visible pending proposal;
-  speech or model output cannot approve it. The adapter still selects one inbox
-  per channel and does not yet provide WhatsApp contextual reply, reaction,
-  provider read receipt or media send.
+- Consequence: production image `846127c` can create a visible pending proposal;
+  speech or model output cannot approve it. That deployed image still selects
+  one inbox per channel. Integrated source SHA `6d5b964` also contains the
+  audited multi-inbox, contextual reply, reaction, provider read receipt and
+  media candidate, but those additions require their own deployment gate.
 - Evidence: one denied production proposal, zero Edge jobs and zero real Codex,
   e-mail or WhatsApp mutations during the release smoke.

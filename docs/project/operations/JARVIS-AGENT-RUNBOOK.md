@@ -3,8 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies through integration parents: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
-and `04d49d40aeab07f3ef98b38a54baa7561b0ef7e9`
+Applies to integrated code SHA: `6d5b964178f28319081b5ff057616a4979a5efba`
 Branch: `codex/edge-live-relay-release`
 
 ## 1. Scope and safety
