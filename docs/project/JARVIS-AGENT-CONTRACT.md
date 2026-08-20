@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to integrated code SHA: `6d5b964178f28319081b5ff057616a4979a5efba`
+Applies to integrated code SHA: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
 Branch: `codex/edge-live-relay-release`
 
 ## 1. Purpose
@@ -193,6 +193,7 @@ attachment upload are not in contract and are never announced.
 |---|---|---|
 | `whatsapp.status` | `whatsapp_get_status` | read |
 | `whatsapp.search_contacts` | `whatsapp_search_contacts` | read |
+| `whatsapp.save_contact` | `whatsapp_save_contact` | mutation |
 | `whatsapp.search_chats` | `whatsapp_search_chats` | read |
 | `whatsapp.read_conversation` | `whatsapp_read_conversation` | read |
 | `whatsapp.summarize_conversation` | `whatsapp_summarize_conversation` | read |
@@ -202,6 +203,13 @@ attachment upload are not in contract and are never announced.
 | `whatsapp.mark_read_provider` | `whatsapp_mark_provider_read` | mutation |
 | `whatsapp.send_media` | `whatsapp_send_media` | mutation |
 | `whatsapp.mark_read_internal` | `whatsapp_mark_acelerachat_read` | mutation |
+
+`whatsapp.save_contact` requires an exact E.164 number, accepts an optional name
+and resolves the contact-to-inbox association on the AceleraChat server. It
+reuses an exact existing phone without overwriting its name, requires an exact
+inbox when more than one WhatsApp inbox is operational and never calls a message
+endpoint. Saving still requires visual approval because it persists external
+state.
 
 Text and HTTPS media are sent only to one existing uniquely resolved conversation
 or an exact E.164 number. Name ambiguity never dispatches. Contextual reply,

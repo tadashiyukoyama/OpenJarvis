@@ -3,7 +3,7 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to integrated code SHA: `6d5b964178f28319081b5ff057616a4979a5efba`
+Applies to integrated code SHA: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication target: private `main` at
@@ -11,6 +11,38 @@ Remote publication target: private `main` at
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
+
+## WhatsApp contact persistence production release — 2026-08-20
+
+Functional SHA `33a12d4020ac2b0325359ac5c1c3bd667a8db622`, tree
+`76546bab3bde0e97ed1760be08d055112fbaec8c`, adds the typed
+`whatsapp.save_contact` / `whatsapp_save_contact` mutation. Jarvis can now take
+an exact E.164 number and optional name, show one visual approval and ask
+AceleraChat to save or reuse the contact and resolve its inbox association.
+Saving a contact never sends a WhatsApp message and never gives OpenJarvis
+direct Evolution authority.
+
+The implementation is split across dedicated contact, value-normalization and
+registry modules. Exact existing phone numbers are reused without overwriting
+their names; multiple operational WhatsApp inboxes require an exact inbox; and
+the runtime capability remains derived from `conversations.create`. Spoken
+contact-save intent is distinct from send intent, including when the intent and
+contact details arrive in consecutive committed turns.
+
+Production runs image
+`openjarvis-core:33a12d4020ac2b0325359ac5c1c3bd667a8db622`, image ID
+`sha256:f9fb105dfe40932849b2eff9a56775cad43b7ae6eef0bfac43db2a74b98995d2`.
+Both live SQLite databases passed `quick_check`; the Core is healthy with zero
+restarts and zero error signatures; all 25 catalog tools are available; one
+Edge device is online; and AceleraChat WhatsApp inbox 20 is connected,
+operational and supports `conversations.create`.
+
+The production smoke committed a split spoken request, created action
+`act_dd3e09c008bb44698d0c54f2a8552051`, verified its no-send preview and denied
+it through the visual channel. The synthetic phone existed neither before nor
+after the smoke. No contact, conversation, message, e-mail or Codex turn was
+created. Exact backups, hashes, rollback image and the full evidence are in
+`operations/OPENJARVIS-WHATSAPP-CONTACT-SAVE-2026-08-20.md`.
 
 ## Deterministic delegation and durable history production release — 2026-08-20
 
@@ -381,10 +413,10 @@ user-operated acceptance is recorded below.
 | Branch | `codex/edge-live-relay-release` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code SHA | `6d5b964178f28319081b5ff057616a4979a5efba` |
-| Integrated tree | `4d88b344bcc68c3b62cfb8611a2cec6b9d2e6f79` |
-| Deployed Core source/tree | `846127cfa76680d11dd686ea052f5b7fdc7c4818` / `f250910f748f29f119a8bf4c72525015af57eb16` |
-| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `b03a029`, `14d026f`, `04d49d4`, `846127c` |
+| Integrated code SHA | `33a12d4020ac2b0325359ac5c1c3bd667a8db622` |
+| Integrated tree | `76546bab3bde0e97ed1760be08d055112fbaec8c` |
+| Deployed Core source/tree | `33a12d4020ac2b0325359ac5c1c3bd667a8db622` / `76546bab3bde0e97ed1760be08d055112fbaec8c` |
+| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `b03a029`, `14d026f`, `04d49d4`, `846127c`, `33a12d4` |
 | AceleraChat integration | contract `2026-08-19.2`; dynamic account inbox authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
@@ -405,20 +437,20 @@ Unknown/unrelated items were not deleted or committed.
 | Backend | `127.0.0.1:8127` | HTTP 200 |
 | Codex app-server | `127.0.0.1:8131` | listening; backend catalog/info HTTP 200 |
 | Remote gateway | `127.0.0.1:8140` | offline; not started or modified in this task |
-| VPS Core | `openjarvis.meugerenciador.pro` | healthy on image `846127c`; public TLS passed |
+| VPS Core | `openjarvis.meugerenciador.pro` | healthy on image `33a12d4`; restart count zero |
 | Edge Worker | outbound WSS | one connected device; no inbound local port exposed |
 
-The 2026-08-20 Core image was built directly on the production VPS from the
-verified source archive, without GitHub Actions. Health, public TLS, the served
-frontend bundle, the 16-tool catalog, the connected Edge and both SQLite
-integrity checks passed. The safe delegation smoke was denied before dispatch;
-no Codex turn or provider message was sent.
+The current 2026-08-20 Core image was built directly on the production VPS from
+the verified source archive, without GitHub Actions. Health, the 25-tool
+catalog, the connected Edge, AceleraChat inbox capability and both SQLite
+integrity checks passed. The safe contact-save smoke was denied before provider
+dispatch; no contact, conversation, Codex turn or provider message was created.
 
 ## Jarvis Agent Core
 
 | Capability | State |
 |---|---|
-| Canonical catalog | 24 registered typed tools |
+| Canonical catalog | 25 registered typed tools |
 | Current Live manifest | dynamically filtered by AceleraChat inboxes and Codex state |
 | Session lifecycle | generation-bound, close invalidates late callbacks |
 | Approval | visual-only, one pending action, five-minute expiry, exact hash |
@@ -440,9 +472,9 @@ Current architectural source state at 2026-08-18 07:04 -03:00:
 | Source/provider | State | Jarvis capability |
 |---|---|---|
 | Jarvis local | code available | operational audit read |
-| AceleraChat account inboxes | source validated locally; production gate pending | dynamic current/future inbox discovery, conversation read and approved response |
+| AceleraChat account inboxes | production verified | dynamic current/future inbox discovery, conversation read and approved response |
 | AceleraChat e-mail | live state not configured/verified in this task | search, unread, message/conversation read and approved reply across authorized operational inboxes |
-| AceleraChat WhatsApp | live state not configured/verified in this task | multi-inbox status/search plus approved text, reply, reaction, provider read, HTTPS media and internal read |
+| AceleraChat WhatsApp | inbox 20 connected and operational | multi-inbox status/search, approved contact save, text, reply, reaction, provider read, HTTPS media and internal read |
 | Direct Gmail/IMAP | preserved, inactive | absent from active manifest and Data Sources controls |
 | Direct WhatsApp Baileys | preserved, inactive | absent from active manifest and Data Sources controls |
 | Codex Desktop | preserved existing integration | status, recent history and visually approved delegation when available |

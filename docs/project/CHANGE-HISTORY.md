@@ -3,11 +3,26 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Current integrated implementation: `6d5b964178f28319081b5ff057616a4979a5efba`
+Current integrated implementation: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
 Current publication target: private `cesaryukoyama28-eng/openjarvis-codex`, branch `main`
 Exact published documentation HEAD: recorded by the completion output after the one final push.
 Supersedes: none
 Superseded by: none
+
+## 2026-08-20 - Approved WhatsApp contact persistence
+
+- Added typed tool `whatsapp.save_contact` / `whatsapp_save_contact` for an
+  exact E.164 phone, optional name and exact inbox selection when required.
+- Kept AceleraChat as the exclusive WhatsApp authority and reused its existing
+  idempotent contact and server-owned contact-to-inbox association endpoints.
+- Required the existing visual approval for persistence and guaranteed that
+  contact save never calls a message endpoint or authorizes message send.
+- Added split-turn spoken-intent routing, strict separation from send intent,
+  dynamic inbox capability checks and focused adapter/catalog/policy tests.
+- Deployed image `openjarvis-core:33a12d4020ac2b0325359ac5c1c3bd667a8db622`
+  after validated database/config backups and an isolated image smoke.
+- Denied the production smoke at the visual gate; the synthetic contact count
+  remained zero and no provider mutation, message, e-mail or Codex turn ran.
 
 ## 2026-08-20 - Deterministic delegation and durable operational history
 
