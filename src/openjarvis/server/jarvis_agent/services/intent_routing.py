@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 from openjarvis.server.jarvis_agent.domain.models import ToolDefinition
 
-_CODEX_DESTINATION = re.compile(r"\b(?:codex(?: desktop)?|agente codex)\b")
+_CODEX_TARGET = r"(?:codex(?: desktop)?|cortex(?: desktop)?|agente (?:codex|cortex))"
+_CODEX_DESTINATION = re.compile(rf"\b{_CODEX_TARGET}\b")
 _CODEX_HISTORY = re.compile(
     r"\b(?:historico|mensagens? recentes?|ultima (?:mensagem|resposta)|"
     r"o que (?:ele|o codex) respondeu|resposta do codex)\b"
@@ -26,13 +27,20 @@ _CODEX_DELEGATION = re.compile(
     r"investigue|investigar|analise|analisar|corrija|corrigir|revise|revisar|"
     r"verifique|verificar)\b"
 )
+_CODEX_HANDOFF = re.compile(
+    r"\b(?:mande|mandar|envie|enviar|encaminhe|encaminhar|delegue|delegar|"
+    r"peca|pedir|solicite|solicitar|chame|chamar|acione|acionar|contate|"
+    r"contatar|use|usar|fale|falar|diga|dizer)\b|"
+    r"\bentre\s+em\s+contato\b"
+)
+_CODEX_WORK_ITEM = re.compile(r"\b(?:comandos?|tarefas?|pedidos?)\b")
 _CODEX_DELEGATION_DESTINATION = re.compile(
     r"(?:\b(?:mande|mandar|envie|enviar|encaminhe|encaminhar|delegue|delegar|"
     r"peca|pedir|solicite|solicitar|chame|chamar|acione|acionar|contate|"
     r"contatar|use|usar|fale|falar|diga|dizer|entre\s+em\s+contato)\b"
     r".{0,120}\b(?:com o|ao|para o|pro)\s+"
-    r"(?:codex(?: desktop)?|agente codex)\b)|"
-    r"(?:\b(?:codex(?: desktop)?|agente codex)\b.{0,80}\b(?:faca|fazer|rode|rodar|"
+    rf"{_CODEX_TARGET}\b)|"
+    rf"(?:\b{_CODEX_TARGET}\b.{{0,80}}\b(?:faca|fazer|rode|rodar|"
     r"execute|executar|"
     r"investigue|investigar|analise|analisar|corrija|corrigir|revise|revisar|"
     r"verifique|verificar)\b)"
@@ -88,7 +96,14 @@ def classify_voice_intent(transcript: str) -> IntentExpectation:
 
     text = normalize_intent(transcript)
     if _CODEX_DESTINATION.search(text):
-        if _CODEX_DELEGATION_DESTINATION.search(text):
+        # Voice recognition commonly turns "Codex" into "Cortex" and may
+        # separate the hand-off verb from the canonical destination in a long
+        # committed turn. A named work item plus an explicit hand-off is still
+        # an unambiguous delegation and must not be downgraded by words such as
+        # "funcionando" inside the task description.
+        if _CODEX_DELEGATION_DESTINATION.search(text) or (
+            _CODEX_HANDOFF.search(text) and _CODEX_WORK_ITEM.search(text)
+        ):
             return IntentExpectation("codex", frozenset({"codex.delegate"}), True)
         # Direct status/history questions are reads even when they contain a
         # generic verb such as "verifique". This ordering prevents the exact

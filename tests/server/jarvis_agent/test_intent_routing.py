@@ -147,6 +147,34 @@ def test_explicit_codex_delegation_reaches_visual_approval(codex_core) -> None:
     assert orchestrator.store.get_turn("turn-1")["transcript_text"] is None
 
 
+def test_long_asr_codex_delegation_reaches_visual_approval(codex_core) -> None:
+    orchestrator, adapter = codex_core
+    session = _session(orchestrator)
+    _commit(
+        orchestrator,
+        session,
+        (
+            "Preciso que voce mande um comando pro pro Cortex pra gente poder testar "
+            "se ta funcionando a ponte entre o OpenJarvis e o Codex. O comando e o "
+            "seguinte: teste 03 responda somente OK."
+        ),
+    )
+
+    result = orchestrator.propose(
+        session_id=session["session_id"],
+        generation=session["generation"],
+        function_call_id="asr-delegate",
+        tool_name="codex_delegate_task",
+        arguments={"command": "Teste 03. Responda somente OK."},
+        turn_id="turn-1",
+    )
+
+    assert result["tool_id"] == "codex.delegate"
+    assert result["status"] == "approval_required"
+    assert adapter.calls == []
+    assert orchestrator.store.get_turn("turn-1")["transcript_text"] is None
+
+
 def test_codex_status_question_remains_a_read(codex_core) -> None:
     orchestrator, adapter = codex_core
     session = _session(orchestrator)
@@ -246,6 +274,43 @@ def test_common_spoken_codex_delegation_phrases_are_deterministic(
 
     assert intent.source == "codex"
     assert intent.allowed_tool_ids == frozenset({"codex.delegate"})
+    assert intent.explicit is True
+
+
+@pytest.mark.parametrize(
+    "transcript",
+    [
+        "Mande um comando para o Cortex: teste 03, responda somente OK.",
+        (
+            "Mande uma tarefa para o Cortex. Depois confirme se esta funcionando a "
+            "ponte entre o OpenJarvis e o Codex."
+        ),
+    ],
+)
+def test_codex_asr_alias_and_status_words_preserve_delegation(
+    transcript: str,
+) -> None:
+    intent = classify_voice_intent(transcript)
+
+    assert intent.source == "codex"
+    assert intent.allowed_tool_ids == frozenset({"codex.delegate"})
+    assert intent.explicit is True
+
+
+@pytest.mark.parametrize(
+    "transcript",
+    [
+        "Verifique se o Codex esta funcionando.",
+        "Me mande o status do Codex.",
+    ],
+)
+def test_codex_status_requests_are_not_promoted_to_delegation(
+    transcript: str,
+) -> None:
+    intent = classify_voice_intent(transcript)
+
+    assert intent.source == "codex"
+    assert intent.allowed_tool_ids == frozenset({"codex.status"})
     assert intent.explicit is True
 
 
