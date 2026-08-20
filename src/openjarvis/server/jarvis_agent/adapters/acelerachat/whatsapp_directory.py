@@ -128,6 +128,31 @@ class WhatsAppDirectory:
             conversation.contact.name if conversation.contact else query,
         )
 
+    def resolve_or_create(
+        self,
+        *,
+        phone_number: str,
+        contact_name: str,
+        inbox_id: int,
+        request_id: str,
+    ) -> Conversation:
+        contact_payload: dict[str, Any] = {"phone_number": phone_number}
+        if contact_name.strip():
+            contact_payload["name"] = contact_name.strip()
+        contact = self._contact(
+            self._client.create_contact(
+                contact_payload,
+                idempotency_key=f"jarvis:{request_id}:contact",
+            )
+        )
+        return self._conversation(
+            self._client.create_conversation(
+                inbox_id,
+                contact.id,
+                idempotency_key=f"jarvis:{request_id}:conversation",
+            )
+        )
+
     def conversations_for_query(
         self, query: str, inbox_id: int, limit: int
     ) -> list[Conversation]:
@@ -156,6 +181,16 @@ class WhatsAppDirectory:
             ) from exc
 
     @staticmethod
+    def _contact(value: dict[str, Any]) -> Contact:
+        try:
+            return Contact.model_validate(value)
+        except ValidationError as exc:
+            raise JarvisAgentError(
+                "PROVIDER_RESPONSE_INVALID",
+                "O AceleraChat retornou um contato inválido.",
+            ) from exc
+
+    @staticmethod
     def _conversations(values: list[dict[str, Any]]) -> list[Conversation]:
         try:
             return [Conversation.model_validate(value) for value in values]
@@ -163,4 +198,14 @@ class WhatsAppDirectory:
             raise JarvisAgentError(
                 "PROVIDER_RESPONSE_INVALID",
                 "O AceleraChat retornou conversas inválidas.",
+            ) from exc
+
+    @staticmethod
+    def _conversation(value: dict[str, Any]) -> Conversation:
+        try:
+            return Conversation.model_validate(value)
+        except ValidationError as exc:
+            raise JarvisAgentError(
+                "PROVIDER_RESPONSE_INVALID",
+                "O AceleraChat retornou uma conversa inválida.",
             ) from exc

@@ -30,6 +30,10 @@ def test_vps_container_is_pinned_minimal_and_fail_closed() -> None:
     assert "OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false" in _text(
         "deploy/vps/core.env.example"
     )
+    assert "OPENJARVIS_ACELERACHAT_MUTATIONS_ENABLED:" not in compose
+    assert "OPENJARVIS_WHATSAPP_MUTATIONS_ENABLED:" not in compose
+    assert "OPENJARVIS_EMAIL_MUTATIONS_ENABLED:" not in compose
+    assert "OPENJARVIS_CODEX_DELEGATION_ENABLED:" not in compose
     assert '"127.0.0.1:${OPENJARVIS_CORE_PORT:-8180}:8000"' in compose
     assert "read_only: true" in compose
     assert "cap_drop:" in compose and "- ALL" in compose
@@ -65,6 +69,10 @@ def test_release_examples_contain_placeholders_not_active_secrets() -> None:
         assert "<private" in content
         assert "AQ." not in content
     assert "OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false" in examples[0]
+    assert "OPENJARVIS_ACELERACHAT_MUTATIONS_ENABLED=false" in examples[0]
+    assert "OPENJARVIS_WHATSAPP_MUTATIONS_ENABLED=false" in examples[0]
+    assert "OPENJARVIS_EMAIL_MUTATIONS_ENABLED=false" in examples[0]
+    assert "OPENJARVIS_CODEX_DELEGATION_ENABLED=false" in examples[0]
     assert "ws://127.0.0.1:8131" in examples[1]
     assert "/local-agent" in examples[1]
     assert r"\\.\pipe\openjarvis-agent-mcp" in examples[1]

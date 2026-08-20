@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Applies through integration parents: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+and `04d49d40aeab07f3ef98b38a54baa7561b0ef7e9`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
@@ -25,7 +26,7 @@ documentation; the completion report must record both SHAs and prove that diff.
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-20 | `846127c` |
 | `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `1ecb90a` |
 | `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-20 | `846127c` |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `1ecb90a` |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, dedicated image runner, rotation, revocation, VPS/Windows gates and rollback | 2026-08-20 | `14d026f` |
 | `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md` | CANONICAL EVIDENCE | exact Core/local SHAs, backups, digest, read-only smokes and rollback | 2026-08-19 | `1ecb90a` |
 | `operations/OPENJARVIS-DELEGATION-HISTORY-RELEASE-2026-08-20.md` | CANONICAL EVIDENCE | deterministic delegation, durable history, production image, backups, smoke and rollback | 2026-08-20 | `846127c` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |

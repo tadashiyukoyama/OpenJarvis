@@ -3,7 +3,9 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Applies through integration parents: deployed Core
+`846127cfa76680d11dd686ea052f5b7fdc7c4818` and distribution
+`04d49d40aeab07f3ef98b38a54baa7561b0ef7e9`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication target: private `main` at
@@ -48,11 +50,62 @@ created the correct delegation proposal, returned the same action for an exact
 retry and denied it visually. It created no Edge job and sent no Codex turn,
 e-mail or WhatsApp message.
 
-The release does not claim multi-inbox parity. The adapter currently selects
-one inbox per channel. It also does not expose WhatsApp contextual reply,
-reaction, provider read receipt or media send. Automatic access to every
-current/future inbox and those provider operations remain a separate audited
-implementation phase.
+Production image `846127c` does not claim multi-inbox parity. It selects one
+inbox per channel and does not expose WhatsApp contextual reply, reaction,
+provider read receipt or media send. The integrated source candidate described
+next implements those capabilities but has not been deployed by this release.
+
+## AceleraChat dynamic multi-inbox release candidate — 2026-08-19
+
+Functional SHA `b03a029ea0964ce3cd1e450b2499343de5fc0564` upgrades the
+native AceleraChat adapter to contract `2026-08-19.2`. It discovers every inbox
+authorized by the account-scoped AceleraChat credential, keeps disconnected
+inboxes visible but non-executable, and requires an exact inbox when more than
+one operational inbox can perform an action. New inboxes require no OpenJarvis
+redeploy.
+
+The catalog now has 24 typed tools: one local audit tool, four account-wide
+AceleraChat tools, five e-mail tools, eleven WhatsApp tools and three Codex
+tools. WhatsApp adds exact E.164 targeting, contextual reply, reaction,
+provider read receipt and HTTPS media through AceleraChat. Every mutation still
+requires the existing exact visual approval, idempotency and runtime gate.
+Provider-global Evolution credentials are never copied to OpenJarvis.
+
+Runtime authority is split into fail-closed gates for generic AceleraChat,
+WhatsApp, e-mail and Codex delegation. The global mutation gate remains false
+by default in VPS mode; enabling a reviewed channel does not bypass approval.
+Hard-coded Compose overrides were removed so the private environment is the
+single runtime authority.
+
+Local evidence at this SHA: 243 Python Agent Core/Edge tests passed, 106
+frontend tests passed, 93 focused AceleraChat/catalog tests passed, Ruff check
+and format passed for 124 files, and TypeScript plus the Vite/PWA production
+build passed. No real message, e-mail, Codex delegation, credential rotation,
+VPS mutation, deploy or GitHub change was performed for this candidate.
+
+## Dedicated immutable-image runner - 2026-08-20
+
+Functional SHA `14d026f098d47c4f47add90449b52855257ab8f7` adds the
+repository-scoped image workflow and its versioned runner lifecycle. The host
+`vps10056.panel.icontainer.cloud` now exposes exactly one OpenJarvis runner to
+the private repository: `vps10056-openjarvis`, reported by GitHub as `online`
+and `idle` with labels `openjarvis-ci`, `ubuntu-24.04`, `docker-rootless` and
+`non-production`.
+
+The runner uses Linux account `ghr-openjarvis` (UID 1004),
+`/srv/ci/runners/openjarvis`, `/srv/ci/cache/openjarvis` and the private socket
+`/run/user/1004/docker.sock`. Host verification confirmed runner 2.336.0,
+Docker 29.6.2 in rootless mode, no public API on 2375/2376 and 22 GiB free.
+No host package or SSH credential was created. The existing 3V Tintas, OZ3D
+and AceleraChat runners remained online and idle.
+
+Only `.github/workflows/build-vps-core-image.yml` uses this runner. The manual
+smoke is the first post-publication gate and performs no message, e-mail, Codex
+turn, provider mutation, image deployment or production change. GitHub Actions
+account/billing availability remains an external prerequisite even with a
+self-hosted runner. AceleraChat run `32330694587` on the same owner account was
+rejected before job startup on 2026-08-20 with GitHub's explicit
+`account is locked due to a billing issue` annotation.
 
 ## Codex live Edge relay production-base release — 2026-08-19
 
@@ -216,8 +269,8 @@ Implemented in the current working tree:
 - private, no-retry AceleraChat HTTP client with streaming-bounded responses
   and stable errors;
 - live inbox/capability discovery with explicit selection when ambiguous;
-- five e-mail tools and seven WhatsApp tools matching contract version
-  `2026-08-18.2`;
+- five e-mail tools and eleven WhatsApp tools matching contract version
+  `2026-08-19.2`;
 - opaque references, bounded presentation and untrusted-data marking;
 - visual approval and one-attempt idempotent mutation dispatch;
 - durable `ACCEPTED` external operations;
@@ -276,10 +329,10 @@ Current validation:
   that prerequisite.
 
 Local code/documentation commits, the clean-publication scan and a parentless
-snapshot/tree-identity validation are complete. César originally selected the
-private repository `tadashiyukoyama/openjarvis-codex`, later transferred to
-`cesaryukoyama28-eng/openjarvis-codex`, and authorized publication of only the
-verified snapshot as `main`. No development-history branch, tag, runtime
+snapshot/tree-identity validation are complete. César selected the private
+repository `cesaryukoyama28-eng/openjarvis-codex` and authorized publication
+of only the verified snapshot as `main`. No development-history branch, tag,
+runtime
 state or credential is part of that distribution. The currently running app and
 temporary tunnel were not restarted.
 
@@ -330,10 +383,10 @@ user-operated acceptance is recorded below.
 | Branch | `codex/edge-live-relay-release` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code SHA | `846127cfa76680d11dd686ea052f5b7fdc7c4818` |
-| Integrated tree | `f250910f748f29f119a8bf4c72525015af57eb16` |
-| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `846127c` |
-| AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
+| Integrated code | merge of production delegation/history SHA `846127c` with distribution SHA `04d49d4`; exact merge SHA recorded after commit |
+| Deployed Core source/tree | `846127cfa76680d11dd686ea052f5b7fdc7c4818` / `f250910f748f29f119a8bf4c72525015af57eb16` |
+| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `b03a029`, `14d026f`, `04d49d4`, `846127c` |
+| AceleraChat integration | contract `2026-08-19.2`; dynamic account inbox authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
@@ -366,7 +419,7 @@ no Codex turn or provider message was sent.
 
 | Capability | State |
 |---|---|
-| Canonical catalog | 16 registered typed tools |
+| Canonical catalog | 24 registered typed tools |
 | Current Live manifest | dynamically filtered by AceleraChat inboxes and Codex state |
 | Session lifecycle | generation-bound, close invalidates late callbacks |
 | Approval | visual-only, one pending action, five-minute expiry, exact hash |
@@ -388,8 +441,9 @@ Current architectural source state at 2026-08-18 07:04 -03:00:
 | Source/provider | State | Jarvis capability |
 |---|---|---|
 | Jarvis local | code available | operational audit read |
-| AceleraChat e-mail | live state not configured/verified in this task | search, unread, message/conversation read and approved reply when the selected inbox declares them |
-| AceleraChat WhatsApp | live state not configured/verified in this task | status, contacts, chats, history, summary, approved text and internal read marker when declared |
+| AceleraChat account inboxes | source validated locally; production gate pending | dynamic current/future inbox discovery, conversation read and approved response |
+| AceleraChat e-mail | live state not configured/verified in this task | search, unread, message/conversation read and approved reply across authorized operational inboxes |
+| AceleraChat WhatsApp | live state not configured/verified in this task | multi-inbox status/search plus approved text, reply, reaction, provider read, HTTPS media and internal read |
 | Direct Gmail/IMAP | preserved, inactive | absent from active manifest and Data Sources controls |
 | Direct WhatsApp Baileys | preserved, inactive | absent from active manifest and Data Sources controls |
 | Codex Desktop | preserved existing integration | status, recent history and visually approved delegation when available |

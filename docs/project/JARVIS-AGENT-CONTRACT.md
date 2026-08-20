@@ -147,7 +147,7 @@ The response is a tool result, never a new user utterance.
 
 ## 5. Catalog and capability rules
 
-The implementation registers 16 typed tools. The Live manifest is a filtered
+The implementation registers 24 typed tools. The Live manifest is a filtered
 view generated for current provider state; it is not a fixed frontend list.
 
 ### Jarvis
@@ -155,6 +155,20 @@ view generated for current provider state; it is not a fixed frontend list.
 | Internal ID | Gemini alias | Effect |
 |---|---|---|
 | `jarvis.operational_audit` | `jarvis_read_operational_audit` | read |
+
+### All authorized AceleraChat inboxes
+
+| Internal ID | Alias | Effect |
+|---|---|---|
+| `acelerachat.list_inboxes` | `acelerachat_list_inboxes` | read |
+| `acelerachat.list_conversations` | `acelerachat_list_conversations` | read |
+| `acelerachat.read_conversation` | `acelerachat_read_conversation` | read |
+| `acelerachat.send_message` | `acelerachat_send_message` | mutation |
+
+The inbox list is discovered dynamically from the account-scoped Bearer, so
+future inboxes require no OpenJarvis redeploy. Disconnected inboxes are visible
+for diagnosis but cannot execute. If multiple inboxes could perform an action,
+the caller must select an exact ID or name; the adapter never guesses.
 
 ### AceleraChat e-mail
 
@@ -183,13 +197,18 @@ attachment upload are not in contract and are never announced.
 | `whatsapp.read_conversation` | `whatsapp_read_conversation` | read |
 | `whatsapp.summarize_conversation` | `whatsapp_summarize_conversation` | read |
 | `whatsapp.send_text` | `whatsapp_send_text` | mutation |
+| `whatsapp.reply` | `whatsapp_reply_message` | mutation |
+| `whatsapp.react` | `whatsapp_react_message` | mutation |
+| `whatsapp.mark_read_provider` | `whatsapp_mark_provider_read` | mutation |
+| `whatsapp.send_media` | `whatsapp_send_media` | mutation |
 | `whatsapp.mark_read_internal` | `whatsapp_mark_acelerachat_read` | mutation |
 
-Text is sent only in one existing, uniquely resolved conversation. Name
-ambiguity never dispatches. The read marker affects AceleraChat only and is not
-represented as a provider receipt. Native contextual reply, reaction, media
-upload, polls, groups, profile/privacy administration, broadcast and voice calls
-are absent from this contract and must not be announced.
+Text and HTTPS media are sent only to one existing uniquely resolved conversation
+or an exact E.164 number. Name ambiguity never dispatches. Contextual reply,
+reaction and provider read receipt use Evolution through AceleraChat; the internal
+read marker remains separate. Every mutation requires visual approval. Polls,
+groups, profile/privacy administration, broadcast, calls and direct local-file
+transfer are absent from this contract and must not be announced.
 
 Direct Gmail/IMAP and Baileys implementations remain preserved but dormant.
 They are not active providers, do not enter the Live manifest and are not shown
@@ -294,6 +313,7 @@ invoke another tool.
 | `TOOL_UNAVAILABLE` | registered tool cannot currently execute |
 | `TOOL_INTENT_MISMATCH` | proposed executor conflicts with the committed user intent |
 | `SOURCE_DISCONNECTED` | required live provider is disconnected |
+| `INBOX_SELECTION_REQUIRED` | multiple operational inboxes require an exact selection |
 | `CAPABILITY_NOT_AVAILABLE` | provider lacks the requested capability |
 | `ACTION_PENDING` | session already has one visual decision pending |
 | `APPROVAL_REQUIRED` | missing/nonvisual approval |
@@ -358,7 +378,8 @@ Client telemetry is advisory and separate from canonical server events.
 - No mutation or Codex delegation occurs without a matching visual click.
 - A duplicate function call or button click executes at most once.
 - Direct Gmail/IMAP and Baileys providers never enter the active manifest.
-- AceleraChat advertises only capabilities declared by the selected inbox.
+- AceleraChat advertises the union of live capabilities, then validates the
+  exact selected inbox again before every execution.
 - HTTP acceptance of an external message is never reported as delivery.
 - Duplicate or out-of-order provider events cannot repeat or roll back an action.
 - Codex busy fails immediately without queue or retry.

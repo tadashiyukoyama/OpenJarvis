@@ -17,7 +17,7 @@ the filtered MCP surface consumed by local Codex. It does not authorize a VPS
 redeployment, DNS change, credential change or external mutation beyond the
 controlled evidence explicitly recorded for the active release.
 
-The AceleraChat contract remains unchanged at `2026-08-18.2`. AceleraChat owns
+The AceleraChat contract is `2026-08-19.2`. AceleraChat owns
 e-mail, WhatsApp, contacts and conversations. The Edge Worker owns no provider
 identity and does not create a second Agent Core.
 
@@ -305,7 +305,12 @@ health-checked, bound to VPS loopback and uses one Uvicorn worker because state
 and live registries are process-local around durable SQLite.
 
 External mutations start disabled with
-`OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`. OpenResty remains the sole
+`OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`. Generic AceleraChat inbox
+responses, WhatsApp, e-mail and Codex can then be enabled independently with
+`OPENJARVIS_ACELERACHAT_MUTATIONS_ENABLED`,
+`OPENJARVIS_WHATSAPP_MUTATIONS_ENABLED`, `OPENJARVIS_EMAIL_MUTATIONS_ENABLED` and
+`OPENJARVIS_CODEX_DELEGATION_ENABLED`. A true channel-specific gate never
+bypasses the exact visual approval required by each non-read tool. OpenResty remains the sole
 listener on 80/443 and supplies TLS, Basic Auth for the PWA/API, Edge WebSocket
 upgrade, independent webhook handling, rate limits, CSP and deny-by-default.
 
@@ -318,6 +323,7 @@ Important public failures include:
 - `APPROVAL_REQUIRED`, `APPROVAL_EXPIRED`, `APPROVAL_PAYLOAD_MISMATCH`;
 - `CODEX_BUSY`, `CODEX_THREAD_INVALID`, `CODEX_DISPATCH_TIMEOUT`;
 - `DUPLICATE_ACTION`, `SESSION_CLOSED`, `EXTERNAL_RESULT_UNKNOWN`;
+- `INBOX_SELECTION_REQUIRED` when multiple operational inboxes are ambiguous;
 - local-only `LOCAL_RELAY_PATH_DENIED`, `LOCAL_RELAY_OFFLINE` and
   `AGENT_CORE_UNAVAILABLE`.
 

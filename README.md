@@ -40,7 +40,7 @@ visual approvals, Gmail IMAP, WhatsApp Baileys with QR pairing, and an
 authenticated Cloudflare test tunnel.
 
 The clean private distribution repository is
-[`tadashiyukoyama/openjarvis-codex`](https://github.com/tadashiyukoyama/openjarvis-codex).
+[`cesaryukoyama28-eng/openjarvis-codex`](https://github.com/cesaryukoyama28-eng/openjarvis-codex).
 
 To reproduce that stack on another Windows computer, follow the canonical
 [fresh Windows installation runbook](docs/project/operations/FRESH-WINDOWS-INSTALL.md).

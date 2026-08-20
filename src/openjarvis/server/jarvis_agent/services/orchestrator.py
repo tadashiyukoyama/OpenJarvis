@@ -13,6 +13,7 @@ from openjarvis.server.jarvis_agent.adapters.base import JarvisAdapter
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 from openjarvis.server.jarvis_agent.persistence.sqlite import JarvisAgentStore
 from openjarvis.server.jarvis_agent.registry.catalog import JarvisToolCatalog
+from openjarvis.server.jarvis_agent.registry.execution_gates import ToolExecutionGates
 from openjarvis.server.jarvis_agent.registry.policy import JarvisToolPolicy
 from openjarvis.server.jarvis_agent.services.approvals import ApprovalService
 from openjarvis.server.jarvis_agent.services.context import ContextService
@@ -37,6 +38,7 @@ class JarvisAgentOrchestrator:
         events: EventService | None = None,
         edge: "EdgeService | None" = None,
         mutations_enabled: bool = True,
+        execution_gates: ToolExecutionGates | None = None,
     ) -> None:
         self.store = store
         self.catalog = catalog
@@ -44,7 +46,9 @@ class JarvisAgentOrchestrator:
         self.context = context or ContextService(store)
         self.events = events or EventService(store)
         self.edge = edge
-        self.mutations_enabled = mutations_enabled
+        self.execution_gates = execution_gates or ToolExecutionGates.uniform(
+            mutations_enabled
+        )
         self.policy = JarvisToolPolicy(catalog)
         self.approvals = ApprovalService(store)
         self.execution = ExecutionService(
@@ -80,7 +84,7 @@ class JarvisAgentOrchestrator:
         self.store.expire()
         return self.catalog.snapshot(
             self.execution.provider_capabilities(),
-            mutations_enabled=self.mutations_enabled,
+            execution_gates=self.execution_gates,
         )
 
     def create_session(

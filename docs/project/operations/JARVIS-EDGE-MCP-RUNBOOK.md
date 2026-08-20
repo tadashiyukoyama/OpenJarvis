@@ -3,9 +3,9 @@
 Status: CANONICAL — CONTROLLED RELEASE ACTIVE; MUTATIONS DISABLED
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-19
-Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
-Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `codex/edge-live-relay-release`
+Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
+Branch: `codex/acelerachat-granular-whatsapp`
 Supersedes: none
 Superseded by: none
 
@@ -29,7 +29,7 @@ Required repositories and contracts:
 
 - current release worktree: `D:\dev\workspaces\openjarvis-edge-release`;
 - reusable local Python environment: `D:\dev\workspaces\openjarvis\.venv`;
-- AceleraChat release contract: `2026-08-18.2`;
+- AceleraChat release contract: `2026-08-19.2`;
 - Edge schemas: `contracts/edge/v1`;
 - Agent OpenAPI: `contracts/jarvis-agent.openapi.json`;
 - Core container: `deploy/vps/Dockerfile` and `compose.yaml`;
@@ -164,8 +164,10 @@ The Windows Edge Core-relay token must match the VPS
 `OPENJARVIS_MCP_AUTH_TOKEN`; Codex receives neither value. The local pipe token
 appears only in the two private Windows files.
 
-Before release, confirm selected inbox IDs from the AceleraChat API. Never infer
-them by display name.
+Before release, confirm that the AceleraChat policy is account-scoped and list
+the authorized inboxes through the read-only API. The e-mail and WhatsApp inbox
+IDs are only optional preferred defaults; leave them blank to require explicit
+selection whenever more than one matching inbox is operational.
 
 Keep the bounded replay controls explicit in the private Edge configuration:
 
@@ -278,6 +280,36 @@ Verify through an MCP protocol client:
 
 Do not configure remote `/mcp`; it is outside this release.
 
+## Gate 4A — dedicated immutable-image runner
+
+The private repository uses one repository-scoped runner named
+`vps10056-openjarvis` with the unique label `openjarvis-ci`. The versioned
+installation source is `deploy/ci-runner/`. It creates only the Linux account
+`ghr-openjarvis`, `/srv/ci/runners/openjarvis`,
+`/srv/ci/cache/openjarvis`, a rootless Docker daemon and their systemd units.
+It must not reuse or alter the AceleraChat, 3V Tintas or OZ3D accounts,
+directories, labels, Docker sockets or services.
+
+Run `provision-runner.sh`, obtain a repository-scoped ephemeral registration
+token, pass it only through the process environment to `register-runner.sh`,
+and finish with `verify-runner.sh`. No SSH credential or provider secret is
+stored by these scripts. They install no host package and require the host to
+already be classified as non-production CI infrastructure.
+
+`.github/workflows/build-vps-core-image.yml` is the only OpenJarvis workflow
+assigned to this runner. It accepts trusted `main` pushes or an explicit manual
+dispatch, proves the exact runner name, rootless Docker and at least 8 GiB free,
+then publishes `ghcr.io/cesaryukoyama28-eng/openjarvis-codex:<full-git-sha>` and
+records the digest. Upstream test, desktop, documentation and release workflows
+remain on their existing ephemeral platforms.
+
+An online self-hosted runner still depends on the GitHub Actions control plane.
+An account-level Actions or billing lock leaves the workflow unscheduled and
+must not be bypassed by silently building or deploying an unversioned tree.
+Runner rollback removes only `vps10056-openjarvis` from the private repository,
+stops its generated service and preserves its directories until diagnostics
+are captured.
+
 ## Gate 5 — VPS container preparation
 
 This gate was completed for the active Core release. Re-run every item for any
@@ -289,7 +321,9 @@ future image; the exact current digest and rollback evidence are recorded in
 3. Create `/opt/openjarvis` independently from AceleraChat directories.
 4. Build/tag the image with the full clean OpenJarvis SHA.
 5. Record image digest and scanner result.
-6. Keep `OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`.
+6. Keep `OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false`; enable only the reviewed
+   channel-specific gate. For this release, WhatsApp may be `true` while other
+   mutation classes remain independently controlled.
 7. Start `deploy/vps/compose.yaml` with one Core replica.
 8. Verify container user 10001, read-only root, limits, volume and health.
 9. Do not mount Docker socket, SSH keys, AceleraChat filesystem or host source.

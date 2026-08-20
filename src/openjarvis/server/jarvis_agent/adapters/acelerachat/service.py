@@ -19,6 +19,9 @@ from openjarvis.server.jarvis_agent.adapters.acelerachat.config import (
 from openjarvis.server.jarvis_agent.adapters.acelerachat.email import (
     AceleraChatEmailTools,
 )
+from openjarvis.server.jarvis_agent.adapters.acelerachat.inboxes import (
+    AceleraChatInboxTools,
+)
 from openjarvis.server.jarvis_agent.adapters.acelerachat.references import (
     AceleraChatReferences,
 )
@@ -51,6 +54,7 @@ class AceleraChatAdapter:
             ttl_seconds=capability_ttl_seconds,
         )
         opaque = AceleraChatReferences(references)
+        self._inboxes = AceleraChatInboxTools(self.client, self.capabilities, opaque)
         self._email = AceleraChatEmailTools(self.client, self.capabilities, opaque)
         self._whatsapp = AceleraChatWhatsAppTools(
             self.client, self.capabilities, opaque
@@ -77,7 +81,9 @@ class AceleraChatAdapter:
 
     def _handler(
         self, tool_id: str
-    ) -> AceleraChatEmailTools | AceleraChatWhatsAppTools:
+    ) -> AceleraChatInboxTools | AceleraChatEmailTools | AceleraChatWhatsAppTools:
+        if tool_id.startswith("acelerachat."):
+            return self._inboxes
         if tool_id.startswith("email."):
             return self._email
         if tool_id.startswith("whatsapp."):

@@ -1,0 +1,26 @@
+name: Verify dedicated OpenJarvis runner
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, Linux, X64, openjarvis-ci]
+    timeout-minutes: 5
+    steps:
+      - name: Verify isolated runtime
+        env:
+          EXPECTED_RUNNER_NAME: vps10056-openjarvis
+          MIN_FREE_GIB: '8'
+        run: |
+          set -euo pipefail
+          test "$RUNNER_NAME" = "$EXPECTED_RUNNER_NAME"
+          security_options=$(docker info --format '{{json .SecurityOptions}}')
+          [[ "$security_options" == *rootless* ]]
+          free_gib=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          (( free_gib >= MIN_FREE_GIB ))
+          docker version --format 'docker_client={{.Client.Version}} docker_server={{.Server.Version}}'
+          printf 'runner=%s free_disk_gib=%s rootless=true\n' "$RUNNER_NAME" "$free_gib"

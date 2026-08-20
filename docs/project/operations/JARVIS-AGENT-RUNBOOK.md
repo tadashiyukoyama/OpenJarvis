@@ -3,7 +3,8 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Applies through integration parents: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+and `04d49d40aeab07f3ef98b38a54baa7561b0ef7e9`
 Branch: `codex/edge-live-relay-release`
 
 ## 1. Scope and safety
@@ -257,10 +258,10 @@ When Jarvis reports `Invalid JSON` immediately after starting a voice session:
 
 ## 8. AceleraChat boundary diagnosis
 
-The OpenJarvis side has one native adapter and two logical providers:
+The OpenJarvis side has one native adapter and three logical providers:
 
 ```text
-acelerachat_email | acelerachat_whatsapp
+acelerachat_inboxes | acelerachat_email | acelerachat_whatsapp
 ```
 
 Configuration is private and server-only:
@@ -275,14 +276,17 @@ ACELERACHAT_WHATSAPP_INBOX_ID
 ```
 
 Never print these values. A missing token makes API capabilities unavailable.
-An invalid/non-HTTPS base URL fails closed. If more than one inbox of a channel
-is authorized, configure its ID; the adapter will return
-`inbox_selection_required` instead of guessing.
+An invalid/non-HTTPS base URL fails closed. The two inbox IDs are optional
+preferred defaults, not authorization boundaries. Every current/future inbox
+authorized by the account policy is discovered dynamically. If more than one
+matching inbox is operational and no default or exact ID/name is supplied, the
+adapter returns `INBOX_SELECTION_REQUIRED` instead of guessing.
 
-The current production contract still selects one inbox per channel. Inbox 20
-is the selected connected Evolution WhatsApp inbox and inbox 16 is the selected
-e-mail inbox in the 2026-08-20 release. Do not describe this as automatic access
-to every current or future inbox.
+Production image `846127c` still selects one inbox per channel: connected
+Evolution inbox 20 and e-mail inbox 16. The integrated `2026-08-19.2` source
+candidate discovers all account-authorized current/future inboxes and requires
+an exact selection when ambiguous; it must not be described as production until
+its own image deployment and controlled smoke pass.
 
 Read-only checks:
 
@@ -298,7 +302,13 @@ Provider `401`, `403`, `409`, `429`, invalid response and timeout map to stable
 public errors. Reads may be repeated manually after diagnosis; mutations must
 never be retried automatically when the outcome is unknown.
 
-## 9. E-mail and WhatsApp diagnosis
+## 9. AceleraChat, e-mail and WhatsApp diagnosis
+
+The account-level tools list all authorized inboxes and recent conversations,
+read a referenced conversation and propose an approved text response through
+its actual channel. Disconnected inboxes remain visible for diagnosis but are
+never executable. The AceleraChat Bearer is account-scoped; provider-global
+Evolution credentials are never copied into OpenJarvis.
 
 E-mail is AceleraChat customer-service e-mail, not a generic Gmail mailbox.
 Supported operations are search, unread listing, message/conversation read and
@@ -306,10 +316,13 @@ reply inside an existing conversation. Archive, trash, new composition and new
 attachments are unsupported and must remain absent.
 
 WhatsApp supports provider status, contact/chat search, bounded history,
-summary context, text in an existing conversation and an AceleraChat-internal
-read marker. A name collision must return choices. Native contextual reply,
-reaction, provider read receipt, media upload and administrative operations are
-unsupported in contract version `2026-08-18.2`.
+summary context, text by conversation or exact E.164 number, provider-native
+contextual reply, reaction, provider read receipt, HTTPS media and an
+AceleraChat-internal read marker. A name collision must return choices. New
+contact/conversation associations and every outbound mutation happen only after
+visual approval. Group/profile/status, broadcast, calls, privacy administration
+and direct local-file transfer are unsupported in contract version
+`2026-08-19.2`.
 
 For an accepted e-mail reply or WhatsApp text:
 

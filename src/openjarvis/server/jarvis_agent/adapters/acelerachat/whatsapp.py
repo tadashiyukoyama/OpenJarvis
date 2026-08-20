@@ -24,14 +24,13 @@ from openjarvis.server.jarvis_agent.adapters.acelerachat.references import (
 from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_directory import (
     WhatsAppDirectory,
 )
+from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_write import (
+    MUTATION_TOOL_IDS,
+    AceleraChatWhatsAppMutations,
+)
 from openjarvis.server.jarvis_agent.adapters.base import AdapterContext
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
-from openjarvis.server.jarvis_agent.domain.models import (
-    AdapterResult,
-    ExternalOperation,
-    PreparedToolCall,
-)
-from openjarvis.server.jarvis_agent.domain.states import ActionState
+from openjarvis.server.jarvis_agent.domain.models import AdapterResult, PreparedToolCall
 
 
 class AceleraChatWhatsAppTools:
@@ -45,6 +44,9 @@ class AceleraChatWhatsAppTools:
         self._capabilities = capabilities
         self._references = references
         self._directory = WhatsAppDirectory(client, references)
+        self._mutations = AceleraChatWhatsAppMutations(
+            client, capabilities, references, self._directory
+        )
 
     def prepare(
         self, tool_id: str, arguments: Mapping[str, Any], context: AdapterContext
@@ -55,6 +57,8 @@ class AceleraChatWhatsAppTools:
             "whatsapp.search_chats",
         }:
             return PreparedToolCall(dict(arguments), {"source": "AceleraChat WhatsApp"})
+        if tool_id in MUTATION_TOOL_IDS:
+            return self._mutations.prepare(tool_id, arguments, context)
         reference = str(arguments.get("conversation_ref") or "").strip()
         if reference:
             resolved = self._references.resolve(
@@ -65,14 +69,6 @@ class AceleraChatWhatsAppTools:
             )
             conversation_id = resolved["conversation_id"] or resolved["resource_id"]
             inbox_id = int(resolved["inbox_id"])
-            target = "conversa selecionada"
-        elif tool_id == "whatsapp.send_text":
-            snapshot = self._require_channel()
-            conversation, target = self._directory.resolve_unique(
-                str(arguments.get("contact_name") or ""), snapshot.inbox.id
-            )
-            conversation_id = conversation.id
-            inbox_id = conversation.inbox.id
         else:
             raise JarvisAgentError(
                 "INVALID_REQUEST", "Selecione uma conversa WhatsApp válida."
@@ -81,31 +77,9 @@ class AceleraChatWhatsAppTools:
             "conversation_id": conversation_id,
             "inbox_id": inbox_id,
         }
-        if tool_id == "whatsapp.send_text":
-            payload["text"] = str(arguments["text"]).strip()
-            return PreparedToolCall(
-                payload,
-                {
-                    "provider": "AceleraChat",
-                    "channel": "WhatsApp",
-                    "target": target,
-                    "message": payload["text"],
-                    "risk": "envio externo assíncrono",
-                },
-            )
         if tool_id in {"whatsapp.read_conversation", "whatsapp.summarize_conversation"}:
             payload["limit"] = int(arguments.get("limit", 50))
             return PreparedToolCall(payload, {"source": "AceleraChat WhatsApp"})
-        if tool_id == "whatsapp.mark_read_internal":
-            return PreparedToolCall(
-                payload,
-                {
-                    "provider": "AceleraChat",
-                    "channel": "WhatsApp",
-                    "target": target,
-                    "risk": "marca apenas a caixa do AceleraChat como lida",
-                },
-            )
         raise JarvisAgentError("TOOL_UNAVAILABLE", "Ferramenta WhatsApp indisponível.")
 
     def execute(
@@ -119,27 +93,34 @@ class AceleraChatWhatsAppTools:
             return self._search_chats(arguments, context)
         if tool_id in {"whatsapp.read_conversation", "whatsapp.summarize_conversation"}:
             return self._read(arguments, context)
-        if tool_id == "whatsapp.send_text":
-            return self._send(arguments, context)
-        if tool_id == "whatsapp.mark_read_internal":
-            return self._mark_read(arguments, context)
+        if tool_id in MUTATION_TOOL_IDS:
+            return self._mutations.execute(tool_id, arguments, context)
         raise JarvisAgentError("TOOL_UNAVAILABLE", "Ferramenta WhatsApp indisponível.")
 
     def _status(self) -> AdapterResult:
         snapshot = self._capabilities.channel("acelerachat_whatsapp", force=True)
-        inbox = snapshot.inbox
+        inboxes = [
+            {
+                "id": inbox.id,
+                "name": inbox.name,
+                "status": inbox.connection.state,
+                "connected": inbox.connection.connected,
+                "operational": bool(
+                    inbox.connection.operational or inbox.connection.connected
+                ),
+                "provider": inbox.connection.provider,
+            }
+            for inbox in snapshot.inboxes
+        ]
         return AdapterResult(
             "completed",
-            f"WhatsApp AceleraChat: {snapshot.status}.",
+            f"{len(inboxes)} caixa(s) WhatsApp autorizada(s) no AceleraChat.",
             {
                 "status": snapshot.status,
                 "connected": snapshot.connected,
-                "operational": bool(
-                    inbox
-                    and (inbox.connection.operational or inbox.connection.connected)
-                ),
-                "provider": inbox.connection.provider if inbox else None,
+                "operational": snapshot.operational,
                 "reason": snapshot.reason,
+                "inboxes": inboxes,
             },
         )
 
@@ -148,7 +129,10 @@ class AceleraChatWhatsAppTools:
     ) -> AdapterResult:
         query = str(arguments["query"]).strip()
         limit = min(int(arguments.get("limit", 10)), 25)
-        snapshot = self._require_channel()
+        snapshot = self._require_channel(
+            expected=self._optional_inbox_id(arguments),
+            inbox_name=str(arguments.get("inbox_name") or ""),
+        )
         return self._directory.search_contacts(
             query=query,
             limit=limit,
@@ -161,7 +145,10 @@ class AceleraChatWhatsAppTools:
     ) -> AdapterResult:
         query = str(arguments.get("query") or "").strip()
         limit = min(int(arguments.get("limit", 10)), 25)
-        snapshot = self._require_channel()
+        snapshot = self._require_channel(
+            expected=self._optional_inbox_id(arguments),
+            inbox_name=str(arguments.get("inbox_name") or ""),
+        )
         return self._directory.search_chats(
             query=query,
             limit=limit,
@@ -198,78 +185,19 @@ class AceleraChatWhatsAppTools:
             refs,
         )
 
-    def _send(
-        self, arguments: Mapping[str, Any], context: AdapterContext
-    ) -> AdapterResult:
-        snapshot = self._require_channel(
-            expected=int(arguments["inbox_id"]), force=True
-        )
-        response = self._client.create_message(
-            int(arguments["conversation_id"]),
-            {"content": str(arguments["text"]), "private": False},
-            idempotency_key=f"jarvis:{context.request_id}",
-        )
-        result = response.get("result")
-        data = response.get("data")
-        if not isinstance(result, Mapping) or not isinstance(data, Mapping):
-            raise JarvisAgentError(
-                "PROVIDER_RESPONSE_INVALID", "O aceite do AceleraChat é inválido."
-            )
-        if result.get("state") != "accepted":
-            raise JarvisAgentError(
-                "PROVIDER_UNAVAILABLE", "O AceleraChat recusou a mensagem."
-            )
-        try:
-            message = Message.model_validate(data)
-        except ValidationError as exc:
-            raise JarvisAgentError(
-                "PROVIDER_RESPONSE_INVALID",
-                "O AceleraChat retornou uma mensagem inválida.",
-            ) from exc
-        message_ref = self._references.create(
-            partition_key=context.partition_key,
-            source="whatsapp",
-            kind="message",
-            resource_id=message.id,
-            inbox_id=snapshot.inbox.id,
-            conversation_id=message.conversation_id,
-        )
-        return AdapterResult(
-            "accepted",
-            "Mensagem aceita pelo AceleraChat; entrega aguardando confirmação.",
-            {"message_ref": message_ref, "delivery": "pending"},
-            {"message": message_ref},
-            ActionState.ACCEPTED,
-            ExternalOperation("acelerachat", "Message", str(message.id)),
-        )
-
-    def _mark_read(
-        self, arguments: Mapping[str, Any], context: AdapterContext
-    ) -> AdapterResult:
-        self._require_channel(expected=int(arguments["inbox_id"]), force=True)
-        response = self._client.mark_conversation_read(
-            int(arguments["conversation_id"]),
-            idempotency_key=f"jarvis:{context.request_id}",
-        )
-        data = response.get("data")
-        if (
-            not isinstance(data, Mapping)
-            or data.get("provider_receipt_sent") is not False
-        ):
-            raise JarvisAgentError(
-                "PROVIDER_RESPONSE_INVALID",
-                "O marcador de leitura retornou contrato inválido.",
-            )
-        return AdapterResult(
-            "completed",
-            "Conversa marcada como lida dentro do AceleraChat.",
-            {"provider_receipt_sent": False},
-        )
-
     def _require_channel(
-        self, *, expected: int | None = None, force: bool = False
+        self,
+        *,
+        expected: int | None = None,
+        inbox_name: str = "",
+        force: bool = False,
     ) -> ChannelSnapshot:
-        snapshot = self._capabilities.channel("acelerachat_whatsapp", force=force)
+        snapshot = self._capabilities.select(
+            "acelerachat_whatsapp",
+            inbox_id=expected,
+            inbox_name=inbox_name,
+            force=force,
+        )
         inbox = snapshot.inbox
         if inbox is None or not (
             inbox.connection.operational or inbox.connection.connected
@@ -277,9 +205,12 @@ class AceleraChatWhatsAppTools:
             raise JarvisAgentError(
                 "SOURCE_DISCONNECTED", "O WhatsApp do AceleraChat está indisponível."
             )
-        if expected is not None and inbox.id != expected:
-            raise JarvisAgentError("MANIFEST_STALE", "A caixa WhatsApp ativa mudou.")
         return snapshot
+
+    @staticmethod
+    def _optional_inbox_id(arguments: Mapping[str, Any]) -> int | None:
+        value = arguments.get("inbox_id")
+        return int(value) if value is not None else None
 
     @staticmethod
     def _messages(values: list[dict[str, Any]]) -> list[Message]:

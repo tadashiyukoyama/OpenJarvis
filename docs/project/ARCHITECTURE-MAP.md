@@ -6,7 +6,7 @@ Last verified: 2026-08-19
 Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
 Branch: `codex/edge-codex-live-relay`
-Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
+Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 Supersedes: none
 Superseded by: none
 
