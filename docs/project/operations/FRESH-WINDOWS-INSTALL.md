@@ -5,7 +5,7 @@ Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-18 06:34:36 -03:00
 Working tree base: `ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`
 Preparation branch: `codex/acelerachat-native-adapter`
-Remote repository: `https://github.com/tadashiyukoyama/openjarvis-codex` (private)
+Remote repository: `https://github.com/cesaryukoyama28-eng/openjarvis-codex` (private)
 
 ## 1. Objetivo e definição de reprodução
 
@@ -140,7 +140,7 @@ executado; sua instalação oficial e o ID WinGet estão documentados pela
 
 O repositório canônico desta edição é privado:
 
-`https://github.com/tadashiyukoyama/openjarvis-codex`
+`https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 
 O agente instalador deve autenticar o Git com uma conta autorizada por César. Não
 substitua silenciosamente essa origem pelo repositório upstream: ele não contém a
@@ -165,7 +165,7 @@ git -C $Target worktree list --porcelain
 Se a pasta não existir, clone a origem oficial:
 
 ```powershell
-git clone https://github.com/tadashiyukoyama/openjarvis-codex.git D:\dev\workspaces\openjarvis
+git clone https://github.com/cesaryukoyama28-eng/openjarvis-codex.git D:\dev\workspaces\openjarvis
 Set-Location D:\dev\workspaces\openjarvis
 git rev-parse --show-toplevel
 git branch --show-current
@@ -532,7 +532,7 @@ segredo e alterações rastreadas não commitadas. Arquivos não rastreados são
 inventariados e nunca entram no push.
 
 O repositório privado de destino é
-`https://github.com/tadashiyukoyama/openjarvis-codex`. Sua publicação inicial usa
+`https://github.com/cesaryukoyama28-eng/openjarvis-codex`. Sua publicação inicial usa
 um commit-raiz com a mesma árvore verificada e sem pais. Para reconstruir esse
 snapshot localmente durante manutenção autorizada:
 

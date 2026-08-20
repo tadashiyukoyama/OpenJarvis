@@ -35,8 +35,14 @@ security_options="$(run_as_runner env "DOCKER_HOST=${rootless_socket}" docker in
 
 run_as_runner systemctl --user is-enabled --quiet docker.service || fail docker_service_not_enabled
 run_as_runner systemctl --user is-active --quiet docker.service || fail docker_service_not_active
-systemctl is-enabled --quiet "${CI_RUNNER_SERVICE}" || fail runner_service_not_enabled
-systemctl is-active --quiet "${CI_RUNNER_SERVICE}" || fail runner_service_not_active
+runner_service="${CI_RUNNER_SERVICE}"
+if [[ ! -f "/etc/systemd/system/${runner_service}" ]] \
+  && [[ -n "${CI_RUNNER_LEGACY_SERVICE:-}" ]] \
+  && [[ -f "/etc/systemd/system/${CI_RUNNER_LEGACY_SERVICE}" ]]; then
+  runner_service="${CI_RUNNER_LEGACY_SERVICE}"
+fi
+systemctl is-enabled --quiet "${runner_service}" || fail runner_service_not_enabled
+systemctl is-active --quiet "${runner_service}" || fail runner_service_not_active
 
 runner_version="$(run_as_runner "${CI_RUNNER_DIR}/bin/Runner.Listener" --version)"
 [[ "${runner_version}" == "${GITHUB_RUNNER_VERSION}" ]] || fail unexpected_runner_version
@@ -55,6 +61,6 @@ printf 'verification_status=ok\n'
 printf 'classification=non-production\n'
 printf 'rootless_docker=ok\n'
 printf 'runner_version=%s\n' "${runner_version}"
-printf 'runner_service=active\n'
+printf 'runner_service=%s\n' "${runner_service}"
 printf 'free_disk_gib=%s\n' "${free_gib}"
 printf 'public_docker_api=closed\n'

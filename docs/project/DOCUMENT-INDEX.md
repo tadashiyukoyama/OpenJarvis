@@ -6,7 +6,7 @@ Last verified: 2026-08-20
 Applies to code SHA: `14d026f098d47c4f47add90449b52855257ab8f7`
 Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
 Branch: `codex/acelerachat-granular-whatsapp`
-Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
+Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 Supersedes: none
 Superseded by: none
 

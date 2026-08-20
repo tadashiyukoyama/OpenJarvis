@@ -91,15 +91,28 @@ EOF
 chown root:root "${CI_ENV_FILE}"
 chmod 0644 "${CI_ENV_FILE}"
 
-if [[ ! -f "/etc/systemd/system/${CI_RUNNER_SERVICE}" ]]; then
+resolve_runner_service() {
+  if [[ -f "/etc/systemd/system/${CI_RUNNER_SERVICE}" ]]; then
+    printf '%s\n' "${CI_RUNNER_SERVICE}"
+  elif [[ -n "${CI_RUNNER_LEGACY_SERVICE:-}" ]] \
+    && [[ -f "/etc/systemd/system/${CI_RUNNER_LEGACY_SERVICE}" ]]; then
+    printf '%s\n' "${CI_RUNNER_LEGACY_SERVICE}"
+  else
+    printf '%s\n' "${CI_RUNNER_SERVICE}"
+  fi
+}
+
+runner_service="$(resolve_runner_service)"
+if [[ ! -f "/etc/systemd/system/${runner_service}" ]]; then
   (
     cd "${CI_RUNNER_DIR}"
     ./svc.sh install "${CI_RUNNER_USER}"
   )
+  runner_service="$(resolve_runner_service)"
 fi
-[[ -f "/etc/systemd/system/${CI_RUNNER_SERVICE}" ]] || fail unexpected_service_name
+[[ -f "/etc/systemd/system/${runner_service}" ]] || fail unexpected_service_name
 
-override_dir="/etc/systemd/system/${CI_RUNNER_SERVICE}.d"
+override_dir="/etc/systemd/system/${runner_service}.d"
 install -d -o root -g root -m 0755 "${override_dir}"
 cat > "${override_dir}/50-ci-hardening.conf" <<EOF
 [Service]
@@ -136,10 +149,10 @@ chown root:root "${override_dir}/50-ci-hardening.conf"
 chmod 0644 "${override_dir}/50-ci-hardening.conf"
 
 systemctl daemon-reload
-systemctl enable --now "${CI_RUNNER_SERVICE}"
-systemctl is-active --quiet "${CI_RUNNER_SERVICE}" || fail runner_service_inactive
+systemctl enable --now "${runner_service}"
+systemctl is-active --quiet "${runner_service}" || fail runner_service_inactive
 
 printf 'registration_status=ok\n'
 printf 'runner_name=%s\n' "${CI_RUNNER_NAME}"
 printf 'runner_version=%s\n' "${installed_version}"
-printf 'service=%s\n' "${CI_RUNNER_SERVICE}"
+printf 'service=%s\n' "${runner_service}"

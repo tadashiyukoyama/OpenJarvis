@@ -299,7 +299,7 @@ already be classified as non-production CI infrastructure.
 `.github/workflows/build-vps-core-image.yml` is the only OpenJarvis workflow
 assigned to this runner. It accepts trusted `main` pushes or an explicit manual
 dispatch, proves the exact runner name, rootless Docker and at least 8 GiB free,
-then publishes `ghcr.io/tadashiyukoyama/openjarvis-codex:<full-git-sha>` and
+then publishes `ghcr.io/cesaryukoyama28-eng/openjarvis-codex:<full-git-sha>` and
 records the digest. Upstream test, desktop, documentation and release workflows
 remain on their existing ephemeral platforms.
 

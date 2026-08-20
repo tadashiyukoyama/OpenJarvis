@@ -7,7 +7,7 @@ Applies to code SHA: `14d026f098d47c4f47add90449b52855257ab8f7`
 Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
 Branch: `codex/acelerachat-granular-whatsapp`
 Remote publication target: private `main` at
-`https://github.com/tadashiyukoyama/openjarvis-codex`; the completion report
+`https://github.com/cesaryukoyama28-eng/openjarvis-codex`; the completion report
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
@@ -285,7 +285,7 @@ Current validation:
 
 Local code/documentation commits, the clean-publication scan and a parentless
 snapshot/tree-identity validation are complete. César selected the private
-repository `tadashiyukoyama/openjarvis-codex` and authorized publication of only
+repository `cesaryukoyama28-eng/openjarvis-codex` and authorized publication of only
 the verified snapshot as `main`. No development-history branch, tag, runtime
 state or credential is part of that distribution. The currently running app and
 temporary tunnel were not restarted.
@@ -344,7 +344,7 @@ user-operated acceptance is recorded below.
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
-| Distribution remote | `https://github.com/tadashiyukoyama/openjarvis-codex.git` (private) |
+| Distribution remote | `https://github.com/cesaryukoyama28-eng/openjarvis-codex.git` (private) |
 | Push/PR | initial release plus one gate-driven local MCP hotfix, each in one fast-forward push; no PR |
 | Current implementation workspace | isolated `openjarvis-edge-release` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
