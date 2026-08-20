@@ -17,6 +17,75 @@ from openjarvis.integrations.codex_protocol import (
 )
 
 
+def test_start_reconnects_after_shared_app_server_closes(monkeypatch, tmp_path) -> None:
+    clients = []
+    runtimes = []
+
+    class Client:
+        def __init__(self, config) -> None:
+            self.config = config
+            self.is_ready = False
+            self.closed = False
+            clients.append(self)
+
+        def set_server_request_handler(self, handler) -> None:
+            self.handler = handler
+
+        def start(self) -> None:
+            self.is_ready = True
+
+        def close(self) -> None:
+            self.is_ready = False
+            self.closed = True
+
+    class Runtime:
+        def __init__(self, client) -> None:
+            self.client = client
+            self.closed = False
+            runtimes.append(self)
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr("openjarvis.edge_worker.executor.CodexAppServerClient", Client)
+    monkeypatch.setattr(
+        "openjarvis.edge_worker.executor.CodexConversationRuntime", Runtime
+    )
+    monkeypatch.setattr(
+        "openjarvis.edge_worker.executor.SQLiteConversationBindingStore",
+        lambda path: path,
+    )
+    monkeypatch.setattr(
+        "openjarvis.edge_worker.executor.CodexAgent",
+        lambda *args, **kwargs: SimpleNamespace(args=args, kwargs=kwargs),
+    )
+    config = SimpleNamespace(
+        app_server_url="ws://127.0.0.1:8131",
+        binding_path=tmp_path / "bindings.sqlite3",
+        job_timeout_seconds=30.0,
+        project_roots=(str(tmp_path),),
+    )
+    executor = CodexEdgeExecutor(
+        config,
+        SimpleNamespace(handle=lambda request: request),
+    )
+
+    executor.start()
+    first_client = clients[0]
+    first_runtime = runtimes[0]
+    executor.start()
+    assert len(clients) == 1
+
+    first_client.is_ready = False
+    executor.start()
+
+    assert len(clients) == 2
+    assert first_client.closed is True
+    assert first_runtime.closed is True
+    assert clients[1].is_ready is True
+    executor.close()
+
+
 @pytest.mark.parametrize(
     ("agent_error", "public_error"),
     (

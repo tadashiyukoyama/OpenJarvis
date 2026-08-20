@@ -131,7 +131,9 @@ class CodexEdgeExecutor:
     def start(self) -> None:
         with self._lock:
             if self._client is not None:
-                return
+                if self._client.is_ready:
+                    return
+                self.close()
             client = CodexAppServerClient(
                 CodexAppServerConfig(
                     websocket_url=self._config.app_server_url,
