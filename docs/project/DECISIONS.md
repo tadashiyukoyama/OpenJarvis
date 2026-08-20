@@ -2,8 +2,8 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 13:20:52 -03:00
-Applies through local Edge/MCP implementation on `codex/vps-edge-mcp`, based on `4b2b16ab6ffce6f100180cfa40780f8296690515`
+Last verified: 2026-08-20
+Applies through code SHA `846127cfa76680d11dd686ea052f5b7fdc7c4818`
 Supersedes: none
 Superseded by: none
 
@@ -549,3 +549,49 @@ Superseded by: none
 - Evidence: code SHA `28744c74ff30278a658e0606f378c1c15f5f93ad` and
   full-spool, send-failure, restart, admission and additive-schema tests on
   2026-08-19.
+
+## OJ-JARVIS-D42 - Committed intent constrains the executor
+
+- Decision: explicit natural-language intent to contact, command or ask Codex
+  requires `codex.delegate`. The backend compares that intent with Gemini's
+  proposed tool before action creation and rejects a conflict as
+  `TOOL_INTENT_MISMATCH`.
+- Reason: model prompting alone allowed a read-only status/history call to be
+  narrated as if a command had been delegated, creating false success without
+  an approval or Codex turn.
+- Consequence: the model still understands language and supplies typed
+  arguments, but it cannot choose a contradictory executor. Rejection creates
+  no action, approval, job or provider operation.
+- Evidence: functional SHA `846127cfa76680d11dd686ea052f5b7fdc7c4818`,
+  deterministic intent matrix and safe production mismatch smoke.
+
+## OJ-JARVIS-D43 - Operational history and executable catalog are durable truth
+
+- Decision: the Jarvis panel reconciles canonical Agent Core history with a
+  separate durable operational event store, scoped by project and selected
+  Codex task. It renders the executable catalog and blocked reasons returned by
+  the backend instead of inferring tools from the Gemini manifest.
+- Reason: a voice-session timeline was ephemeral and the old panel behavior was
+  lost after reconnect; a static manifest also could not prove that a tool was
+  currently callable.
+- Consequence: reconnecting the browser or voice session does not erase safe
+  command/approval history. History replay is presentation-only and cannot
+  dispatch work. Raw transcripts, secrets and provider message bodies remain
+  outside the operational store.
+- Evidence: durable history API/UI tests, catalog rendering tests and production
+  `operational-events.sqlite3` integrity check on 2026-08-20.
+
+## OJ-JARVIS-D44 - Enabling the mutation gate does not bypass visual approval
+
+- Decision: production may enable the private external-mutation feature gate
+  only after health, catalog and read-only checks. Every e-mail/WhatsApp
+  mutation and Codex delegation still requires its own exact visual approval.
+- Reason: a global disabled gate prevented even a proposal from reaching the
+  user, but unrestricted execution would violate the established authority and
+  idempotency model.
+- Consequence: the 2026-08-20 release can create a visible pending proposal;
+  speech or model output cannot approve it. The adapter still selects one inbox
+  per channel and does not yet provide WhatsApp contextual reply, reaction,
+  provider read receipt or media send.
+- Evidence: one denied production proposal, zero Edge jobs and zero real Codex,
+  e-mail or WhatsApp mutations during the release smoke.

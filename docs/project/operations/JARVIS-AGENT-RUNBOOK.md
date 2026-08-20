@@ -2,9 +2,9 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 06:34:36 -03:00
-Working tree base: `ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`
-Branch: `codex/acelerachat-native-adapter`
+Last verified: 2026-08-20
+Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Branch: `codex/edge-live-relay-release`
 
 ## 1. Scope and safety
 
@@ -158,6 +158,9 @@ Canonical sequence:
 
 When an approval does not appear:
 
+- inspect the committed turn and any `tool_call_rejected` event; an explicit
+  Codex request paired with a status/history/provider proposal must fail as
+  `TOOL_INTENT_MISMATCH` and create no action;
 - confirm the tool is a `MUTATION` or `DELEGATION` in `/catalog`;
 - confirm no other action is already pending in that session;
 - inspect safe SSE event types and IDs, not payload contents;
@@ -187,6 +190,17 @@ Use status before history. Status is bounded and history-free.
 
 Never issue another delegation to diagnose whether the first delegation ran.
 Inspect the original `request_id`, `action_id`, `job_id` and selected thread.
+
+For durable command history, query the canonical Agent Core history route with
+the same project and selected task used by the UI:
+
+```text
+GET /v1/jarvis/agent/events/history?project_key=<project>&codex_thread_id=<task>&limit=100
+```
+
+This is a read-only reconciliation path. It must not create an action, approval
+or Edge job. The panel combines it with the durable operational event store and
+live events by canonical identity.
 
 ### Selected-conversation synchronization
 
@@ -264,6 +278,11 @@ Never print these values. A missing token makes API capabilities unavailable.
 An invalid/non-HTTPS base URL fails closed. If more than one inbox of a channel
 is authorized, configure its ID; the adapter will return
 `inbox_selection_required` instead of guessing.
+
+The current production contract still selects one inbox per channel. Inbox 20
+is the selected connected Evolution WhatsApp inbox and inbox 16 is the selected
+e-mail inbox in the 2026-08-20 release. Do not describe this as automatic access
+to every current or future inbox.
 
 Read-only checks:
 

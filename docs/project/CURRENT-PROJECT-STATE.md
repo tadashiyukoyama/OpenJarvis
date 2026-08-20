@@ -2,15 +2,57 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
+Last verified: 2026-08-20
+Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Remote publication target: private `main` at
-`https://github.com/tadashiyukoyama/openjarvis-codex`; the completion report
+`https://github.com/cesaryukoyama28-eng/openjarvis-codex`; the completion report
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
+
+## Deterministic delegation and durable history production release — 2026-08-20
+
+Functional SHA `846127cfa76680d11dd686ea052f5b7fdc7c4818` restores
+the operational behavior expected from the earlier Jarvis without restoring its
+parallel Gmail/Baileys authority. AceleraChat remains the only VPS e-mail and
+WhatsApp boundary, while the selected local Codex task remains the only Codex
+execution destination.
+
+The release adds five coupled guarantees:
+
+- a committed utterance that explicitly asks Jarvis to contact, command or ask
+  Codex can produce only `codex.delegate`; a conflicting model-selected tool is
+  rejected as `TOOL_INTENT_MISMATCH` before an action or job exists;
+- every Codex delegation still stops at the exact visual approval gate; speech,
+  model text and read-only status/history results cannot approve it;
+- an exact retry after transcript redaction resolves the existing action by
+  session, function call and payload hash instead of executing a second time;
+- operational events are durable in `operational-events.sqlite3` and the UI
+  reconciles them with canonical Agent Core history by project and Codex task;
+- the panel displays the real executable catalog, blocked reasons and the
+  availability of `codex.delegate`, rather than inferring capability from a
+  static manifest.
+
+The production Core image is
+`openjarvis-core:846127cfa76680d11dd686ea052f5b7fdc7c4818`, image ID
+`sha256:8ba92fb7d8ddeffe2f05cbc9640981bce5d22a7f42d829014bc89f2cfc8c7a50`.
+Post-deploy health, TLS, both SQLite integrity checks, persistent history,
+catalog and Edge connectivity passed. The catalog exposed 16 of 16 tools, the
+single Edge Worker was connected, e-mail inbox 16 remained selected and the
+active connected Evolution inbox was corrected from stale ID 19 to inbox 20.
+
+The safe production smoke intentionally rejected a wrong status-tool proposal,
+created the correct delegation proposal, returned the same action for an exact
+retry and denied it visually. It created no Edge job and sent no Codex turn,
+e-mail or WhatsApp message.
+
+The release does not claim multi-inbox parity. The adapter currently selects
+one inbox per channel. It also does not expose WhatsApp contextual reply,
+reaction, provider read receipt or media send. Automatic access to every
+current/future inbox and those provider operations remain a separate audited
+implementation phase.
 
 ## Codex live Edge relay production-base release — 2026-08-19
 
@@ -129,12 +171,14 @@ earlier direct-provider acceptance below remains historical evidence; it is not
 evidence of a live AceleraChat deployment.
 
 The hybrid VPS/Windows boundary is active under controlled release. The VPS Core
-runs release `2ed693755e1cf0a21a0cb7cb704fbdd3c4294415`; the Windows Edge Worker
-starts through its existing limited scheduled task; Codex exposes one shared
-loopback listener on `127.0.0.1:8131`; and the local MCP runtime is at hotfix
-`1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`. External mutations remain disabled.
-The real delegated Codex turn and any real e-mail/WhatsApp send remain separate
-explicit authorization gates.
+runs image `openjarvis-core:846127cfa76680d11dd686ea052f5b7fdc7c4818`; the
+Windows Edge Worker starts through its existing limited scheduled task; Codex
+exposes one shared loopback listener on `127.0.0.1:8131`; and the local MCP
+runtime remains compatible with hotfix
+`1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`. The private production mutation
+gate is enabled, but policy still requires an exact visual approval for every
+mutation and delegation. The release smoke denied the proposal and performed
+no real external action.
 
 ## Edge Worker and MCP preparation — 2026-08-18 13:09 -03:00
 
@@ -232,9 +276,10 @@ Current validation:
   that prerequisite.
 
 Local code/documentation commits, the clean-publication scan and a parentless
-snapshot/tree-identity validation are complete. César selected the private
-repository `tadashiyukoyama/openjarvis-codex` and authorized publication of only
-the verified snapshot as `main`. No development-history branch, tag, runtime
+snapshot/tree-identity validation are complete. César originally selected the
+private repository `tadashiyukoyama/openjarvis-codex`, later transferred to
+`cesaryukoyama28-eng/openjarvis-codex`, and authorized publication of only the
+verified snapshot as `main`. No development-history branch, tag, runtime
 state or credential is part of that distribution. The currently running app and
 temporary tunnel were not restarted.
 
@@ -281,20 +326,20 @@ user-operated acceptance is recorded below.
 
 | Field | Current value |
 |---|---|
-| Current release worktree | `D:\dev\workspaces\openjarvis-edge-release` |
+| Current release worktree | `D:\dev\workspaces\openjarvis` |
 | Branch | `codex/edge-live-relay-release` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code SHA | `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0` |
-| Integrated tree | `b1196b73f2f27fec596d4458ae79a9cb05b725d1` |
-| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a` |
+| Integrated code SHA | `846127cfa76680d11dd686ea052f5b7fdc7c4818` |
+| Integrated tree | `f250910f748f29f119a8bf4c72525015af57eb16` |
+| Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `846127c` |
 | AceleraChat integration | contract `2026-08-18.2`; sole VPS e-mail/WhatsApp authority |
 | Distribution preparation base | `0709013acb7e7015f7a45f2b41ed6462978ee0b5` |
 | Distribution tooling commit | `ff5df65b7766960b034a699c65c430d86c4c00de` |
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
-| Distribution remote | `https://github.com/tadashiyukoyama/openjarvis-codex.git` (private) |
-| Push/PR | initial release plus one gate-driven local MCP hotfix, each in one fast-forward push; no PR |
-| Current implementation workspace | isolated `openjarvis-edge-release` worktree |
+| Distribution remote | `https://github.com/cesaryukoyama28-eng/openjarvis-codex.git` (private) |
+| Publication policy | one final fast-forward push after the documentation gate; no PR or intermediate Actions |
+| Current implementation workspace | canonical `openjarvis` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
 | Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
 
@@ -308,14 +353,14 @@ Unknown/unrelated items were not deleted or committed.
 | Backend | `127.0.0.1:8127` | HTTP 200 |
 | Codex app-server | `127.0.0.1:8131` | listening; backend catalog/info HTTP 200 |
 | Remote gateway | `127.0.0.1:8140` | offline; not started or modified in this task |
-| VPS Core/Edge Worker | not installed | source and release artifacts only |
+| VPS Core | `openjarvis.meugerenciador.pro` | healthy on image `846127c`; public TLS passed |
+| Edge Worker | outbound WSS | one connected device; no inbound local port exposed |
 
-The frontend, backend and a shared Codex app-server were started by the tracked
-launcher with `-SkipDesktop` for the final local smoke. The already open Codex
-Desktop was not restarted. The frontend and backend health routes, the Vite
-proxy and the 16-tool Agent catalog returned HTTP 200. A real Agent session
-completed `ACTIVE -> CLOSED`, and the WhatsApp status read completed without an
-external mutation. Port 8140 and the tunnel remained offline and unchanged.
+The 2026-08-20 Core image was built directly on the production VPS from the
+verified source archive, without GitHub Actions. Health, public TLS, the served
+frontend bundle, the 16-tool catalog, the connected Edge and both SQLite
+integrity checks passed. The safe delegation smoke was denied before dispatch;
+no Codex turn or provider message was sent.
 
 ## Jarvis Agent Core
 
@@ -329,7 +374,7 @@ external mutation. Port 8140 and the tunnel remained offline and unchanged.
 | Long Codex operations | asynchronous job plus canonical SSE result |
 | Context | structured, project/thread partitioned, 30-day retention |
 | Persistent transcript | disabled; only transient final text before redaction |
-| Operational events | server-assigned and privacy-safe |
+| Operational events | server-assigned, privacy-safe and durable by project/task |
 | External retries | disabled for mutations/delegations |
 
 The public API is mounted at `/v1/jarvis/agent`. Its generated contracts are in
@@ -394,16 +439,15 @@ overwritten. The C: rollback was not deleted.
 
 | Gate | Result |
 |---|---|
-| Jarvis Agent Core + remote gateway | 132 passed; one upstream TestClient deprecation warning |
-| AceleraChat adapter/webhook focused matrix | 17 passed |
-| Preserved direct-provider compatibility suite | 17 passed; one upstream TestClient deprecation warning |
-| Frontend Vitest | 92 passed in 22 files |
-| Frontend TypeScript | passed through production build |
+| Jarvis Agent Core + Gemini directed release matrix | 173 passed; 37 upstream deprecation warnings |
+| Frontend Vitest | 112 passed in 29 files |
+| Frontend TypeScript | no-emit check passed |
 | Vite/PWA production build | passed |
-| Ruff check | passed for Jarvis Agent Core and tests |
-| Ruff format | passed for 85 Python files |
-| Generated OpenAPI/TypeScript contracts | regenerated and parity check passed |
-| Python compileall, PowerShell parser and `git diff --check` | passed |
+| Ruff check and format | passed; 842 Python files format-compliant |
+| Generated OpenAPI | regenerated and release tests passed |
+| PowerShell parser | 25 scripts passed |
+| Source archive audit | 2,737 entries; private/forbidden paths absent |
+| `git diff --check` and staged secret scan | passed before functional commit |
 
 Edge/MCP directed validation at integrated code SHA `1ecb90a`:
 
@@ -577,7 +621,7 @@ All acceptance tests listed above passed for the prior direct-provider
 generation. AceleraChat live acceptance remains open as stated in the current
 executive section. The historical gate does not add unsupported capabilities.
 
-## Source-correction declaration before controlled release
+## Historical source-correction declaration before controlled release
 
 - Deploy: no.
 - VPS: no.

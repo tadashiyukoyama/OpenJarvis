@@ -2,9 +2,9 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 06:34:36 -03:00
-Working tree base: `ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`
-Branch: `codex/acelerachat-native-adapter`
+Last verified: 2026-08-20
+Applies to code SHA: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Branch: `codex/edge-live-relay-release`
 
 ## 1. Purpose
 
@@ -109,6 +109,7 @@ Prefix: `/v1/jarvis/agent`
 | `GET /jobs/{id}` | read asynchronous job state | never creates or retries work |
 | `GET /events` | authenticated SSE of state changes | resumable by `Last-Event-ID` or `after` |
 | `GET /events/poll` | finite page of state changes | same `after` cursor contract for transports without SSE |
+| `GET /events/history` | durable operational history by project and Codex task | deterministic order; never dispatches or retries work |
 | `POST /providers/acelerachat/webhooks` | receive signed provider events | HMAC, timestamp, UUID delivery, body limit, durable deduplication and sequence checks precede HTTP 202 |
 | `POST /sessions/{id}/close` | close and invalidate generation | no late callback may reopen it |
 | `GET /context` | read bounded project/thread memory | optional and non-blocking for Live startup |
@@ -132,6 +133,10 @@ Every Gemini function response uses the controlled envelope:
   }
 }
 ```
+
+The result also identifies `requested_tool_id`, whether an operation or
+delegation was actually confirmed, and a `claim_boundary`. Gemini must not
+describe a read-only status/history result as a delegation.
 
 Canonical tool inputs are strict JSON Schema. Before a declaration enters the
 Gemini Live setup, the client projects it onto the supported Gemini `Schema`
@@ -203,18 +208,27 @@ Codex is selected only when it is the explicit executor. A request to report a
 WhatsApp failure to Codex uses Codex; a request to send a WhatsApp message uses
 WhatsApp. There is no silent cross-executor fallback.
 
+The committed final turn is authoritative for explicit executor intent. Natural
+requests such as “entre em contato com o Codex”, “acione o Codex” or “quero que
+o Codex faça” require `codex.delegate`. If Gemini proposes status, history or a
+provider tool for that turn, the server returns `TOOL_INTENT_MISMATCH` before
+creating an action or job.
+
 ## 6. Proposal, approval and idempotency
 
 1. The client commits one final turn.
 2. Gemini proposes one registered function call.
-3. The server resolves the tool, current capability and route.
-4. Arguments are validated and provider identifiers are resolved.
-5. The server builds a safe preview and deterministic SHA-256 payload hash.
-6. A read dispatches immediately.
-7. A mutation/delegation enters `AWAITING_APPROVAL`.
-8. The UI displays destination, project/thread, exact bounded payload and risk.
-9. The visual decision sends the displayed hash.
-10. The backend compares every binding before dispatch.
+3. The server compares the proposed tool with deterministic intent derived from
+   that committed turn.
+4. The server resolves the tool, current capability and route; an executor
+   mismatch is rejected without creating an action.
+5. Arguments are validated and provider identifiers are resolved.
+6. The server builds a safe preview and deterministic SHA-256 payload hash.
+7. A read dispatches immediately.
+8. A mutation/delegation enters `AWAITING_APPROVAL`.
+9. The UI displays destination, project/thread, exact bounded payload and risk.
+10. The visual decision sends the displayed hash.
+11. The backend compares every binding before dispatch.
 
 Idempotency key:
 
@@ -222,7 +236,9 @@ Idempotency key:
 session_id + function_call_id + payload_hash
 ```
 
-A repeated call returns the original action/result. A repeated button decision
+A repeated call returns the original action/result, including after the
+transcript body has been redacted: the server resolves the exact action by
+session, function call and payload hash. A repeated button decision
 cannot execute again. A spoken `sim` or `confirmo` is committed only as speech
 and never changes approval state.
 
@@ -263,6 +279,8 @@ Not persisted as long-lived context:
 The final transcript may exist transiently while its proposal is formed. After
 terminal handling it is redacted to hash/summary according to the store
 lifecycle. Operational events carry safe IDs and metadata, not private payloads.
+They are also retained in the separate durable operational event store and can
+be reconciled by project and Codex task after a voice or browser reconnect.
 
 AceleraChat e-mail and WhatsApp content is tagged untrusted. It may be
 summarized or shown as data but cannot issue instructions, create approval or
@@ -274,6 +292,7 @@ invoke another tool.
 |---|---|
 | `MANIFEST_STALE` | provider/capability changed after session manifest |
 | `TOOL_UNAVAILABLE` | registered tool cannot currently execute |
+| `TOOL_INTENT_MISMATCH` | proposed executor conflicts with the committed user intent |
 | `SOURCE_DISCONNECTED` | required live provider is disconnected |
 | `CAPABILITY_NOT_AVAILABLE` | provider lacks the requested capability |
 | `ACTION_PENDING` | session already has one visual decision pending |
@@ -325,11 +344,17 @@ The finite event endpoint returns `events` plus `next_after` and is semantically
 equivalent to one bounded SSE replay page. A client may change transport, but
 it must keep the same cursor and may not replay dispatch.
 
+The durable history endpoint is read-only and scoped by normalized project plus
+Codex task. Stable ordering and canonical IDs let the UI merge historical and
+live events without duplicating commands or treating presentation replay as an
+execution request.
+
 Client telemetry is advisory and separate from canonical server events.
 
 ## 10. Acceptance invariants
 
 - One fragmented utterance produces at most one committed turn.
+- Explicit Codex delegation intent cannot execute a status/provider tool.
 - No mutation or Codex delegation occurs without a matching visual click.
 - A duplicate function call or button click executes at most once.
 - Direct Gmail/IMAP and Baileys providers never enter the active manifest.

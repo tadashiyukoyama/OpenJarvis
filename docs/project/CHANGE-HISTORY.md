@@ -2,12 +2,31 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-18
-Functional implementation commit: OJ5-A draft branch; SHA recorded in the task report
-Current main base: `d487c428a48f50163ba4fb08387e3545ee6607a3`
-Current draft PR head/checks: confirm on GitHub after push; not asserted here.
+Last verified: 2026-08-20
+Current functional implementation: `846127cfa76680d11dd686ea052f5b7fdc7c4818`
+Current publication target: private `cesaryukoyama28-eng/openjarvis-codex`, branch `main`
+Exact published documentation HEAD: recorded by the completion output after the one final push.
 Supersedes: none
 Superseded by: none
+
+## 2026-08-20 - Deterministic delegation and durable operational history
+
+- Bound explicit spoken Codex intent to `codex.delegate` and reject conflicting
+  model-selected tools before action creation.
+- Preserved exact idempotency after transcript redaction.
+- Added durable project/task operational history and real executable-catalog
+  presentation in the Jarvis panel.
+- Added controlled FunctionResponse claim boundaries so status/history reads
+  cannot be narrated as a completed delegation.
+- Built and deployed image
+  `openjarvis-core:846127cfa76680d11dd686ea052f5b7fdc7c4818` directly on the
+  VPS from a verified source archive, without GitHub Actions.
+- Corrected the selected connected Evolution inbox to ID 20; retained e-mail
+  inbox ID 16; catalog and Edge finished healthy with 16 of 16 tools available.
+- Executed only a denied synthetic delegation smoke: no Codex turn, e-mail or
+  WhatsApp message was sent.
+- Retained one-inbox-per-channel and unsupported WhatsApp reaction, provider
+  read receipt, contextual reply and media send as explicit future work.
 
 ## 2026-07-17 - OJ0 local foundation
 
