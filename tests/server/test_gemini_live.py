@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from openjarvis.server.app import create_app
 from openjarvis.server.gemini_live import (
     FALLBACK_KEY_ENV,
+    HOME_ENV,
     PRIMARY_KEY_ENV,
     GeminiLiveProvisioningError,
     GeminiLiveTokenBroker,
@@ -186,6 +187,30 @@ def test_operational_log_is_scoped_to_selected_thread(tmp_path) -> None:
     response = client.get("/v1/jarvis/live/events", params={"thread_id": "thread-a"})
     assert [event["thread_id"] for event in response.json()["events"]] == ["thread-a"]
     store.close()
+
+
+def test_operational_log_uses_persistent_openjarvis_home(tmp_path) -> None:
+    database_path = tmp_path / "operational-events.sqlite3"
+    with patch.dict("os.environ", {HOME_ENV: str(tmp_path)}, clear=False):
+        client = _client_with_broker(GeminiLiveTokenBroker())
+        response = client.post(
+            "/v1/jarvis/live/events",
+            json={
+                "event_id": "home-event",
+                "thread_id": "thread-home",
+                "project_cwd": "D:\\repo",
+                "event_type": "dispatch",
+                "text": "codex.delegate · approval_required",
+                "occurred_at": 3_000,
+            },
+        )
+        assert response.status_code == 200
+        client.app.state.jarvis_operational_log.close()
+
+    assert database_path.is_file()
+    reopened = JarvisOperationalLogStore(database_path)
+    assert [event.event_id for event in reopened.list("thread-home")] == ["home-event"]
+    reopened.close()
 
 
 def _client_diagnostic(session_id: str, sequence: int) -> dict:

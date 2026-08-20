@@ -7,22 +7,21 @@ import {
 import {
   appendGeminiLiveClientDiagnostics,
   createJarvisLiveToken,
+  fetchJarvisOperationalEvents,
   fetchJarvisLiveStatus,
   JarvisLiveApiError,
   type JarvisLiveStatus,
-  type JarvisOperationalEventType,
 } from '@/lib/jarvis-api';
 import { useAppStore } from '@/lib/store';
 import type { Conversation } from '@/types';
-import type { JarvisAgentAction } from '../api/types';
-import { decideJarvisEdgeApproval } from '../api/client';
-import type { JarvisEdgeApproval } from '../api/types';
+import type { JarvisAgentAction, JarvisAgentCatalog, JarvisEdgeApproval } from '../api/types';
+import { decideJarvisEdgeApproval, fetchJarvisAgentCatalog } from '../api/client';
 import {
   edgeApprovalFromEvent,
   eventResolvesEdgeApproval,
 } from '../approvals/edge';
 import { agentEventView } from '../timeline/events';
-import type { JarvisTimelineEntry } from '../timeline/types';
+import { usePersistentJarvisTimeline } from '../timeline/usePersistentJarvisTimeline';
 import { JarvisAgentCoordinator } from './coordinator';
 import { buildJarvisAgentContext } from './context';
 
@@ -41,10 +40,6 @@ function withTimeout<T>(promise: Promise<T>, message: string, onTimeout: () => v
   });
 }
 
-function timelineId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export function useJarvisAgentSession() {
   const conversations = useAppStore((state) => state.conversations);
   const activeId = useAppStore((state) => state.activeId);
@@ -54,13 +49,19 @@ export function useJarvisAgentSession() {
     [activeId, conversations],
   );
   const [sessionTarget, setSessionTarget] = useState<Conversation | null>(null);
+  const timelineTarget = sessionTarget ?? activeConversation;
+  const { timeline, addTimeline } = usePersistentJarvisTimeline(
+    timelineTarget?.codexThreadId && timelineTarget.codexProjectCwd
+      ? { threadId: timelineTarget.codexThreadId, projectCwd: timelineTarget.codexProjectCwd }
+      : null,
+  );
   const [liveStatus, setLiveStatus] = useState<JarvisLiveStatus | null>(null);
+  const [catalog, setCatalog] = useState<JarvisAgentCatalog | null>(null);
   const [voiceState, setVoiceState] = useState<JarvisVoiceState>('offline');
   const [audioLevel, setAudioLevel] = useState(0);
   const [inputTranscript, setInputTranscript] = useState('');
   const [outputTranscript, setOutputTranscript] = useState('');
   const [textInput, setTextInput] = useState('');
-  const [timeline, setTimeline] = useState<JarvisTimelineEntry[]>([]);
   const [approval, setApproval] = useState<JarvisAgentAction | null>(null);
   const [edgeApproval, setEdgeApproval] = useState<JarvisEdgeApproval | null>(null);
   const [edgeDecisionBusy, setEdgeDecisionBusy] = useState(false);
@@ -70,16 +71,14 @@ export function useJarvisAgentSession() {
   const liveRef = useRef<GeminiLiveSession | null>(null);
   const coordinatorRef = useRef<JarvisAgentCoordinator | null>(null);
 
-  const addTimeline = useCallback((type: JarvisOperationalEventType, text: string) => {
-    setTimeline((current) => [
-      ...current.slice(-49),
-      { id: timelineId(), type, text, time: Date.now() },
-    ]);
-  }, []);
-
   const refreshStatus = useCallback(async () => {
     try {
-      setLiveStatus(await fetchJarvisLiveStatus());
+      const [status, currentCatalog] = await Promise.all([
+        fetchJarvisLiveStatus(),
+        fetchJarvisAgentCatalog(),
+      ]);
+      setLiveStatus(status);
+      setCatalog(currentCatalog);
     } catch (error) {
       addTimeline('error', error instanceof Error ? error.message : 'Backend indisponível.');
     }
@@ -123,25 +122,30 @@ export function useJarvisAgentSession() {
           });
         }
         const view = agentEventView(event);
-        addTimeline(view.type, view.text);
+        addTimeline(view.type, view.text, {
+          eventId: event.event_id,
+          time: event.created_at * 1_000,
+        });
       },
       onNotice: (message) => addTimeline('system', message),
     });
     coordinatorRef.current = coordinator;
     try {
-      const [token, agentSession] = await withTimeout(
+      const [token, agentSession, operationalEvents] = await withTimeout(
         Promise.all([
           createJarvisLiveToken(),
           coordinator.open(target.codexProjectCwd, target.codexThreadId, startup.signal),
+          fetchJarvisOperationalEvents(target.codexThreadId, 20, startup.signal),
         ]),
         'A inicialização do Jarvis excedeu 30 segundos.',
         () => startup.abort(),
       );
       const context = [
-        buildJarvisAgentContext(agentSession),
+        buildJarvisAgentContext(agentSession, operationalEvents),
         `Projeto selecionado: ${target.codexProjectCwd}`,
         `Conversa selecionada: ${target.title}`,
       ].join('\n');
+      setCatalog(agentSession.catalog);
       setCredentialSlot(token.credential_slot);
       const live = new GeminiLiveSession(
         token,
@@ -284,6 +288,7 @@ export function useJarvisAgentSession() {
   return {
     activeConversation: sessionTarget ?? activeConversation,
     liveStatus,
+    catalog,
     voiceState,
     audioLevel,
     inputTranscript,

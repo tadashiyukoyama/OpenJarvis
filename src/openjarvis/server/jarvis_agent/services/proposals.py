@@ -21,6 +21,9 @@ from openjarvis.server.jarvis_agent.services.context import (
 )
 from openjarvis.server.jarvis_agent.services.events import EventService
 from openjarvis.server.jarvis_agent.services.execution import ExecutionService
+from openjarvis.server.jarvis_agent.services.intent_routing import (
+    validate_voice_tool_intent,
+)
 from openjarvis.server.jarvis_agent.services.presentation import public_action
 
 _APPROVAL_TTL_SECONDS = 5 * 60
@@ -55,12 +58,16 @@ class ProposalService:
         turn_id: str | None,
         current_snapshot: Mapping[str, Any],
     ) -> dict[str, Any]:
-        tool = self._policy.validate_call(
-            name=tool_name,
-            arguments=arguments,
-            session_manifest_version=str(session["manifest_version"]),
-            current_snapshot=current_snapshot,
-        )
+        try:
+            tool = self._policy.validate_call(
+                name=tool_name,
+                arguments=arguments,
+                session_manifest_version=str(session["manifest_version"]),
+                current_snapshot=current_snapshot,
+            )
+        except JarvisAgentError as error:
+            self._record_rejection(session, code=error.code, requested_name=tool_name)
+            raise
         adapter = self._adapters.get(tool.adapter)
         if adapter is None:
             raise JarvisAgentError("TOOL_UNAVAILABLE", "Executor indisponível.")
@@ -69,8 +76,44 @@ class ProposalService:
             arguments,
             self._adapter_context(session, function_call_id),
         )
-        action, created, digest = self._create_action(
-            session, function_call_id, tool, prepared.arguments, prepared.preview
+        digest = payload_digest(
+            {"tool_id": tool.tool_id, "arguments": dict(prepared.arguments)}
+        )
+        duplicate = self._store.get_action_by_request(
+            session_id=str(session["session_id"]),
+            function_call_id=function_call_id,
+            payload_hash=digest,
+        )
+        turn = self._voice_turn(
+            session,
+            turn_id,
+            allow_consumed=duplicate is not None,
+        )
+        if turn is not None:
+            transcript = str(turn.get("transcript_text") or "")
+            if transcript:
+                try:
+                    validate_voice_tool_intent(tool, transcript)
+                except JarvisAgentError as error:
+                    self._record_rejection(
+                        session,
+                        code=error.code,
+                        requested_name=tool.gemini_name,
+                        tool_id=tool.tool_id,
+                    )
+                    raise
+        if duplicate is not None:
+            if turn_id and turn and turn.get("transcript_text"):
+                self._store.redact_turn(turn_id, time.time())
+            self._emit_duplicate(session, duplicate, digest)
+            return public_action(duplicate)
+        action, created = self._create_action(
+            session,
+            function_call_id,
+            tool,
+            prepared.arguments,
+            prepared.preview,
+            digest,
         )
         if turn_id:
             self._store.redact_turn(turn_id, time.time())
@@ -82,6 +125,28 @@ class ProposalService:
             action = self._execution.execute(action, session)
         return public_action(action)
 
+    def _voice_turn(
+        self,
+        session: Mapping[str, Any],
+        turn_id: str | None,
+        *,
+        allow_consumed: bool = False,
+    ) -> Mapping[str, Any] | None:
+        if not turn_id:
+            return None
+        turn = self._store.get_turn(turn_id)
+        if (
+            turn is None
+            or turn.get("session_id") != session.get("session_id")
+            or turn.get("generation") != session.get("generation")
+            or (not allow_consumed and not turn.get("transcript_text"))
+        ):
+            raise JarvisAgentError(
+                "INVALID_REQUEST",
+                "O turno final nao pertence a esta sessao ou ja foi consumido.",
+            )
+        return turn
+
     def _create_action(
         self,
         session: Mapping[str, Any],
@@ -89,8 +154,8 @@ class ProposalService:
         tool: ToolDefinition,
         arguments: Mapping[str, Any],
         preview: Mapping[str, Any],
-    ) -> tuple[dict[str, Any], bool, str]:
-        digest = payload_digest({"tool_id": tool.tool_id, "arguments": dict(arguments)})
+        digest: str,
+    ) -> tuple[dict[str, Any], bool]:
         now = time.time()
         state = (
             ActionState.AWAITING_APPROVAL
@@ -123,7 +188,7 @@ class ProposalService:
                     status_code=409,
                 ) from exc
             raise
-        return action, created, digest
+        return action, created
 
     def _record_created(
         self,
@@ -140,16 +205,13 @@ class ProposalService:
             tool_id=tool.tool_id,
             action_id=str(action["action_id"]),
         )
-        event_type = (
-            "confirmation_requested" if tool.requires_approval else "dispatch_started"
-        )
-        self._events.emit(
-            event_type,
-            session_id=str(session["session_id"]),
-            action_id=str(action["action_id"]),
-            payload={"tool_id": tool.tool_id, "payload_hash": digest},
-        )
         if tool.requires_approval:
+            self._events.emit(
+                "confirmation_requested",
+                session_id=str(session["session_id"]),
+                action_id=str(action["action_id"]),
+                payload={"tool_id": tool.tool_id, "payload_hash": digest},
+            )
             self._context.set_pending(
                 project_key=project,
                 codex_thread_id=thread,
@@ -169,6 +231,24 @@ class ProposalService:
             session_id=str(session["session_id"]),
             action_id=str(action["action_id"]),
             payload={"payload_hash": digest},
+        )
+
+    def _record_rejection(
+        self,
+        session: Mapping[str, Any],
+        *,
+        code: str,
+        requested_name: str,
+        tool_id: str = "",
+    ) -> None:
+        self._events.emit(
+            "tool_call_rejected",
+            session_id=str(session["session_id"]),
+            payload={
+                "code": code,
+                "requested_name": requested_name[:128],
+                **({"tool_id": tool_id} if tool_id else {}),
+            },
         )
 
     @staticmethod

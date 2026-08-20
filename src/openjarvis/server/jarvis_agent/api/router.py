@@ -208,6 +208,26 @@ async def poll_events(
     return {"events": values, "next_after": next_after}
 
 
+@router.get("/events/history", response_model=AgentEventPollResponse)
+async def thread_event_history(
+    request: Request,
+    project_key: str = Query(min_length=1, max_length=1024),
+    codex_thread_id: str = Query(min_length=1, max_length=256),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any]:
+    """Return durable Agent Core events for one selected Codex target."""
+
+    orchestrator = get_orchestrator(request.app)
+    values = await asyncio.to_thread(
+        orchestrator.store.list_thread_events,
+        project_key,
+        codex_thread_id,
+        limit,
+    )
+    next_after = max((int(item["sequence"]) for item in values), default=0)
+    return {"events": values, "next_after": next_after}
+
+
 @router.post(
     "/providers/acelerachat/webhooks",
     status_code=202,

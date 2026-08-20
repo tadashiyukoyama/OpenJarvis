@@ -169,3 +169,40 @@ class MemoryStoreMixin:
             return result
         finally:
             connection.close()
+
+    def list_thread_events(
+        self,
+        project_key: str,
+        codex_thread_id: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return the latest canonical events scoped to one Codex target."""
+
+        connection = self._connect()
+        try:
+            records = connection.execute(
+                """
+                SELECT * FROM (
+                    SELECT events.* FROM jarvis_agent_events AS events
+                    JOIN jarvis_sessions AS sessions
+                      ON sessions.session_id = events.session_id
+                    WHERE sessions.project_key = ?
+                      AND sessions.codex_thread_id = ?
+                    ORDER BY events.sequence DESC
+                    LIMIT ?
+                ) ORDER BY sequence ASC
+                """,
+                (
+                    project_key.strip(),
+                    codex_thread_id.strip(),
+                    min(500, max(1, limit)),
+                ),
+            ).fetchall()
+            result = []
+            for item in records:
+                value = dict(item)
+                value["payload"] = decode_json(value.pop("payload_json")) or {}
+                result.append(value)
+            return result
+        finally:
+            connection.close()

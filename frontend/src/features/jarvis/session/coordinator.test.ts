@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { JarvisAgentAction, JarvisAgentSession } from '../api/types';
 import {
   JarvisAgentCoordinator,
+  jarvisAgentCoordinatorInternals,
   type JarvisAgentTransport,
 } from './coordinator';
 
@@ -65,6 +66,22 @@ function callbacks() {
 }
 
 describe('JarvisAgentCoordinator', () => {
+  it('never presents a status read as a confirmed Codex delegation', () => {
+    const result = jarvisAgentCoordinatorInternals.functionResult({
+      ...APPROVAL,
+      tool_id: 'codex.status',
+      state: 'COMPLETED',
+      status: 'completed',
+      result: { status: 'completed' },
+    });
+
+    expect(result).toMatchObject({
+      requested_tool_id: 'codex.status',
+      operation_confirmed: true,
+      delegation_confirmed: false,
+    });
+  });
+
   it('commits the final turn before proposing the function call', async () => {
     const order: string[] = [];
     const api = transport({
@@ -111,6 +128,9 @@ describe('JarvisAgentCoordinator', () => {
       status: 'completed',
       action_id: 'act-1',
       result_trust: 'external_untrusted_data',
+      requested_tool_id: 'codex.delegate',
+      operation_confirmed: true,
+      delegation_confirmed: true,
     });
     expect(decision).toMatchObject({
       status: 'completed',

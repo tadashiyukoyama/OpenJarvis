@@ -75,6 +75,10 @@ describe('Gemini Live Jarvis voice setup', () => {
     );
     expect(instruction).toContain('NÃO peça confirmação por voz');
     expect(instruction).toContain('Aguarde o resultado do botão');
+    expect(instruction).toContain('delegation_confirmed=true');
+    expect(instruction).toContain('Uma leitura como codex_get_status');
+    expect(instruction).toContain('mande um comando para o Codex');
+    expect(instruction).toContain('nenhuma ação foi executada');
     expect(instruction).not.toContain('chame a função novamente');
 
     const declarations = message.setup.tools[0].functionDeclarations;

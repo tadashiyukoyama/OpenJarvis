@@ -1429,6 +1429,74 @@
         ]
       }
     },
+    "/v1/jarvis/agent/events/history": {
+      "get": {
+        "description": "Return durable Agent Core events for one selected Codex target.",
+        "operationId": "thread_event_history_v1_jarvis_agent_events_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_key",
+            "required": true,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "title": "Project Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "codex_thread_id",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Codex Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentEventPollResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Thread Event History",
+        "tags": [
+          "jarvis-agent"
+        ]
+      }
+    },
     "/v1/jarvis/agent/events/poll": {
       "get": {
         "description": "Return a finite event page for transports that cannot carry SSE.",

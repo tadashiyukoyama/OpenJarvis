@@ -361,6 +361,9 @@ def create_app(
         orchestrator = getattr(app.state, "jarvis_agent_orchestrator", None)
         if orchestrator is not None:
             await orchestrator.close_async()
+        operational_log = getattr(app.state, "jarvis_operational_log", None)
+        if operational_log is not None:
+            operational_log.close()
 
     include_all_routes(app)
 

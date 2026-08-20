@@ -64,6 +64,28 @@ class ActionStoreMixin:
             )
             return self.get_action(record["action_id"], connection=connection), True
 
+    def get_action_by_request(
+        self,
+        *,
+        session_id: str,
+        function_call_id: str,
+        payload_hash: str,
+    ) -> dict[str, Any] | None:
+        """Return an exact idempotent action without creating a second one."""
+
+        connection = self._connect()
+        try:
+            row = connection.execute(
+                """
+                SELECT * FROM jarvis_actions
+                WHERE session_id = ? AND function_call_id = ? AND payload_hash = ?
+                """,
+                (session_id, function_call_id, payload_hash),
+            ).fetchone()
+            return self._action_record(row) if row is not None else None
+        finally:
+            connection.close()
+
     @staticmethod
     def _action_record(row: sqlite3.Row) -> dict[str, Any]:
         record = dict(row)

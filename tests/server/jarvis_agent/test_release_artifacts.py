@@ -26,7 +26,10 @@ def test_vps_container_is_pinned_minimal_and_fail_closed() -> None:
     ):
         assert required_copy in dockerfile
         assert dockerfile.index(required_copy) < install_step
-    assert 'OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED: "false"' in compose
+    assert "OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED:" not in compose
+    assert "OPENJARVIS_EXTERNAL_MUTATIONS_ENABLED=false" in _text(
+        "deploy/vps/core.env.example"
+    )
     assert '"127.0.0.1:${OPENJARVIS_CORE_PORT:-8180}:8000"' in compose
     assert "read_only: true" in compose
     assert "cap_drop:" in compose and "- ALL" in compose

@@ -28,6 +28,8 @@ def test_read_executes_once_without_approval(agent_core) -> None:
     assert result["status"] == "completed"
     assert result["result"]["data"]["echo"] == "hello"
     assert adapter.calls == [("fake.read", {"value": "hello"})]
+    events = orchestrator.events.after(0, 100)
+    assert [event["event_type"] for event in events].count("dispatch_started") == 1
 
 
 def test_session_generation_is_exact_in_javascript(agent_core) -> None:

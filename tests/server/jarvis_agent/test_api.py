@@ -98,6 +98,55 @@ def test_finite_event_poll_preserves_cursor(agent_core) -> None:
     assert second.json() == {"events": [], "next_after": payload["next_after"]}
 
 
+def test_event_history_is_durable_ordered_and_scoped_to_codex_target(
+    agent_core,
+) -> None:
+    orchestrator, _ = agent_core
+    app = FastAPI()
+    app.state.jarvis_agent_orchestrator = orchestrator
+    app.include_router(router)
+    client = TestClient(app)
+    first = client.post(
+        "/v1/jarvis/agent/sessions",
+        json={"project_key": "D:/dev/project", "codex_thread_id": "thread-a"},
+    ).json()
+    client.post(
+        "/v1/jarvis/agent/sessions",
+        json={"project_key": "D:/dev/project", "codex_thread_id": "thread-b"},
+    )
+    client.post(
+        f"/v1/jarvis/agent/sessions/{first['session_id']}/proposals",
+        json={
+            "generation": first["generation"],
+            "function_call_id": "history-read",
+            "name": "fake_read",
+            "arguments": {"value": "history"},
+        },
+    )
+
+    response = client.get(
+        "/v1/jarvis/agent/events/history",
+        params={
+            "project_key": "D:/dev/project",
+            "codex_thread_id": "thread-a",
+            "limit": 100,
+        },
+    )
+
+    assert response.status_code == 200
+    events = response.json()["events"]
+    assert [event["sequence"] for event in events] == sorted(
+        event["sequence"] for event in events
+    )
+    assert {event["session_id"] for event in events} == {first["session_id"]}
+    assert [event["event_type"] for event in events] == [
+        "session_opened",
+        "dispatch_started",
+        "dispatch_completed",
+    ]
+    assert response.json()["next_after"] == events[-1]["sequence"]
+
+
 def test_webhook_body_is_bounded_before_service_dispatch(agent_core) -> None:
     orchestrator, _ = agent_core
 

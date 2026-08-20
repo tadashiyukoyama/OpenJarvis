@@ -55,6 +55,7 @@ export function JarvisPage() {
           conversation={jarvis.activeConversation}
           codexSyncStatus={jarvis.codexSyncStatus}
           liveStatus={jarvis.liveStatus}
+          catalog={jarvis.catalog}
           credentialSlot={jarvis.credentialSlot}
         />
         <JarvisVoiceCore

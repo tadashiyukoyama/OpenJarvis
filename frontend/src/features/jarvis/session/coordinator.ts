@@ -66,9 +66,19 @@ function errorResult(error: unknown): JsonObject {
 function functionResult(action: JarvisAgentAction): JsonObject {
   const adapterResult = action.result ?? {};
   const external = /^(email|gmail|whatsapp|codex)\./.test(action.tool_id);
+  const operationConfirmed = ['accepted', 'completed'].includes(action.status);
+  const delegationConfirmed = action.tool_id === 'codex.delegate' && operationConfirmed;
   return {
     status: action.status,
     action_id: action.action_id,
+    requested_tool_id: action.tool_id,
+    operation_confirmed: operationConfirmed,
+    delegation_confirmed: delegationConfirmed,
+    claim_boundary: delegationConfirmed && action.status === 'accepted'
+      ? 'A delegação foi aceita, mas a conclusão da tarefa ainda não foi confirmada.'
+      : operationConfirmed
+        ? 'Somente esta operação e este estado foram confirmados.'
+        : 'Nenhuma execução bem-sucedida foi confirmada.',
     ...(action.job ? { job_id: action.job.job_id } : {}),
     ...(action.summary ? { summary: action.summary } : {}),
     ...(action.error_code ? { code: action.error_code } : {}),

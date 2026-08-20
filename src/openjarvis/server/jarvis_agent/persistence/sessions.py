@@ -84,6 +84,17 @@ class SessionStoreMixin:
                 ),
             )
 
+    def get_turn(self, turn_id: str) -> dict[str, Any] | None:
+        connection = self._connect()
+        try:
+            return row_dict(
+                connection.execute(
+                    "SELECT * FROM jarvis_turns WHERE turn_id = ?", (turn_id,)
+                ).fetchone()
+            )
+        finally:
+            connection.close()
+
     def redact_turn(self, turn_id: str, now: float) -> None:
         with self._transaction() as connection:
             connection.execute(

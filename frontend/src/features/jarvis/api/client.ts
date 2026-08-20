@@ -53,6 +53,24 @@ export function fetchJarvisAgentCatalog(signal?: AbortSignal): Promise<JarvisAge
   return requestJson('/v1/jarvis/agent/catalog', { signal });
 }
 
+export async function fetchJarvisAgentThreadEvents(
+  projectKey: string,
+  codexThreadId: string,
+  limit = 100,
+  signal?: AbortSignal,
+): Promise<JarvisAgentEvent[]> {
+  const query = new URLSearchParams({
+    project_key: projectKey,
+    codex_thread_id: codexThreadId,
+    limit: String(Math.min(500, Math.max(1, limit))),
+  });
+  const response = await requestJson<{ events: JarvisAgentEvent[] }>(
+    `/v1/jarvis/agent/events/history?${query}`,
+    { signal },
+  );
+  return response.events;
+}
+
 export function createJarvisAgentSession(
   projectKey: string,
   codexThreadId: string,

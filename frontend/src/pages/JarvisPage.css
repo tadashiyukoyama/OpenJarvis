@@ -150,6 +150,7 @@
 }
 
 .jarvis-signal-row strong.is-ok { color: #55f6c5; }
+.jarvis-signal-row strong.is-warn { color: #ffd27a; }
 
 .jarvis-credential-badge {
   display: inline-flex;
@@ -185,6 +186,42 @@
 }
 
 .jarvis-policy-note svg { flex: 0 0 auto; color: var(--j-cyan); }
+
+.jarvis-tool-catalog {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--j-muted);
+}
+
+.jarvis-tool-catalog summary {
+  cursor: pointer;
+  color: var(--j-cyan);
+}
+
+.jarvis-tool-catalog ul {
+  max-height: 180px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.jarvis-tool-catalog li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(117, 224, 255, 0.08);
+}
+
+.jarvis-tool-catalog li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-tool-catalog strong.is-ok { color: #55f6c5; }
+.jarvis-tool-catalog strong.is-warn { color: #ffd27a; }
 
 .jarvis-core-zone {
   display: flex;

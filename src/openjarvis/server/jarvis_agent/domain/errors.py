@@ -7,6 +7,7 @@ from typing import Any
 PUBLIC_ERROR_CODES = frozenset(
     {
         "MANIFEST_STALE",
+        "TOOL_INTENT_MISMATCH",
         "TOOL_UNAVAILABLE",
         "SOURCE_DISCONNECTED",
         "CAPABILITY_NOT_AVAILABLE",

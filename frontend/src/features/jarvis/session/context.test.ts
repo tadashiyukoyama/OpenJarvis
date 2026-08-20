@@ -45,10 +45,18 @@ describe('Jarvis structured context', () => {
   });
 
   it('includes only structured continuity fields', () => {
-    const context = buildJarvisAgentContext(sessionWithSummary('Busca concluída.'));
+    const context = buildJarvisAgentContext(sessionWithSummary('Busca concluída.'), [{
+      event_id: 'event-1',
+      thread_id: 'thread-1',
+      project_cwd: 'D:/project',
+      event_type: 'dispatch',
+      text: 'codex.delegate · approval_required',
+      occurred_at: 1_000,
+    }]);
 
     expect(context).toContain('Objetivo: gmail.search');
     expect(context).toContain('whatsapp.send_text');
+    expect(context).toContain('codex.delegate');
     expect(context).not.toContain('transcript');
     expect(context).not.toContain('audio');
   });

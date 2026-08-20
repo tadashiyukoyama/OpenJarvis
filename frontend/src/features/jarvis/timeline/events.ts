@@ -9,8 +9,11 @@ export function agentEventView(event: JarvisAgentEvent): {
   const code = typeof event.payload.code === 'string' ? event.payload.code : '';
   const state = typeof event.payload.state === 'string' ? event.payload.state : '';
   const tool = typeof event.payload.tool_id === 'string' ? event.payload.tool_id : '';
-  const details = [tool, state, code, summary].filter(Boolean).join(' · ');
-  if (event.event_type.includes('failed')) {
+  const requested = typeof event.payload.requested_name === 'string'
+    ? event.payload.requested_name
+    : '';
+  const details = [tool || requested, state, code, summary].filter(Boolean).join(' · ');
+  if (event.event_type.includes('failed') || event.event_type.includes('rejected')) {
     return { type: 'error', text: details || event.event_type };
   }
   if (event.event_type.startsWith('confirmation')) {

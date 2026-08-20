@@ -33,6 +33,7 @@ GEMINI_LIVE_WS_URL = (
 PRIMARY_KEY_ENV = "GEMINI_LIVE_API_KEY_PRIMARY"
 FALLBACK_KEY_ENV = "GEMINI_LIVE_API_KEY_FALLBACK"
 MODEL_ENV = "GEMINI_LIVE_MODEL"
+HOME_ENV = "OPENJARVIS_HOME"
 RUNTIME_ROOT_ENV = "OPENJARVIS_RUNTIME_ROOT"
 OPERATIONAL_LOG_TIMEOUT_SECONDS = 2.0
 
@@ -302,19 +303,25 @@ def _broker(request: Request) -> GeminiLiveTokenBroker:
     return broker
 
 
+def _operational_database_path() -> Path | None:
+    home = os.environ.get(HOME_ENV, "").strip()
+    if home:
+        return Path(home).expanduser().resolve() / "operational-events.sqlite3"
+    runtime_root = os.environ.get(RUNTIME_ROOT_ENV, "").strip()
+    if runtime_root:
+        return (
+            Path(runtime_root).expanduser().resolve()
+            / "jarvis"
+            / "operational-events.sqlite3"
+        )
+    return None
+
+
 def _operational_log(request: Request) -> JarvisOperationalLogStore:
     store = getattr(request.app.state, "jarvis_operational_log", None)
     if store is not None:
         return store
-    runtime_root = os.environ.get(RUNTIME_ROOT_ENV, "").strip()
-    database_path = (
-        Path(runtime_root).expanduser().resolve()
-        / "jarvis"
-        / "operational-events.sqlite3"
-        if runtime_root
-        else None
-    )
-    store = JarvisOperationalLogStore(database_path)
+    store = JarvisOperationalLogStore(_operational_database_path())
     request.app.state.jarvis_operational_log = store
     return store
 
