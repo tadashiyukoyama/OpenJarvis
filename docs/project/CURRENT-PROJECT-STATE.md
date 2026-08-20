@@ -2,8 +2,8 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Last verified: 2026-08-20
+Applies to code SHA: `14d026f098d47c4f47add90449b52855257ab8f7`
 Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
 Branch: `codex/acelerachat-granular-whatsapp`
 Remote publication target: private `main` at
@@ -39,6 +39,30 @@ frontend tests passed, 93 focused AceleraChat/catalog tests passed, Ruff check
 and format passed for 124 files, and TypeScript plus the Vite/PWA production
 build passed. No real message, e-mail, Codex delegation, credential rotation,
 VPS mutation, deploy or GitHub change was performed for this candidate.
+
+## Dedicated immutable-image runner - 2026-08-20
+
+Functional SHA `14d026f098d47c4f47add90449b52855257ab8f7` adds the
+repository-scoped image workflow and its versioned runner lifecycle. The host
+`vps10056.panel.icontainer.cloud` now exposes exactly one OpenJarvis runner to
+the private repository: `vps10056-openjarvis`, reported by GitHub as `online`
+and `idle` with labels `openjarvis-ci`, `ubuntu-24.04`, `docker-rootless` and
+`non-production`.
+
+The runner uses Linux account `ghr-openjarvis` (UID 1004),
+`/srv/ci/runners/openjarvis`, `/srv/ci/cache/openjarvis` and the private socket
+`/run/user/1004/docker.sock`. Host verification confirmed runner 2.336.0,
+Docker 29.6.2 in rootless mode, no public API on 2375/2376 and 22 GiB free.
+No host package or SSH credential was created. The existing 3V Tintas, OZ3D
+and AceleraChat runners remained online and idle.
+
+Only `.github/workflows/build-vps-core-image.yml` uses this runner. The manual
+smoke is the first post-publication gate and performs no message, e-mail, Codex
+turn, provider mutation, image deployment or production change. GitHub Actions
+account/billing availability remains an external prerequisite even with a
+self-hosted runner. AceleraChat run `32330694587` on the same owner account was
+rejected before job startup on 2026-08-20 with GitHub's explicit
+`account is locked due to a billing issue` annotation.
 
 ## Codex live Edge relay production-base release — 2026-08-19
 

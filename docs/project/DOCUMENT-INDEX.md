@@ -2,8 +2,8 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Last verified: 2026-08-20
+Applies to code SHA: `14d026f098d47c4f47add90449b52855257ab8f7`
 Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
 Branch: `codex/acelerachat-granular-whatsapp`
 Remote publication: private `https://github.com/tadashiyukoyama/openjarvis-codex`
@@ -25,7 +25,7 @@ documentation; the completion report must record both SHAs and prove that diff.
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-18 | AceleraChat working tree |
 | `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `1ecb90a` |
 | `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-18 | AceleraChat working tree |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, rotation, revocation, VPS/Windows gates and rollback | 2026-08-19 | `1ecb90a` |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, dedicated image runner, rotation, revocation, VPS/Windows gates and rollback | 2026-08-20 | `14d026f` |
 | `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md` | CANONICAL EVIDENCE | exact Core/local SHAs, backups, digest, read-only smokes and rollback | 2026-08-19 | `1ecb90a` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
 | `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `1ecb90a` |

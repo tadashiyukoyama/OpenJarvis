@@ -280,6 +280,36 @@ Verify through an MCP protocol client:
 
 Do not configure remote `/mcp`; it is outside this release.
 
+## Gate 4A — dedicated immutable-image runner
+
+The private repository uses one repository-scoped runner named
+`vps10056-openjarvis` with the unique label `openjarvis-ci`. The versioned
+installation source is `deploy/ci-runner/`. It creates only the Linux account
+`ghr-openjarvis`, `/srv/ci/runners/openjarvis`,
+`/srv/ci/cache/openjarvis`, a rootless Docker daemon and their systemd units.
+It must not reuse or alter the AceleraChat, 3V Tintas or OZ3D accounts,
+directories, labels, Docker sockets or services.
+
+Run `provision-runner.sh`, obtain a repository-scoped ephemeral registration
+token, pass it only through the process environment to `register-runner.sh`,
+and finish with `verify-runner.sh`. No SSH credential or provider secret is
+stored by these scripts. They install no host package and require the host to
+already be classified as non-production CI infrastructure.
+
+`.github/workflows/build-vps-core-image.yml` is the only OpenJarvis workflow
+assigned to this runner. It accepts trusted `main` pushes or an explicit manual
+dispatch, proves the exact runner name, rootless Docker and at least 8 GiB free,
+then publishes `ghcr.io/tadashiyukoyama/openjarvis-codex:<full-git-sha>` and
+records the digest. Upstream test, desktop, documentation and release workflows
+remain on their existing ephemeral platforms.
+
+An online self-hosted runner still depends on the GitHub Actions control plane.
+An account-level Actions or billing lock leaves the workflow unscheduled and
+must not be bypassed by silently building or deploying an unversioned tree.
+Runner rollback removes only `vps10056-openjarvis` from the private repository,
+stops its generated service and preserves its directories until diagnostics
+are captured.
+
 ## Gate 5 — VPS container preparation
 
 This gate was completed for the active Core release. Re-run every item for any
