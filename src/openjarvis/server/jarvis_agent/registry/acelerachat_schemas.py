@@ -18,9 +18,19 @@ WHATSAPP_DESTINATION = {
         max_length=240,
     ),
     "phone_number": string(
-        "Telefone E.164 exato, por exemplo +5511999999999.", max_length=16
+        "Telefone E.164, por exemplo +5511999999999; formatação visual é aceita.",
+        max_length=32,
     ),
     "conversation_ref": string(
         "Referência opaca opcional da conversa.", max_length=256
+    ),
+}
+
+WHATSAPP_NEW_CONTACT = {
+    **INBOX_SELECTOR,
+    "contact_name": string("Nome opcional do novo contato.", max_length=240),
+    "phone_number": string(
+        "Telefone E.164, por exemplo +5511999999999; formatação visual é aceita.",
+        max_length=32,
     ),
 }

@@ -82,6 +82,8 @@ describe('Gemini Live Jarvis voice setup', () => {
     expect(instruction).not.toContain('chame a função novamente');
 
     expect(instruction).toContain('chame whatsapp_send_text diretamente');
+    expect(instruction).toContain('whatsapp_save_contact');
+    expect(instruction).toContain('ela nunca envia mensagem');
     expect(instruction).toContain('numero completo em E.164');
     expect(instruction).toContain('Nunca invente ou reutilize numero antigo');
 

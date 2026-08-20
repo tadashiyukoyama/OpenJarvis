@@ -28,6 +28,7 @@ def _capability(supported: bool = True) -> dict[str, Any]:
 def _inbox(inbox_id: int, channel_type: str, *, connected: bool) -> dict[str, Any]:
     capabilities = {
         "connection.inspect": _capability(),
+        "conversations.create": _capability(),
         "conversations.search": _capability(),
         "messages.search": _capability(),
         "messages.read": _capability(),
@@ -67,8 +68,15 @@ def _inbox(inbox_id: int, channel_type: str, *, connected: bool) -> dict[str, An
     }
 
 
-def _contact(contact_id: int = 41, name: str = "Klaus Consultor") -> dict[str, Any]:
-    return {"id": contact_id, "name": name, "blocked": False}
+def _contact(
+    contact_id: int = 41,
+    name: str = "Klaus Consultor",
+    phone_number: str | None = None,
+) -> dict[str, Any]:
+    value: dict[str, Any] = {"id": contact_id, "name": name, "blocked": False}
+    if phone_number is not None:
+        value["phone_number"] = phone_number
+    return value
 
 
 def _conversation(
@@ -137,6 +145,7 @@ class ApiDouble:
         ambiguous: bool = False,
         multiple_whatsapp: bool = False,
         empty_contacts: bool = False,
+        existing_phone_contact: bool = False,
     ) -> None:
         self.email = _inbox(15, "Channel::Email", connected=False)
         self.whatsapp = _inbox(20, "Channel::Whatsapp", connected=True)
@@ -147,6 +156,7 @@ class ApiDouble:
         )
         self.ambiguous = ambiguous
         self.empty_contacts = empty_contacts
+        self.existing_phone_contact = existing_phone_contact
         self.posts: list[httpx.Request] = []
         self.before_message_response = None
 
@@ -158,7 +168,17 @@ class ApiDouble:
                 inboxes.append(self.extra_whatsapp)
             return httpx.Response(200, json={"data": inboxes})
         if request.method == "GET" and path.endswith("/contacts"):
-            contacts = [] if self.empty_contacts else [_contact()]
+            contacts = (
+                []
+                if self.empty_contacts
+                else [
+                    _contact(
+                        phone_number=(
+                            "+5511988887777" if self.existing_phone_contact else None
+                        )
+                    )
+                ]
+            )
             if self.ambiguous:
                 contacts.append(_contact(42, "Klaus Consultor"))
             return httpx.Response(200, json={"data": contacts, "meta": {}})
@@ -177,7 +197,16 @@ class ApiDouble:
             return httpx.Response(200, json={"data": [_email_message()], "meta": {}})
         if request.method == "GET" and path.endswith("/conversations"):
             contact_id = int(request.url.params.get("contact_id", "41"))
-            contact = _contact(contact_id)
+            if self.empty_contacts and contact_id == 77:
+                return httpx.Response(200, json={"data": [], "meta": {}})
+            contact = _contact(
+                contact_id,
+                phone_number=(
+                    "+5511988887777"
+                    if self.existing_phone_contact and contact_id == 41
+                    else None
+                ),
+            )
             requested_inbox_id = int(request.url.params.get("inbox_id", "20"))
             selected_inbox = (
                 self.extra_whatsapp

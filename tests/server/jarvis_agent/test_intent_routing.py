@@ -240,14 +240,38 @@ def test_turn_from_another_session_is_rejected(codex_core) -> None:
 
 def test_classifier_distinguishes_mutating_source_actions() -> None:
     send = classify_voice_intent("Envie uma mensagem pelo WhatsApp para Maria")
+    save_contact = classify_voice_intent(
+        "Salve o contato Maria com o número +5511999999999"
+    )
     mark_read = classify_voice_intent("Marque a conversa do WhatsApp como lida")
     email = classify_voice_intent("Responda o e-mail do cliente")
 
     assert send.allowed_tool_ids == frozenset({"whatsapp.send_text", "whatsapp.reply"})
+    assert save_contact.source == "whatsapp"
+    assert save_contact.allowed_tool_ids == frozenset({"whatsapp.save_contact"})
+    assert save_contact.explicit is True
     assert mark_read.allowed_tool_ids == frozenset(
         {"whatsapp.mark_read", "whatsapp.mark_read_internal"}
     )
     assert email.allowed_tool_ids == frozenset({"email.reply", "gmail.send"})
+
+
+def test_contact_save_and_message_send_cannot_authorize_each_other() -> None:
+    definitions = {tool.tool_id: tool for tool in JarvisToolCatalog().definitions}
+
+    with pytest.raises(JarvisAgentError) as save_error:
+        validate_voice_tool_intent(
+            definitions["whatsapp.save_contact"],
+            "Envie uma mensagem pelo WhatsApp para Maria.",
+        )
+    with pytest.raises(JarvisAgentError) as send_error:
+        validate_voice_tool_intent(
+            definitions["whatsapp.send_text"],
+            "Cadastre o contato do WhatsApp de Maria.",
+        )
+
+    assert save_error.value.code == "TOOL_INTENT_MISMATCH"
+    assert send_error.value.code == "TOOL_INTENT_MISMATCH"
 
 
 def test_explicit_codex_destination_wins_over_whatsapp_subject() -> None:

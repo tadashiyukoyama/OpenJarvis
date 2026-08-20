@@ -50,6 +50,14 @@ _WHATSAPP_SUBJECT = re.compile(r"\b(?:whatsapp|whats|zap)\b")
 _WHATSAPP_SEND = re.compile(
     r"\b(?:envie|enviar|mande|mandar|responda|responder|reply)\b"
 )
+_WHATSAPP_SAVE_CONTACT = re.compile(
+    r"(?:\b(?:salve|salvar|cadastre|cadastrar|adicione|adicionar|crie|criar)\b"
+    r".{0,80}\bcontato\b)|(?:\bcontato\b.{0,80}"
+    r"\b(?:salve|salvar|cadastre|cadastrar|adicione|adicionar|crie|criar)\b)"
+)
+_WHATSAPP_CONTACT_PHONE_CONTEXT = re.compile(
+    r"\b(?:numero|telefone|celular|whatsapp|whats|zap)\b|\+[1-9]\d{5,14}"
+)
 _WHATSAPP_MARK_READ = re.compile(
     r"\b(?:marque|marcar)\b.{0,64}\b(?:lida|lido|leitura)\b"
 )
@@ -69,6 +77,7 @@ _EMAIL_READ = re.compile(
 )
 
 _WHATSAPP_SEND_TOOLS = frozenset({"whatsapp.send_text", "whatsapp.reply"})
+_WHATSAPP_SAVE_CONTACT_TOOLS = frozenset({"whatsapp.save_contact"})
 _WHATSAPP_MARK_READ_TOOLS = frozenset(
     {"whatsapp.mark_read", "whatsapp.mark_read_internal"}
 )
@@ -139,7 +148,14 @@ def classify_voice_intent(transcript: str) -> IntentExpectation:
             return IntentExpectation("codex", frozenset({"codex.delegate"}), True)
         return IntentExpectation("codex")
 
+    if _WHATSAPP_SAVE_CONTACT.search(text) and _WHATSAPP_CONTACT_PHONE_CONTEXT.search(
+        text
+    ):
+        return IntentExpectation("whatsapp", _WHATSAPP_SAVE_CONTACT_TOOLS, True)
+
     if _WHATSAPP_SUBJECT.search(text):
+        if _WHATSAPP_SAVE_CONTACT.search(text):
+            return IntentExpectation("whatsapp", _WHATSAPP_SAVE_CONTACT_TOOLS, True)
         if _WHATSAPP_MARK_READ.search(text):
             return IntentExpectation("whatsapp", _WHATSAPP_MARK_READ_TOOLS, True)
         if _WHATSAPP_REACT.search(text):

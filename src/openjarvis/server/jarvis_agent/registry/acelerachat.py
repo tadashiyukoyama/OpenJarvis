@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from openjarvis.server.jarvis_agent.domain.models import ToolDefinition
 from openjarvis.server.jarvis_agent.domain.states import Effect
+from openjarvis.server.jarvis_agent.registry import acelerachat_contacts
 from openjarvis.server.jarvis_agent.registry.acelerachat_schemas import (
     INBOX_SELECTOR as _INBOX_SELECTOR,
 )
@@ -207,6 +208,7 @@ _EMAIL_TOOLS = (
 )
 
 _WHATSAPP_TOOLS = (
+    *acelerachat_contacts.acelerachat_contact_tools(),
     _tool(
         "whatsapp.status",
         "whatsapp_get_status",

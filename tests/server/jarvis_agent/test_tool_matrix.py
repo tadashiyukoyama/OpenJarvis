@@ -48,7 +48,7 @@ def test_canonical_catalog_has_the_exact_agent_surface() -> None:
     catalog = JarvisToolCatalog()
     identifiers = {tool.tool_id for tool in catalog.definitions}
 
-    assert len(identifiers) == 24
+    assert len(identifiers) == 25
     assert "whatsapp_action" not in identifiers
     assert not any("call" in identifier for identifier in identifiers)
     assert not any("hacker" in identifier for identifier in identifiers)
@@ -157,6 +157,7 @@ def test_acelerachat_surface_does_not_advertise_unsupported_mutations() -> None:
         "whatsapp.react",
         "whatsapp.reply",
         "whatsapp.send_media",
+        "whatsapp.save_contact",
         "whatsapp.mark_read_provider",
     }.issubset(identifiers)
     assert not {

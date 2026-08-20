@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Mapping
 from typing import Any
 from urllib.parse import urlsplit
@@ -16,11 +15,12 @@ from openjarvis.server.jarvis_agent.adapters.acelerachat.references import (
 from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_directory import (
     WhatsAppDirectory,
 )
+from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_values import (
+    normalize_e164,
+)
 from openjarvis.server.jarvis_agent.adapters.base import AdapterContext
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 from openjarvis.server.jarvis_agent.domain.models import PreparedToolCall
-
-_E164 = re.compile(r"^\+[1-9]\d{5,14}$")
 
 
 class WhatsAppMutationTargeting:
@@ -172,12 +172,7 @@ class WhatsAppMutationTargeting:
 
     @staticmethod
     def _phone_number(value: str) -> str:
-        normalized = re.sub(r"[\s().-]", "", value)
-        if not _E164.fullmatch(normalized):
-            raise JarvisAgentError(
-                "INVALID_REQUEST", "Informe o telefone completo no formato E.164."
-            )
-        return normalized
+        return normalize_e164(value)
 
     @staticmethod
     def _media_url(value: Any) -> str:

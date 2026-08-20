@@ -21,6 +21,10 @@ from openjarvis.server.jarvis_agent.adapters.acelerachat.presentation import (
 from openjarvis.server.jarvis_agent.adapters.acelerachat.references import (
     AceleraChatReferences,
 )
+from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_contacts import (
+    CONTACT_MUTATION_TOOL_IDS,
+    AceleraChatWhatsAppContacts,
+)
 from openjarvis.server.jarvis_agent.adapters.acelerachat.whatsapp_directory import (
     WhatsAppDirectory,
 )
@@ -44,6 +48,9 @@ class AceleraChatWhatsAppTools:
         self._capabilities = capabilities
         self._references = references
         self._directory = WhatsAppDirectory(client, references)
+        self._contacts = AceleraChatWhatsAppContacts(
+            capabilities, references, self._directory
+        )
         self._mutations = AceleraChatWhatsAppMutations(
             client, capabilities, references, self._directory
         )
@@ -59,6 +66,8 @@ class AceleraChatWhatsAppTools:
             return PreparedToolCall(dict(arguments), {"source": "AceleraChat WhatsApp"})
         if tool_id in MUTATION_TOOL_IDS:
             return self._mutations.prepare(tool_id, arguments, context)
+        if tool_id in CONTACT_MUTATION_TOOL_IDS:
+            return self._contacts.prepare(arguments, context)
         reference = str(arguments.get("conversation_ref") or "").strip()
         if reference:
             resolved = self._references.resolve(
@@ -95,6 +104,8 @@ class AceleraChatWhatsAppTools:
             return self._read(arguments, context)
         if tool_id in MUTATION_TOOL_IDS:
             return self._mutations.execute(tool_id, arguments, context)
+        if tool_id in CONTACT_MUTATION_TOOL_IDS:
+            return self._contacts.execute(arguments, context)
         raise JarvisAgentError("TOOL_UNAVAILABLE", "Ferramenta WhatsApp indisponível.")
 
     def _status(self) -> AdapterResult:

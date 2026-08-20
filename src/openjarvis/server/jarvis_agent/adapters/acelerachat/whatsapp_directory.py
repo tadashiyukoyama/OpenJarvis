@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import ValidationError
@@ -23,6 +24,14 @@ from openjarvis.server.jarvis_agent.adapters.acelerachat.references import (
 from openjarvis.server.jarvis_agent.adapters.base import AdapterContext
 from openjarvis.server.jarvis_agent.domain.errors import JarvisAgentError
 from openjarvis.server.jarvis_agent.domain.models import AdapterResult
+
+
+@dataclass(frozen=True, slots=True)
+class SavedWhatsAppContact:
+    contact: Contact
+    conversation: Conversation
+    contact_preexisting: bool
+    conversation_preexisting: bool
 
 
 class WhatsAppDirectory:
@@ -167,6 +176,60 @@ class WhatsAppDirectory:
             )
         )
 
+    def save_contact(
+        self,
+        *,
+        phone_number: str,
+        contact_name: str,
+        inbox_id: int,
+        request_id: str,
+    ) -> SavedWhatsAppContact:
+        """Create or reuse one contact and its server-owned inbox association."""
+
+        contact = self._exact_phone_contact(phone_number)
+        contact_preexisting = contact is not None
+        if contact is None:
+            payload: dict[str, Any] = {"phone_number": phone_number}
+            if contact_name.strip():
+                payload["name"] = contact_name.strip()
+            contact = self._contact(
+                self._client.create_contact(
+                    payload,
+                    idempotency_key=f"jarvis:{request_id}:contact-save",
+                )
+            )
+
+        conversations = self._conversations(
+            self._client.search_conversations(
+                inbox_id=inbox_id, contact_id=contact.id, limit=1
+            )
+        )
+        conversation_preexisting = bool(conversations)
+        conversation = (
+            conversations[0]
+            if conversations
+            else self._conversation(
+                self._client.create_conversation(
+                    inbox_id,
+                    contact.id,
+                    idempotency_key=f"jarvis:{request_id}:contact-inbox",
+                )
+            )
+        )
+        return SavedWhatsAppContact(
+            contact,
+            conversation,
+            contact_preexisting,
+            conversation_preexisting,
+        )
+
+    def _exact_phone_contact(self, phone_number: str) -> Contact | None:
+        contacts = self._contacts(self._client.search_contacts(phone_number, 10))
+        return next(
+            (contact for contact in contacts if contact.phone_number == phone_number),
+            None,
+        )
+
     def conversations_for_query(
         self, query: str, inbox_id: int, limit: int
     ) -> list[Conversation]:
@@ -223,3 +286,6 @@ class WhatsAppDirectory:
                 "PROVIDER_RESPONSE_INVALID",
                 "O AceleraChat retornou uma conversa inválida.",
             ) from exc
+
+
+__all__ = ["SavedWhatsAppContact", "WhatsAppDirectory"]

@@ -149,6 +149,7 @@ def test_granular_gate_enables_only_whatsapp_mutations() -> None:
     manifest = {entry["name"] for entry in snapshot["manifest"]}
 
     assert "whatsapp_send_text" in manifest
+    assert "whatsapp_save_contact" in manifest
     assert "whatsapp_react_message" in manifest
     assert "email_search_messages" in manifest
     assert "email_reply_conversation" not in manifest
