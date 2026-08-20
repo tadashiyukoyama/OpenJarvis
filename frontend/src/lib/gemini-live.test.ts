@@ -81,6 +81,10 @@ describe('Gemini Live Jarvis voice setup', () => {
     expect(instruction).toContain('nenhuma ação foi executada');
     expect(instruction).not.toContain('chame a função novamente');
 
+    expect(instruction).toContain('chame whatsapp_send_text diretamente');
+    expect(instruction).toContain('numero completo em E.164');
+    expect(instruction).toContain('Nunca invente ou reutilize numero antigo');
+
     const declarations = message.setup.tools[0].functionDeclarations;
     const declaration = declarations.find((tool: any) => tool.name === 'codex_delegate_task');
     expect(declaration.parameters.type).toBe('OBJECT');

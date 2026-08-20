@@ -25,6 +25,10 @@ from openjarvis.server.jarvis_agent.services.intent_routing import (
     validate_voice_tool_intent,
 )
 from openjarvis.server.jarvis_agent.services.presentation import public_action
+from openjarvis.server.jarvis_agent.services.voice_evidence import (
+    VoiceEvidence,
+    resolve_voice_evidence,
+)
 
 _APPROVAL_TTL_SECONDS = 5 * 60
 
@@ -89,11 +93,18 @@ class ProposalService:
             turn_id,
             allow_consumed=duplicate is not None,
         )
+        voice_evidence: VoiceEvidence | None = None
         if turn is not None:
             transcript = str(turn.get("transcript_text") or "")
             if transcript:
+                voice_evidence = resolve_voice_evidence(
+                    store=self._store,
+                    session=session,
+                    current_turn=turn,
+                    tool=tool,
+                )
                 try:
-                    validate_voice_tool_intent(tool, transcript)
+                    validate_voice_tool_intent(tool, voice_evidence.transcript)
                 except JarvisAgentError as error:
                     self._record_rejection(
                         session,
@@ -103,8 +114,8 @@ class ProposalService:
                     )
                     raise
         if duplicate is not None:
-            if turn_id and turn and turn.get("transcript_text"):
-                self._store.redact_turn(turn_id, time.time())
+            if voice_evidence is not None:
+                self._store.redact_turns(voice_evidence.turn_ids, time.time())
             self._emit_duplicate(session, duplicate, digest)
             return public_action(duplicate)
         action, created = self._create_action(
@@ -115,8 +126,8 @@ class ProposalService:
             prepared.preview,
             digest,
         )
-        if turn_id:
-            self._store.redact_turn(turn_id, time.time())
+        if voice_evidence is not None:
+            self._store.redact_turns(voice_evidence.turn_ids, time.time())
         if not created:
             self._emit_duplicate(session, action, digest)
             return public_action(action)

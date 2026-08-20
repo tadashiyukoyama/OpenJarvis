@@ -73,9 +73,32 @@ _WHATSAPP_MARK_READ_TOOLS = frozenset(
     {"whatsapp.mark_read", "whatsapp.mark_read_internal"}
 )
 _WHATSAPP_REACT_TOOLS = frozenset({"whatsapp.react"})
+_WHATSAPP_READ_TOOLS = frozenset(
+    {
+        "whatsapp.status",
+        "whatsapp.search_contacts",
+        "whatsapp.search_chats",
+        "whatsapp.read_conversation",
+        "whatsapp.summarize_conversation",
+        "whatsapp.group_metadata",
+        "whatsapp.privacy_read",
+    }
+)
 _EMAIL_SEND_TOOLS = frozenset({"email.reply", "gmail.send"})
 _EMAIL_ARCHIVE_TOOLS = frozenset({"email.archive", "gmail.archive"})
 _EMAIL_TRASH_TOOLS = frozenset({"email.trash", "gmail.trash"})
+_EMAIL_READ_TOOLS = frozenset(
+    {
+        "email.search",
+        "email.list_unread",
+        "email.read_message",
+        "email.read_conversation",
+        "gmail.search",
+        "gmail.list_unread",
+        "gmail.read_message",
+        "gmail.read_thread",
+    }
+)
 
 
 def normalize_intent(text: str) -> str:
@@ -124,7 +147,7 @@ def classify_voice_intent(transcript: str) -> IntentExpectation:
         if _WHATSAPP_SEND.search(text):
             return IntentExpectation("whatsapp", _WHATSAPP_SEND_TOOLS, True)
         if _WHATSAPP_READ.search(text):
-            return IntentExpectation("whatsapp", explicit=True)
+            return IntentExpectation("whatsapp", _WHATSAPP_READ_TOOLS, True)
         return IntentExpectation("whatsapp")
 
     if _EMAIL_SUBJECT.search(text):
@@ -135,7 +158,7 @@ def classify_voice_intent(transcript: str) -> IntentExpectation:
         if _EMAIL_SEND.search(text):
             return IntentExpectation("email", _EMAIL_SEND_TOOLS, True)
         if _EMAIL_READ.search(text):
-            return IntentExpectation("email", explicit=True)
+            return IntentExpectation("email", _EMAIL_READ_TOOLS, True)
         return IntentExpectation("email")
 
     return IntentExpectation()

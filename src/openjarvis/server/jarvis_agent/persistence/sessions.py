@@ -95,13 +95,63 @@ class SessionStoreMixin:
         finally:
             connection.close()
 
-    def redact_turn(self, turn_id: str, now: float) -> None:
+    def recent_unredacted_turns(
+        self,
+        *,
+        session_id: str,
+        generation: int,
+        through_turn_id: str,
+        committed_after: float,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Return a bounded, ordered voice window ending at one committed turn."""
+
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                """
+                SELECT turn_id, session_id, generation, transcript_text,
+                       transcript_hash, committed_at, redacted_at
+                FROM jarvis_turns
+                WHERE session_id = ? AND generation = ?
+                  AND transcript_text IS NOT NULL
+                  AND committed_at >= ?
+                  AND committed_at <= (
+                      SELECT committed_at FROM jarvis_turns WHERE turn_id = ?
+                  )
+                  AND rowid <= (
+                      SELECT rowid FROM jarvis_turns WHERE turn_id = ?
+                  )
+                ORDER BY committed_at DESC, rowid DESC
+                LIMIT ?
+                """,
+                (
+                    session_id,
+                    generation,
+                    committed_after,
+                    through_turn_id,
+                    through_turn_id,
+                    limit,
+                ),
+            ).fetchall()
+            return [row_dict(row) for row in reversed(rows)]
+        finally:
+            connection.close()
+
+    def redact_turns(self, turn_ids: list[str] | tuple[str, ...], now: float) -> None:
+        unique_ids = tuple(dict.fromkeys(turn_ids))
+        if not unique_ids:
+            return
+        placeholders = ", ".join("?" for _ in unique_ids)
         with self._transaction() as connection:
             connection.execute(
-                """
+                f"""
                 UPDATE jarvis_turns
                 SET transcript_text = NULL, redacted_at = ?
-                WHERE turn_id = ?
+                WHERE turn_id IN ({placeholders})
                 """,
-                (now, turn_id),
+                (now, *unique_ids),
             )
+
+    def redact_turn(self, turn_id: str, now: float) -> None:
+        self.redact_turns((turn_id,), now)

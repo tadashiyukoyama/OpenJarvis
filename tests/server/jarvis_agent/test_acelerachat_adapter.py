@@ -132,7 +132,11 @@ def _email_message() -> dict[str, Any]:
 
 class ApiDouble:
     def __init__(
-        self, *, ambiguous: bool = False, multiple_whatsapp: bool = False
+        self,
+        *,
+        ambiguous: bool = False,
+        multiple_whatsapp: bool = False,
+        empty_contacts: bool = False,
     ) -> None:
         self.email = _inbox(15, "Channel::Email", connected=False)
         self.whatsapp = _inbox(20, "Channel::Whatsapp", connected=True)
@@ -142,6 +146,7 @@ class ApiDouble:
             else None
         )
         self.ambiguous = ambiguous
+        self.empty_contacts = empty_contacts
         self.posts: list[httpx.Request] = []
         self.before_message_response = None
 
@@ -153,7 +158,7 @@ class ApiDouble:
                 inboxes.append(self.extra_whatsapp)
             return httpx.Response(200, json={"data": inboxes})
         if request.method == "GET" and path.endswith("/contacts"):
-            contacts = [_contact()]
+            contacts = [] if self.empty_contacts else [_contact()]
             if self.ambiguous:
                 contacts.append(_contact(42, "Klaus Consultor"))
             return httpx.Response(200, json={"data": contacts, "meta": {}})
@@ -471,6 +476,51 @@ def test_send_by_unique_contact_is_approved_once_and_remains_accepted(
         orchestrator.close()
 
 
+def test_split_voice_send_reaches_approval_without_provider_post(
+    tmp_path: Path,
+) -> None:
+    api = ApiDouble()
+    orchestrator = _orchestrator(tmp_path, api)
+    try:
+        session = orchestrator.create_session(project_key="D:/project")
+        orchestrator.commit_turn(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            turn_id="turn-send-intent",
+            transcript="Mande uma mensagem pelo WhatsApp.",
+        )
+        orchestrator.commit_turn(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            turn_id="turn-send-details",
+            transcript="Para Klaus Consultor: teste controlado.",
+        )
+
+        pending = orchestrator.propose(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            function_call_id="fc-split-voice-send",
+            tool_name="whatsapp_send_text",
+            arguments={
+                "contact_name": "Klaus Consultor",
+                "text": "Teste controlado.",
+            },
+            turn_id="turn-send-details",
+        )
+
+        assert pending["state"] == "AWAITING_APPROVAL"
+        assert pending["preview"]["target"] == "Klaus Consultor"
+        assert api.posts == []
+        assert (
+            orchestrator.store.get_turn("turn-send-intent")["transcript_text"] is None
+        )
+        assert (
+            orchestrator.store.get_turn("turn-send-details")["transcript_text"] is None
+        )
+    finally:
+        orchestrator.close()
+
+
 def test_send_by_phone_creates_server_owned_association_only_after_approval(
     tmp_path: Path,
 ) -> None:
@@ -650,6 +700,42 @@ def test_ambiguous_contact_never_creates_a_proposal_or_send(tmp_path: Path) -> N
                 arguments={"contact_name": "Klaus Consultor", "text": "Olá"},
             )
         assert raised.value.code == "INVALID_REQUEST"
+        assert api.posts == []
+    finally:
+        orchestrator.close()
+
+
+def test_missing_contact_requests_e164_and_never_creates_a_send(tmp_path: Path) -> None:
+    api = ApiDouble(empty_contacts=True)
+    orchestrator = _orchestrator(tmp_path, api)
+    try:
+        session = orchestrator.create_session(project_key="D:/project")
+        search = orchestrator.propose(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            function_call_id="fc-missing-search",
+            tool_name="whatsapp_search_chats",
+            arguments={"query": "Klaus Consultor", "limit": 5},
+        )
+        assert search["result"]["data"] == {
+            "conversations": [],
+            "resolution": "not_found",
+            "next_required_field": "phone_number_e164",
+            "untrusted_external_data": True,
+        }
+
+        with pytest.raises(JarvisAgentError) as raised:
+            orchestrator.propose(
+                session_id=session["session_id"],
+                generation=session["generation"],
+                function_call_id="fc-missing-send",
+                tool_name="whatsapp_send_text",
+                arguments={"contact_name": "Klaus Consultor", "text": "Ola"},
+            )
+
+        assert raised.value.code == "INVALID_REQUEST"
+        assert "E.164" in raised.value.message
+        assert "nenhuma mensagem foi enviada" in raised.value.message
         assert api.posts == []
     finally:
         orchestrator.close()

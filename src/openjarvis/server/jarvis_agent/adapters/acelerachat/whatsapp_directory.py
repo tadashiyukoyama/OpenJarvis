@@ -65,7 +65,12 @@ class WhatsAppDirectory:
         return AdapterResult(
             "completed",
             f"{len(values)} contato(s) WhatsApp encontrado(s).",
-            {"contacts": values, "untrusted_external_data": True},
+            {
+                "contacts": values,
+                "resolution": "matched" if values else "not_found",
+                "next_required_field": None if values else "phone_number_e164",
+                "untrusted_external_data": True,
+            },
             refs,
         )
 
@@ -98,7 +103,12 @@ class WhatsAppDirectory:
         return AdapterResult(
             "completed",
             f"{len(values)} conversa(s) WhatsApp encontrada(s).",
-            {"conversations": values, "untrusted_external_data": True},
+            {
+                "conversations": values,
+                "resolution": "matched" if values else "not_found",
+                "next_required_field": None if values else "phone_number_e164",
+                "untrusted_external_data": True,
+            },
             refs,
         )
 
@@ -117,7 +127,11 @@ class WhatsAppDirectory:
         unique = {item.id: item for item in (exact or conversations)}
         if len(unique) != 1:
             message = (
-                "Nenhuma conversa WhatsApp corresponde ao contato."
+                (
+                    "Nenhuma conversa WhatsApp corresponde ao contato nesta caixa. "
+                    "Peça o número completo com código do país e DDD (formato E.164); "
+                    "nenhuma mensagem foi enviada."
+                )
                 if not unique
                 else "O nome corresponde a mais de uma conversa; selecione uma delas."
             )
