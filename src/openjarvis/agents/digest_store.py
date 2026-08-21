@@ -33,8 +33,10 @@ class DigestStore:
     def __init__(self, db_path: str = "") -> None:
         if not db_path:
             db_path = str(get_config_dir() / "digest.db")
-        self._db_path = db_path
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        database_path = Path(db_path).expanduser()
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+        self._db_path = str(database_path)
+        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute(
             """

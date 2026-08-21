@@ -8,6 +8,15 @@ from pathlib import Path
 from openjarvis.agents.digest_store import DigestArtifact, DigestStore
 
 
+def test_initialization_creates_missing_parent_directory(tmp_path):
+    database_path = tmp_path / "missing" / "nested" / "digest.db"
+
+    store = DigestStore(db_path=str(database_path))
+
+    assert database_path.is_file()
+    store.close()
+
+
 def test_store_and_retrieve(tmp_path):
     store = DigestStore(db_path=str(tmp_path / "digest.db"))
 
