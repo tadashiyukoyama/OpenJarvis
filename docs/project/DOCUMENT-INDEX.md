@@ -3,9 +3,9 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to integrated code SHA: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
+Applies to integrated code SHA: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `codex/edge-live-relay-release`
+Branch: `fix/codex-event-driven-contact-reconcile`
 Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 Supersedes: none
 Superseded by: none
@@ -20,7 +20,7 @@ documentation; the completion report must record both SHAs and prove that diff.
 
 | Document | Status | Responsibility | Last verified | Applicable implementation |
 |---|---|---|---|---|
-| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-20 | `33a12d4` |
+| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-20 | `262f7b4` |
 | `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-19 | `28744c7` |
 | `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-20 | `33a12d4` |
 | `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `1ecb90a` |
@@ -29,6 +29,7 @@ documentation; the completion report must record both SHAs and prove that diff.
 | `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md` | CANONICAL EVIDENCE | exact Core/local SHAs, backups, digest, read-only smokes and rollback | 2026-08-19 | `1ecb90a` |
 | `operations/OPENJARVIS-DELEGATION-HISTORY-RELEASE-2026-08-20.md` | CANONICAL EVIDENCE | deterministic delegation, durable history, production image, backups, smoke and rollback | 2026-08-20 | `846127c` |
 | `operations/OPENJARVIS-WHATSAPP-CONTACT-SAVE-2026-08-20.md` | CANONICAL EVIDENCE | approved contact persistence, production image, backups, denied smoke and rollback | 2026-08-20 | `33a12d4` |
+| `operations/OPENJARVIS-CONTACT-CODEX-RECONCILIATION-2026-08-20.md` | CANONICAL EVIDENCE | contact response reconciliation, bounded Codex completion, production identities and rollback | 2026-08-20 | `262f7b4` + AceleraChat `1febefe` |
 | `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
 | `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `1ecb90a` |
 | `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-08-20 | `6d5b964` |
@@ -52,10 +53,11 @@ documentation; the completion report must record both SHAs and prove that diff.
 7. `KNOWN-ISSUES.md`
 8. `operations/JARVIS-AGENT-RUNBOOK.md`
 9. `operations/JARVIS-EDGE-MCP-RUNBOOK.md`
-10. `operations/OPENJARVIS-WHATSAPP-CONTACT-SAVE-2026-08-20.md`
-11. `operations/OPENJARVIS-DELEGATION-HISTORY-RELEASE-2026-08-20.md`
-12. `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md`
-13. generated OpenAPI/TypeScript/Edge contracts and code
+10. `operations/OPENJARVIS-CONTACT-CODEX-RECONCILIATION-2026-08-20.md`
+11. `operations/OPENJARVIS-WHATSAPP-CONTACT-SAVE-2026-08-20.md`
+12. `operations/OPENJARVIS-DELEGATION-HISTORY-RELEASE-2026-08-20.md`
+13. `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md`
+14. generated OpenAPI/TypeScript/Edge contracts and code
 
 For a new computer, read `operations/FRESH-WINDOWS-INSTALL.md` immediately
 after `AGENTS.md` and `.workspace/project.portable.json`, then resume the order

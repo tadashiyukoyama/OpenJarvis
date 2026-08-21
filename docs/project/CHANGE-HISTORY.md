@@ -3,11 +3,26 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Current integrated implementation: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
+Current integrated implementation: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
 Current publication target: private `cesaryukoyama28-eng/openjarvis-codex`, branch `main`
 Exact published documentation HEAD: recorded by the completion output after the one final push.
 Supersedes: none
 Superseded by: none
+
+## 2026-08-20 - Contact response and Codex load reconciliation
+
+- Refreshed the newly created AceleraChat conversation before presenting its
+  PostgreSQL-triggered public ID.
+- Added one read-only reconciliation for ambiguous contact/conversation create
+  responses without repeating a provider mutation.
+- Replaced active-turn history polling with event-driven completion and one
+  bounded deadline reconciliation.
+- Enabled the production AceleraChat integration in dynamic `all_account` mode
+  with an administrator service user for current and future inboxes.
+- Deployed OpenJarvis SHA `262f7b4` and AceleraChat SHA `1febefe`; both services
+  are healthy and their prior images remain available for rollback.
+- Recovered the user-created test contact through the real typed adapter. The
+  release validation sent no message or e-mail and made no duplicate mutation.
 
 ## 2026-08-20 - Approved WhatsApp contact persistence
 

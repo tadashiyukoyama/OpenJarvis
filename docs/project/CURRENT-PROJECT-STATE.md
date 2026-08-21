@@ -3,14 +3,36 @@
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
 Last verified: 2026-08-20
-Applies to integrated code SHA: `33a12d4020ac2b0325359ac5c1c3bd667a8db622`
+Applies to integrated code SHA: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `codex/edge-live-relay-release`
+Branch: `fix/codex-event-driven-contact-reconcile`
 Remote publication target: private `main` at
 `https://github.com/cesaryukoyama28-eng/openjarvis-codex`; the completion report
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
+
+## Contact contract and Codex load reconciliation - 2026-08-20
+
+Functional OpenJarvis SHA `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
+and AceleraChat SHA `1febefe0714e19851cb51c7db5c1a7394fc03d8d`
+are deployed. AceleraChat refreshes a newly created conversation before
+presenting its PostgreSQL-triggered public ID. OpenJarvis reconciles an
+ambiguous create response once by reading and never repeats the mutation.
+
+Codex completion is event-driven and no longer polls the full selected task
+while a turn is active. The corrected Edge Worker is online; current logs after
+its restart contain zero history reads. Production access is `all_account`
+with an administrator service user, so all four current and all future account
+inboxes are resolved dynamically while per-inbox capability checks remain
+fail-closed.
+
+Production Core is healthy with zero restarts. The exact contact from the
+reported failure is readable through the typed adapter and its conversation is
+valid in inbox 20. Release validation sent no WhatsApp message or e-mail,
+created no second contact and started no Codex turn. Full evidence, hashes,
+backups and rollback targets are in
+`operations/OPENJARVIS-CONTACT-CODEX-RECONCILIATION-2026-08-20.md`.
 
 ## WhatsApp contact persistence production release — 2026-08-20
 
