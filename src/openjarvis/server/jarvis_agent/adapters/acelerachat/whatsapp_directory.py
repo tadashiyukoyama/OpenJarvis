@@ -35,6 +35,10 @@ class SavedWhatsAppContact:
 
 
 class WhatsAppDirectory:
+    _AMBIGUOUS_CREATE_ERRORS = frozenset(
+        {"EXTERNAL_RESULT_UNKNOWN", "PROVIDER_RESPONSE_INVALID"}
+    )
+
     def __init__(
         self, client: AceleraChatClient, references: AceleraChatReferences
     ) -> None:
@@ -168,12 +172,10 @@ class WhatsAppDirectory:
                 idempotency_key=f"jarvis:{request_id}:contact",
             )
         )
-        return self._conversation(
-            self._client.create_conversation(
-                inbox_id,
-                contact.id,
-                idempotency_key=f"jarvis:{request_id}:conversation",
-            )
+        return self._create_conversation_with_reconciliation(
+            inbox_id=inbox_id,
+            contact_id=contact.id,
+            idempotency_key=f"jarvis:{request_id}:conversation",
         )
 
     def save_contact(
@@ -208,12 +210,10 @@ class WhatsAppDirectory:
         conversation = (
             conversations[0]
             if conversations
-            else self._conversation(
-                self._client.create_conversation(
-                    inbox_id,
-                    contact.id,
-                    idempotency_key=f"jarvis:{request_id}:contact-inbox",
-                )
+            else self._create_conversation_with_reconciliation(
+                inbox_id=inbox_id,
+                contact_id=contact.id,
+                idempotency_key=f"jarvis:{request_id}:contact-inbox",
             )
         )
         return SavedWhatsAppContact(
@@ -222,6 +222,50 @@ class WhatsAppDirectory:
             contact_preexisting,
             conversation_preexisting,
         )
+
+    def _create_conversation_with_reconciliation(
+        self,
+        *,
+        inbox_id: int,
+        contact_id: int,
+        idempotency_key: str,
+    ) -> Conversation:
+        """Create once and reconcile an ambiguous post-mutation response."""
+
+        try:
+            return self._conversation(
+                self._client.create_conversation(
+                    inbox_id,
+                    contact_id,
+                    idempotency_key=idempotency_key,
+                )
+            )
+        except JarvisAgentError as exc:
+            if exc.code not in self._AMBIGUOUS_CREATE_ERRORS:
+                raise
+
+            try:
+                conversations = self._conversations(
+                    self._client.search_conversations(
+                        inbox_id=inbox_id,
+                        contact_id=contact_id,
+                        limit=1,
+                    )
+                )
+            except JarvisAgentError:
+                conversations = []
+            if conversations:
+                return conversations[0]
+
+            raise JarvisAgentError(
+                "EXTERNAL_RESULT_UNKNOWN",
+                (
+                    "O AceleraChat recebeu a criação da conversa, mas o "
+                    "resultado ainda não pôde ser confirmado. "
+                    "Consulte antes de repetir."
+                ),
+                status_code=502,
+            ) from exc
 
     def _exact_phone_contact(self, phone_number: str) -> Contact | None:
         contacts = self._contacts(self._client.search_contacts(phone_number, 10))

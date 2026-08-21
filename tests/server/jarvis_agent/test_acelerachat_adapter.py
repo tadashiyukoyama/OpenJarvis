@@ -146,6 +146,8 @@ class ApiDouble:
         multiple_whatsapp: bool = False,
         empty_contacts: bool = False,
         existing_phone_contact: bool = False,
+        invalid_created_conversation: bool = False,
+        hide_created_conversation: bool = False,
     ) -> None:
         self.email = _inbox(15, "Channel::Email", connected=False)
         self.whatsapp = _inbox(20, "Channel::Whatsapp", connected=True)
@@ -157,6 +159,9 @@ class ApiDouble:
         self.ambiguous = ambiguous
         self.empty_contacts = empty_contacts
         self.existing_phone_contact = existing_phone_contact
+        self.invalid_created_conversation = invalid_created_conversation
+        self.hide_created_conversation = hide_created_conversation
+        self.created_conversations: set[tuple[int, int]] = set()
         self.posts: list[httpx.Request] = []
         self.before_message_response = None
 
@@ -197,7 +202,12 @@ class ApiDouble:
             return httpx.Response(200, json={"data": [_email_message()], "meta": {}})
         if request.method == "GET" and path.endswith("/conversations"):
             contact_id = int(request.url.params.get("contact_id", "41"))
-            if self.empty_contacts and contact_id == 77:
+            requested_inbox_id = int(request.url.params.get("inbox_id", "20"))
+            created = (
+                requested_inbox_id,
+                contact_id,
+            ) in self.created_conversations and not self.hide_created_conversation
+            if self.empty_contacts and contact_id == 77 and not created:
                 return httpx.Response(200, json={"data": [], "meta": {}})
             contact = _contact(
                 contact_id,
@@ -207,7 +217,6 @@ class ApiDouble:
                     else None
                 ),
             )
-            requested_inbox_id = int(request.url.params.get("inbox_id", "20"))
             selected_inbox = (
                 self.extra_whatsapp
                 if self.extra_whatsapp
@@ -230,11 +239,17 @@ class ApiDouble:
             )
             contact = _contact(77, "Novo contato")
             contact["phone_number"] = "+5511988887777"
+            self.created_conversations.add((requested_inbox_id, 77))
+            conversation = _conversation(
+                contact,
+                selected_inbox,
+                conversation_id=106,
+            )
+            if self.invalid_created_conversation:
+                conversation["id"] = None
             return httpx.Response(
                 201,
-                json={
-                    "data": _conversation(contact, selected_inbox, conversation_id=106)
-                },
+                json={"data": conversation},
             )
         if request.method == "GET" and path.endswith("/conversations/104"):
             return httpx.Response(

@@ -94,6 +94,74 @@ def test_save_contact_reuses_exact_phone_without_overwriting_or_sending(
         orchestrator.close()
 
 
+def test_save_contact_reconciles_invalid_post_create_projection(
+    tmp_path: Path,
+) -> None:
+    api = ApiDouble(empty_contacts=True, invalid_created_conversation=True)
+    orchestrator = _orchestrator(tmp_path, api)
+    try:
+        session = orchestrator.create_session(project_key="D:/project")
+        pending = orchestrator.propose(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            function_call_id="fc-save-contact-reconcile",
+            tool_name="whatsapp_save_contact",
+            arguments={
+                "contact_name": "Contato reconciliado",
+                "phone_number": "+5511988887777",
+            },
+        )
+
+        completed = orchestrator.decide(
+            action_id=pending["action_id"],
+            session_id=session["session_id"],
+            payload_hash=pending["payload_hash"],
+            decision="approve",
+        )
+
+        assert completed["state"] == "COMPLETED"
+        assert completed["result"]["data"]["conversation_ref"].startswith("war_")
+        assert completed["result"]["data"]["conversation_preexisting"] is False
+        assert [request.method for request in api.posts] == ["POST", "POST"]
+        assert all(not request.url.path.endswith("/messages") for request in api.posts)
+    finally:
+        orchestrator.close()
+
+
+def test_save_contact_does_not_repeat_an_unconfirmed_create(tmp_path: Path) -> None:
+    api = ApiDouble(
+        empty_contacts=True,
+        invalid_created_conversation=True,
+        hide_created_conversation=True,
+    )
+    orchestrator = _orchestrator(tmp_path, api)
+    try:
+        session = orchestrator.create_session(project_key="D:/project")
+        pending = orchestrator.propose(
+            session_id=session["session_id"],
+            generation=session["generation"],
+            function_call_id="fc-save-contact-unknown",
+            tool_name="whatsapp_save_contact",
+            arguments={
+                "contact_name": "Contato sem confirmação",
+                "phone_number": "+5511988887777",
+            },
+        )
+
+        unknown = orchestrator.decide(
+            action_id=pending["action_id"],
+            session_id=session["session_id"],
+            payload_hash=pending["payload_hash"],
+            decision="approve",
+        )
+
+        assert unknown["state"] == "UNKNOWN"
+        assert unknown["error_code"] == "EXTERNAL_RESULT_UNKNOWN"
+        assert [request.method for request in api.posts] == ["POST", "POST"]
+    finally:
+        orchestrator.close()
+
+
 def test_save_contact_requires_e164_before_creating_an_action(tmp_path: Path) -> None:
     api = ApiDouble(empty_contacts=True)
     orchestrator = _orchestrator(tmp_path, api)
