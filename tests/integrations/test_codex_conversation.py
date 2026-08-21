@@ -181,6 +181,13 @@ class FakeConversationClient:
                 "nextCursor": "next-1",
             }
         if method == "thread/turns/list":
+            reconciled_turns = self.thread_read_turns.get(params["threadId"])
+            if reconciled_turns is not None:
+                return {
+                    "data": reconciled_turns[: params.get("limit", 50)],
+                    "nextCursor": None,
+                    "backwardsCursor": None,
+                }
             return {
                 "data": [
                     {
@@ -533,7 +540,7 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         result = self.runtime.wait_turn(
             info.thread_id,
             info.turn_id,
-            timeout_seconds=1.5,
+            timeout_seconds=0.05,
         )
 
         self.assertEqual(result.status, CodexTurnStatus.COMPLETED)
@@ -541,17 +548,69 @@ class CodexConversationRuntimeTests(unittest.TestCase):
         self.assertEqual(result.public_events[-1].event_type, "turn_reconciled")
         self.assertTrue(
             any(
-                method == "thread/read"
+                method == "thread/turns/list"
                 and params
                 == {
                     "threadId": info.thread_id,
-                    "includeTurns": True,
+                    "limit": 5,
+                    "sortDirection": "desc",
+                    "itemsView": "full",
                 }
                 for method, params in self.client.calls
             )
         )
         following = self.runtime.turn_start(info.thread_id, "next")
         self._emit_completed(following, text="next done")
+
+    def test_wait_turn_does_not_poll_history_while_turn_is_running(self) -> None:
+        info = self.runtime.turn_start("thread-long-running", "hello")
+        thread, outcome, _ = self._start_waiter(info, timeout_seconds=0.5)
+
+        time.sleep(0.15)
+
+        history_calls = [
+            method
+            for method, _ in self.client.calls
+            if method in {"thread/read", "thread/turns/list"}
+        ]
+        self.assertEqual(history_calls, [])
+        self._emit_completed(info, text="done")
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(outcome["result"].final_content, "done")
+
+    def test_timeout_reconciliation_uses_one_bounded_turn_page(self) -> None:
+        info = self.runtime.turn_start("thread-bounded-reconcile", "hello")
+        self.client.thread_read_turns[info.thread_id] = [
+            {"id": info.turn_id, "status": "inProgress", "items": []}
+        ]
+
+        with self.assertRaises(CodexConversationTimeout):
+            self.runtime.wait_turn(
+                info.thread_id,
+                info.turn_id,
+                timeout_seconds=0.05,
+            )
+
+        reconciliation_calls = [
+            (method, params)
+            for method, params in self.client.calls
+            if method in {"thread/read", "thread/turns/list"}
+        ]
+        self.assertEqual(
+            reconciliation_calls,
+            [
+                (
+                    "thread/turns/list",
+                    {
+                        "threadId": info.thread_id,
+                        "limit": 5,
+                        "sortDirection": "desc",
+                        "itemsView": "full",
+                    },
+                )
+            ],
+        )
 
     def test_interleaved_turns_are_correlated_by_both_ids(self) -> None:
         first = self.runtime.turn_start("thread-a", "one")

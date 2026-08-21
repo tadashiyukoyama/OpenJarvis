@@ -105,8 +105,7 @@ _PUBLIC_TURN_METADATA = frozenset({"completedAt", "durationMs", "startedAt"})
 _MAX_EVENTS_PER_TURN = 256
 _MAX_EARLY_EVENTS = 256
 _MAX_COMPLETED_TURNS = 128
-_TURN_RECONCILE_INTERVAL_SECONDS = 0.5
-_TURN_RECONCILE_REQUEST_TIMEOUT_SECONDS = 2.0
+_TURN_RECONCILE_REQUEST_TIMEOUT_SECONDS = 10.0
 _THREAD_STATUS_REQUEST_TIMEOUT_SECONDS = 10.0
 _THREAD_INACTIVE_STATUS_TYPES = frozenset({"idle", "notLoaded"})
 
@@ -300,7 +299,7 @@ class _TurnState:
     done: bool = False
     waiters: int = 0
     wait_error: CodexConversationError | None = None
-    last_reconcile_monotonic: float = field(default_factory=time.monotonic)
+    terminal_reconcile_attempted: bool = False
     reconcile_in_progress: bool = False
     condition: threading.Condition = field(default_factory=threading.Condition)
 
@@ -762,20 +761,21 @@ class CodexConversationRuntime:
                     now = time.monotonic()
                     remaining = None if deadline is None else deadline - now
                     if remaining is not None and remaining <= 0:
-                        raise CodexConversationTimeout("turn wait timed out")
-                    until_reconcile = max(
-                        0.0,
-                        _TURN_RECONCILE_INTERVAL_SECONDS
-                        - (now - state.last_reconcile_monotonic),
-                    )
-                    if not state.reconcile_in_progress and until_reconcile <= 0:
-                        state.reconcile_in_progress = True
-                        state.last_reconcile_monotonic = now
-                        reconcile = True
+                        if state.reconcile_in_progress:
+                            state.condition.wait(timeout=0.05)
+                        elif state.terminal_reconcile_attempted:
+                            raise CodexConversationTimeout("turn wait timed out")
+                        else:
+                            # ``turn/completed`` is the authoritative path. A
+                            # single bounded read at the caller deadline only
+                            # recovers a terminal notification lost in transit;
+                            # it must never poll a large rollout while Codex is
+                            # legitimately still working.
+                            state.terminal_reconcile_attempted = True
+                            state.reconcile_in_progress = True
+                            reconcile = True
                     else:
                         wait_for = 0.1
-                        if not state.reconcile_in_progress:
-                            wait_for = min(wait_for, until_reconcile)
                         if remaining is not None:
                             wait_for = min(wait_for, remaining)
                         state.condition.wait(timeout=max(wait_for, 0.001))
@@ -827,22 +827,21 @@ class CodexConversationRuntime:
         """Recover an exact terminal turn when its notification was missed."""
 
         result = self._client.request(
-            "thread/read",
-            {"threadId": thread_id, "includeTurns": True},
+            "thread/turns/list",
+            {
+                "threadId": thread_id,
+                "limit": 5,
+                "sortDirection": "desc",
+                "itemsView": "full",
+            },
             timeout_seconds=_TURN_RECONCILE_REQUEST_TIMEOUT_SECONDS,
         )
-        if not isinstance(result, dict) or not isinstance(result.get("thread"), dict):
-            return None
-        thread = result["thread"]
-        if _optional_string(thread.get("id")) != thread_id:
-            return None
-        turns = thread.get("turns")
-        if not isinstance(turns, list):
+        if not isinstance(result, dict) or not isinstance(result.get("data"), list):
             return None
         target = next(
             (
                 turn
-                for turn in turns
+                for turn in result["data"]
                 if isinstance(turn, dict)
                 and _optional_string(turn.get("id")) == turn_id
             ),
