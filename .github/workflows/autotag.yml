@@ -1,9 +1,13 @@
-name: Auto-tag on main push
+name: Manual tag and release authorization
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm_publication:
+        description: 'Authorize tag creation and downstream release publication'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -11,6 +15,7 @@ permissions:
 
 jobs:
   tag:
+    if: ${{ inputs.confirm_publication == true }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

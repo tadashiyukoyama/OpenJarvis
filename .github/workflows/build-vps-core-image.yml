@@ -11,6 +11,12 @@ on:
       - 'uv.lock'
       - '.github/workflows/build-vps-core-image.yml'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the built image to GHCR (explicit authorization required)'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -22,29 +28,18 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64, openjarvis-ci]
+    # The immutable image build runs on an ephemeral GitHub-hosted runner.
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
 
-      - name: Validate dedicated runner boundary
-        env:
-          EXPECTED_RUNNER_NAME: vps10056-openjarvis
-          MIN_FREE_GIB: '8'
-        run: |
-          set -euo pipefail
-          test "$RUNNER_NAME" = "$EXPECTED_RUNNER_NAME"
-          security_options=$(docker info --format '{{json .SecurityOptions}}')
-          [[ "$security_options" == *rootless* ]]
-          free_gib=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
-          (( free_gib >= MIN_FREE_GIB ))
-          echo "Dedicated runner verified with ${free_gib} GiB free." >> "$GITHUB_STEP_SUMMARY"
-
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: ${{ inputs.publish == true }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -57,14 +52,20 @@ jobs:
         with:
           context: .
           file: deploy/vps/Dockerfile
-          push: true
-          tags: ghcr.io/cesaryukoyama28-eng/openjarvis-codex:${{ github.sha }}
+          push: ${{ inputs.publish == true }}
+          tags: ghcr.io/managerprojundiai/openjarvis-codex:${{ github.sha }}
           cache-from: type=gha,scope=openjarvis-vps-core
           cache-to: type=gha,mode=max,scope=openjarvis-vps-core
 
       - name: Record immutable artifact
+        env:
+          PUBLISH_IMAGE: ${{ inputs.publish == true }}
         run: |
           set -euo pipefail
-          test -n "${{ steps.image.outputs.digest }}"
-          echo "Image: ghcr.io/cesaryukoyama28-eng/openjarvis-codex:${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Digest: ${{ steps.image.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$PUBLISH_IMAGE" == "true" ]]; then
+            test -n "${{ steps.image.outputs.digest }}"
+            echo "Published image: ghcr.io/managerprojundiai/openjarvis-codex:${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Digest: ${{ steps.image.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Build completed; GHCR publication was explicitly disabled." >> "$GITHUB_STEP_SUMMARY"
+          fi
