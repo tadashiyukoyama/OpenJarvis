@@ -22,24 +22,12 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64, openjarvis-ci]
+    # The immutable image build runs on an ephemeral GitHub-hosted runner.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
-
-      - name: Validate dedicated runner boundary
-        env:
-          EXPECTED_RUNNER_NAME: vps10056-openjarvis
-          MIN_FREE_GIB: '8'
-        run: |
-          set -euo pipefail
-          test "$RUNNER_NAME" = "$EXPECTED_RUNNER_NAME"
-          security_options=$(docker info --format '{{json .SecurityOptions}}')
-          [[ "$security_options" == *rootless* ]]
-          free_gib=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
-          (( free_gib >= MIN_FREE_GIB ))
-          echo "Dedicated runner verified with ${free_gib} GiB free." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3

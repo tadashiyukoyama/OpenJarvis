@@ -596,3 +596,10 @@ Superseded by: none
   media candidate, but those additions require their own deployment gate.
 - Evidence: one denied production proposal, zero Edge jobs and zero real Codex,
   e-mail or WhatsApp mutations during the release smoke.
+
+## OJ-JARVIS-D45 - Hosted image-build preparation (unmerged work branch)
+
+- Branch `codex/hosted-runners-openjarvis` runs the VPS Core image build on
+  `ubuntu-24.04` and removes only the VPS10056 runner-boundary check.
+- The dedicated-runner verification workflow remains manual-only. No deploy
+  workflow was added, no image was published, and no GHCR reference changed.
