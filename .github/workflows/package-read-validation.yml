@@ -40,8 +40,12 @@ jobs:
         run: |
           set -euo pipefail
           trap 'docker logout "$REGISTRY" >/dev/null 2>&1 || true' EXIT
-          digest="$(docker buildx imagetools inspect "$IMAGE:$IMAGE_TAG" \
-            | awk '/^Digest:/ { print $2; exit }')"
+          if ! inspect="$(docker buildx imagetools inspect "$IMAGE:$IMAGE_TAG" 2>&1)"; then
+            printf '%s\n' "$inspect"
+            exit 1
+          fi
+          printf '%s\n' "$inspect"
+          digest="$(printf '%s\n' "$inspect" | awk '/^Digest:/ { print $2; exit }')"
           test "$digest" = "$EXPECTED_DIGEST"
           {
             echo "GHCR authentication: PASS"
