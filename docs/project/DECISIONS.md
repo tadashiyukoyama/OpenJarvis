@@ -600,6 +600,6 @@ Superseded by: none
 ## OJ-JARVIS-D45 - Hosted image-build preparation (unmerged work branch)
 
 - Branch `codex/hosted-runners-openjarvis` runs the VPS Core image build on
-  `ubuntu-24.04` and removes only the VPS10056 runner-boundary check.
+  `ubuntu-latest` and removes only the VPS10056 runner-boundary check.
 - The dedicated-runner verification workflow remains manual-only. No deploy
   workflow was added, no image was published, and no GHCR reference changed.
