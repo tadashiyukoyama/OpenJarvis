@@ -1,0 +1,50 @@
+name: Validate OpenJarvis GHCR read access
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/package-read-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: package-read-validation-${{ github.repository }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/managerprojundiai/openjarvis-codex
+  IMAGE_TAG: 262f7b4f3487c22f7c5d4ca098844c27277b2d3f
+  EXPECTED_DIGEST: sha256:4837b9517e98a56d03b041ac60a0e341e8d090ae30474126bb19ad618df2d9a4
+
+jobs:
+  package-read:
+    name: Read GHCR manifest with GITHUB_TOKEN
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Authenticate to GHCR
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GHCR_TOKEN"
+          printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" \
+            --username "$GHCR_USERNAME" --password-stdin >/dev/null
+
+      - name: Read and verify manifest digest
+        run: |
+          set -euo pipefail
+          trap 'docker logout "$REGISTRY" >/dev/null 2>&1 || true' EXIT
+          digest="$(docker buildx imagetools inspect "$IMAGE:$IMAGE_TAG" \
+            | awk '/^Digest:/ { print $2; exit }')"
+          test "$digest" = "$EXPECTED_DIGEST"
+          {
+            echo "GHCR authentication: PASS"
+            echo "Manifest read: PASS"
+            echo "Digest: $digest"
+          } >> "$GITHUB_STEP_SUMMARY"
