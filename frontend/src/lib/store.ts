@@ -28,6 +28,7 @@ import {
   reconcileCodexHistoryMessages,
 } from './codex-sync';
 import type { ManagedAgent } from './api';
+import { CODEX_BRAIN_ID, isDesktopRuntime, publicBrainModel } from './single-brain';
 
 export interface CachedConnector {
   connector_id: string;
@@ -295,7 +296,7 @@ export const useAppStore = create<AppState>((set, get) => {
 
     models: [],
     modelsLoading: true,
-    selectedModel: '',
+    selectedModel: publicBrainModel(isDesktopRuntime()),
     serverInfo: null,
     savings: null,
 
@@ -652,7 +653,8 @@ export const useAppStore = create<AppState>((set, get) => {
           : { models },
       ),
     setModelsLoading: (loading: boolean) => set({ modelsLoading: loading }),
-    setSelectedModel: (model: string) => set({ selectedModel: model }),
+    setSelectedModel: (model: string) =>
+      set({ selectedModel: publicBrainModel(isDesktopRuntime(), model) || CODEX_BRAIN_ID }),
     setServerInfo: (info: ServerInfo | null) => set({ serverInfo: info }),
     setSavings: (data: SavingsData | null) => set({ savings: data }),
     incrementSavings: (usage: TokenUsage) => {

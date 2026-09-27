@@ -19,6 +19,7 @@ import { fetchModels, fetchServerInfo, fetchSavings, submitSavings, isTauri } fr
 import { OptInModal } from './components/OptInModal';
 import { UpdateChecker } from './components/Desktop/UpdateChecker';
 import { track, hashId } from './lib/analytics';
+import { CODEX_BRAIN_ID } from './lib/single-brain';
 
 export default function App() {
   const [setupDone, setSetupDone] = useState(!isTauri());
@@ -70,6 +71,15 @@ export default function App() {
 
   // Fetch models on mount
   useEffect(() => {
+    // The public web surface is an Agent Host transport, not a model picker.
+    // Keep Codex as the only cognitive authority and avoid probing the legacy
+    // Ollama/cloud model catalog from the browser.
+    if (!isTauri()) {
+      setModels([{ id: CODEX_BRAIN_ID, object: 'model', created: 0, owned_by: 'agent-host' }]);
+      setSelectedModel(CODEX_BRAIN_ID);
+      setModelsLoading(false);
+      return;
+    }
     fetchModels()
       .then((m) => {
         setModels(m);
@@ -188,10 +198,10 @@ export default function App() {
       <UpdateChecker />
       <Routes>
         <Route element={<Layout />}>
-          {/* The application opens in the owner voice surface.  The Codex
-              project/chat workspace remains available at /chat. */}
+          {/* The public web chat is the Agent Host/Codex surface; Tauri keeps
+              the legacy local model workspace for development. */}
           <Route index element={<JarvisPage />} />
-          <Route path="chat" element={<ChatPage />} />
+          <Route path="chat" element={isTauri() ? <ChatPage /> : <AgentCorePage />} />
           <Route path="whatsapp" element={<WhatsAppInboxPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />
@@ -208,7 +218,7 @@ export default function App() {
         </Route>
       </Routes>
       <Toaster position="bottom-right" />
-      {commandPaletteOpen && <CommandPalette />}
+      {commandPaletteOpen && isTauri() && <CommandPalette />}
       {optInModalOpen && (
         <OptInModal onClose={() => setOptInModalOpen(false)} />
       )}

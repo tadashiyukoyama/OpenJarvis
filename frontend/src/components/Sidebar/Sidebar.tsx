@@ -23,6 +23,8 @@ import {
 import { ConversationList } from './ConversationList';
 import { CodexTargetSelector } from './CodexTargetSelector';
 import { useAppStore } from '../../lib/store';
+import { isTauri } from '../../lib/api';
+import { CODEX_BRAIN_LABEL } from '../../lib/single-brain';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -46,6 +48,7 @@ export function Sidebar() {
 
   const ThemeIcon = settings.theme === 'light' ? Sun : settings.theme === 'dark' ? Moon : Monitor;
   const nextTheme = settings.theme === 'light' ? 'dark' : settings.theme === 'dark' ? 'system' : 'light';
+  const desktopModelWorkspace = isTauri();
 
   const messages = useAppStore((s) => s.messages);
   const handleNewChat = () => {
@@ -136,7 +139,8 @@ export function Sidebar() {
 
           {/* Model badge */}
           <button
-            onClick={() => setCommandPaletteOpen(true)}
+            onClick={() => { if (desktopModelWorkspace) setCommandPaletteOpen(true); }}
+            disabled={!desktopModelWorkspace}
             className="mx-3 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer"
             style={{
               background: 'var(--color-bg-secondary)',
@@ -156,7 +160,9 @@ export function Sidebar() {
                 className="truncate block text-left"
                 style={{ color: deepResearch ? 'var(--color-accent)' : 'var(--color-text)' }}
               >
-                {deepResearch
+                {!desktopModelWorkspace
+                  ? CODEX_BRAIN_LABEL
+                  : deepResearch
                   ? 'Deep Research'
                   : selectedModel || serverInfo?.model || 'Select model'}
               </span>
@@ -176,6 +182,8 @@ export function Sidebar() {
             )}
           </button>
 
+          {/* Project/thread targeting is still needed by the owner voice
+              surface.  It does not expose a second model on the web. */}
           <CodexTargetSelector />
 
           {/* Search */}
