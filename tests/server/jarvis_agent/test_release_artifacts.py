@@ -53,7 +53,9 @@ def test_openresty_exposes_only_explicit_public_boundaries() -> None:
     assert "location ^~ /local-agent/v1/jarvis/agent/" in config
     assert "proxy_set_header X-OpenJarvis-MCP-Gateway 1" in config
     assert "location = /health {" in config
+    assert "chat(?:/.*)?" in config
     assert "workbox-[a-z0-9]+\\.js" in config
+    assert "location = / {" in config and "return 302 /chat;" in config
     assert "location / {" in config and "return 404;" in config
     assert "proxy_pass http://127.0.0.1:8131" not in config
 

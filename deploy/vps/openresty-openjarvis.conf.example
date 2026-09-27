@@ -84,7 +84,7 @@ server {
         proxy_pass_request_headers on;
     }
 
-    location ~ ^/(jarvis(?:/.*)?|assets/.*|manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-z0-9]+\.js|pwa-.*\.png|favicon\.ico)$ {
+    location ~ ^/(chat(?:/.*)?|jarvis(?:/.*)?|assets/.*|manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-z0-9]+\.js|pwa-.*\.png|favicon\.ico)$ {
         auth_basic "OpenJarvis";
         auth_basic_user_file <private-htpasswd-path>;
         proxy_pass http://openjarvis_core;
@@ -119,6 +119,10 @@ server {
 
     location /local-agent/ {
         return 404;
+    }
+
+    location = / {
+        return 302 /chat;
     }
 
     location / {
