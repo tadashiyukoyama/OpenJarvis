@@ -198,10 +198,9 @@ export default function App() {
       <UpdateChecker />
       <Routes>
         <Route element={<Layout />}>
-          {/* The public web chat is the Agent Host/Codex surface; Tauri keeps
-              the legacy local model workspace for development. */}
+          {/* The public web chat is the single Agent Host/Codex surface. */}
           <Route index element={<JarvisPage />} />
-          <Route path="chat" element={isTauri() ? <ChatPage /> : <AgentCorePage />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="whatsapp" element={<WhatsAppInboxPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />

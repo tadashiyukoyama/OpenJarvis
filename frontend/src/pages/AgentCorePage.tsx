@@ -13,7 +13,7 @@ import {
   type AgentHostEvent,
   type AgentHostStatus,
 } from '../features/agent-host/client';
-import { WhatsAppBaileysPanel } from '../components/setup/WhatsAppBaileysPanel';
+import { EvolutionWhatsAppPanel } from '../components/setup/EvolutionWhatsAppPanel';
 import './AgentCorePage.css';
 
 type SpeechRecognitionLike = {
@@ -203,10 +203,10 @@ export function AgentCorePage() {
         {status?.budget ? <small>turns {String(status.budget.turns_consumed ?? 0)} · tools {String(status.budget.tool_calls_consumed ?? 0)} · limite {String(status.budget.max_turns ?? '—')}</small> : null}
       </section>
 
-      <section className="agent-core-channel" aria-label="WhatsApp Baileys">
-        <h2>WhatsApp · Baileys</h2>
-        <p>Canal externo do mesmo Agent Host. O provider ativo é somente Baileys.</p>
-        <WhatsAppBaileysPanel />
+      <section className="agent-core-channel" aria-label="WhatsApp Evolution API">
+        <h2>WhatsApp · Evolution API</h2>
+        <p>Canal externo do mesmo Agent Host. O provider ativo é a Evolution API.</p>
+        <EvolutionWhatsAppPanel />
       </section>
 
       <section className="agent-core-controls" aria-label="Controles do agente">
