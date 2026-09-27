@@ -55,7 +55,7 @@ def test_openresty_exposes_only_explicit_public_boundaries() -> None:
         in config
     )
     assert "auth_basic_user_file <private-htpasswd-path>;" in config
-    assert "add_header Cache-Control \"no-store\" always;" in config
+    assert 'add_header Cache-Control "no-store" always;' in config
     assert "location ^~ /local-agent/v1/jarvis/agent/" in config
     assert "proxy_set_header X-OpenJarvis-MCP-Gateway 1" in config
     assert "location = /health {" in config
