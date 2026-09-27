@@ -44,8 +44,8 @@ def counts(connection: sqlite3.Connection) -> dict[str, int]:
 
 def managed_d_path(path: Path) -> Path:
     resolved = path.expanduser().resolve()
-    if os.name == "nt" and resolved.drive.upper() != "D:":
-        raise RuntimeError(f"Managed target must be on disk D: {resolved}")
+    if os.name == "nt" and resolved.drive.upper() != "F:":
+        raise RuntimeError(f"Managed target must be on disk F: {resolved}")
     return resolved
 
 

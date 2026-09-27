@@ -18,8 +18,8 @@ function Invoke-Git {
 }
 
 $WorkspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..')).TrimEnd('\')
-if (-not $WorkspaceRoot.StartsWith('D:\', [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Publication audit must run from the managed D: workspace: $WorkspaceRoot"
+if (-not $WorkspaceRoot.StartsWith('F:\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Publication audit must run from the managed F: workspace: $WorkspaceRoot"
 }
 $GitExe = (Get-Command git.exe -ErrorAction Stop).Source
 $GitOutput = & $GitExe -C $WorkspaceRoot rev-parse --show-toplevel
@@ -51,7 +51,7 @@ $ReviewedFixtureHashes = @{
     'tests/security/test_taint.py' = '9a019b5007ffab304b7e0d58779925429e47b6e700c3baf544957585e25683c5'
 }
 $ForbiddenPathPatterns = @(
-    '(^|/)\.private(/|$)',
+    '(^|/)credenciais(/|$)',
     '(^|/)\.workspace/local(/|$)',
     '(^|/)\.runtime(/|$)',
     '(^|/)\.artifacts(/|$)',

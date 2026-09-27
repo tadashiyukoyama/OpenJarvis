@@ -68,6 +68,8 @@ import type { ConnectRequest } from '../types/connectors';
 import { listConnectors, connectSource } from '../lib/connectors-api';
 import type { ToolCallInfo } from '../types';
 import { ToolCallCard } from '../components/Chat/ToolCallCard';
+import { EvolutionWhatsAppPanel } from '../components/setup/EvolutionWhatsAppPanel';
+import { fetchEvolutionStatus } from '../lib/evolution-api';
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -1979,17 +1981,31 @@ function ChannelsTab({ agentId }: { agentId: string }) {
   void agentId;
 
   const loadConnectors = useCallback(() => {
-    listConnectors()
-      .then((list) =>
-        setConnectors(
-          list.map((c) => ({
-            connector_id: c.connector_id,
-            display_name: c.display_name,
-            connected: c.connected,
-            chunks: (c as any).chunks || 0,
-          })),
-        ),
-      )
+    Promise.all([
+      listConnectors(),
+      fetchEvolutionStatus().catch(() => null),
+    ])
+      .then(([list, evolutionStatus]) => {
+        const next = list.map((c) => ({
+          connector_id: c.connector_id,
+          display_name: c.display_name,
+          connected: c.connector_id === 'whatsapp_evolution'
+            ? Boolean(evolutionStatus?.connected)
+            : c.connected,
+          chunks: (c as any).chunks || 0,
+        }));
+        // Evolution is a transport integration rather than a knowledge
+        // connector, so keep it visible even before an instance is created.
+        if (!next.some((c) => c.connector_id === 'whatsapp_evolution')) {
+          next.push({
+            connector_id: 'whatsapp_evolution',
+            display_name: 'WhatsApp Evolution API',
+            connected: Boolean(evolutionStatus?.connected),
+            chunks: 0,
+          });
+        }
+        setConnectors(next);
+      })
       .catch(() => {});
   }, []);
 
@@ -2033,7 +2049,8 @@ function ChannelsTab({ agentId }: { agentId: string }) {
     imessage: '\uD83D\uDCAC', gdrive: '\uD83D\uDCC1', notion: '\uD83D\uDCC4',
     obsidian: '\uD83D\uDCC1', granola: '\uD83C\uDF99\uFE0F', gcalendar: '\uD83D\uDCC5',
     gcontacts: '\uD83D\uDCC7', outlook: '\u2709\uFE0F', apple_notes: '\uD83C\uDF4E',
-    dropbox: '\uD83D\uDCE6', whatsapp: '\uD83D\uDCF1',
+    dropbox: '\uD83D\uDCE6', whatsapp: '\uD83D\uDCF1', whatsapp_baileys: '\uD83D\uDCF1',
+    whatsapp_evolution: '\uD83D\uDCF1',
   };
 
   return (
@@ -2095,7 +2112,9 @@ function ChannelsTab({ agentId }: { agentId: string }) {
                   {isReconnecting ? 'Cancel' : 'Reconnect'}
                 </button>
               </div>
-              {isReconnecting && meta?.steps && (
+              {isReconnecting && c.connector_id === 'whatsapp_evolution' ? (
+                <EvolutionWhatsAppPanel />
+              ) : isReconnecting && meta?.steps ? (
                 <div style={{
                   borderTop: '1px solid var(--color-border)',
                   padding: 12,
@@ -2148,7 +2167,7 @@ function ChannelsTab({ agentId }: { agentId: string }) {
                     />
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
             );
           })}
@@ -2206,7 +2225,9 @@ function ChannelsTab({ agentId }: { agentId: string }) {
                 </div>
 
                 {/* Inline setup panel */}
-                {isExpanded && meta?.steps && (
+                {isExpanded && c.connector_id === 'whatsapp_evolution' ? (
+                  <EvolutionWhatsAppPanel />
+                ) : isExpanded && meta?.steps ? (
                   <div style={{
                     borderTop: '1px solid var(--color-border)',
                     padding: 12,
@@ -2263,7 +2284,7 @@ function ChannelsTab({ agentId }: { agentId: string }) {
                       {'\uD83D\uDD12'} Read-only access {'\u00B7'} No data leaves your device
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })}

@@ -2,15 +2,39 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-20
-Applies to integrated code SHA: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
+Last verified: 2026-09-13
+Applies to integrated code SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `fix/codex-event-driven-contact-reconcile`
+Branch: `codex/local-f-relocation`
 Remote publication target: private `main` at
 `https://github.com/cesaryukoyama28-eng/openjarvis-codex`; the completion report
 must record the exact published documentation HEAD separately from this code SHA.
 Supersedes: none
 Superseded by: none
+
+## Canonical local workspace relocation — 2026-09-13
+
+The canonical local OpenJarvis copy is now `F:\OpenJarvis`. This section
+overrides older local-path references in dated evidence below; those
+references remain historical records and are not active instructions.
+
+The migration preserved the source trees on D: and copied the application,
+documentation, ignored runtime state, databases, logs, WhatsApp session data,
+workspace credentials, local caches, artifacts and the Codex home to F:. The
+operator requested a plain `credenciais` directory, so no additional ACL
+hardening was introduced. The directory remains ignored and is excluded from
+publication audits.
+
+The source copy was stopped before migration for a clean snapshot. The Edge
+Worker scheduled task was then installed with the F: launcher and is currently
+ready but not running; local application ports were not started by this
+migration. D: was not deleted or formatted.
+
+Migration evidence is recorded in
+`operations/OPENJARVIS-F-RELOCATION-2026-09-13.md` and the non-secret
+`F:\OpenJarvis\migration` copy logs. The external Codex skill `ana-crm` was
+copied into the ignored F: profile and its junction no longer depends on D:;
+the separate JarvisCRM project itself was not migrated.
 
 ## Contact contract and Codex load reconciliation - 2026-08-20
 
@@ -431,11 +455,11 @@ user-operated acceptance is recorded below.
 
 | Field | Current value |
 |---|---|
-| Current release worktree | `D:\dev\workspaces\openjarvis` |
-| Branch | `codex/edge-live-relay-release` |
+| Current release worktree | `F:\OpenJarvis` |
+| Branch | `codex/local-f-relocation` |
 | Production-source baseline | `9874381c9df924e9d439ecb958761a6df27586b1` |
 | Audited source provenance | docs `49d90e86`; code `11a6c424`; not deployed directly |
-| Integrated code SHA | `33a12d4020ac2b0325359ac5c1c3bd667a8db622` |
+| Integrated code SHA | `6a07d0ffa0ea233c218aa646b2647158ea90a607` |
 | Integrated tree | `76546bab3bde0e97ed1760be08d055112fbaec8c` |
 | Deployed Core source/tree | `33a12d4020ac2b0325359ac5c1c3bd667a8db622` / `76546bab3bde0e97ed1760be08d055112fbaec8c` |
 | Functional checkpoints | `84bcba7`, `95f3d14`, `343a62c`, `5493484`, `21c9481`, `35ee771`, `4a1db68`, `49e99f2`, `955cf84`, `c31bd49`, `df82a3c`, `1ecb90a`, `9de7141`, `b03a029`, `14d026f`, `04d49d4`, `846127c`, `33a12d4` |
@@ -445,9 +469,9 @@ user-operated acceptance is recorded below.
 | Snapshot refresh commit | `3363076dff8950ab966146136da0cd3942cf2980` |
 | Distribution remote | `https://github.com/cesaryukoyama28-eng/openjarvis-codex.git` (private) |
 | Publication policy | one final fast-forward push after the documentation gate; no PR or intermediate Actions |
-| Current implementation workspace | canonical `openjarvis` worktree |
+| Current implementation workspace | canonical `F:\OpenJarvis` worktree |
 | Preserved untracked items | `.manus-audit/`, root `node_modules/`, `frontend/pnpm-lock.yaml` |
-| Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
+| Baseline backup | `F:\OpenJarvis\runtime\backups\jarvis-agent-baseline-20260808-233113` |
 
 Unknown/unrelated items were not deleted or committed.
 
@@ -510,15 +534,15 @@ from active Jarvis composition.
 
 | State | Path and result |
 |---|---|
-| Active OpenJarvis state | `D:\dev\runtime\openjarvis\state` |
-| Runtime root | `D:\dev\runtime\openjarvis` |
-| Jarvis Agent SQLite | active on D: with WAL, foreign keys and busy timeout |
-| Migration evidence | `D:\dev\runtime\openjarvis\backups\state-migration-20260809-000321` |
+| Active OpenJarvis state | `F:\OpenJarvis\runtime\state` |
+| Runtime root | `F:\OpenJarvis\runtime` |
+| Jarvis Agent SQLite | active on F: with WAL, foreign keys and busy timeout |
+| Migration evidence | `F:\OpenJarvis\runtime\backups\state-migration-20260809-000321` |
 | C: rollback | `C:\Users\Cesar\.openjarvis`, preserved and inactive |
 
-The controlled migration copied to staging, verified SHA-256, ran SQLite
-integrity checks and compared Source counts. Existing D: databases were not
-overwritten. The C: rollback was not deleted.
+The controlled migration copied to F:, verified SHA-256, ran SQLite quick
+checks and compared the canonical database pairs. Existing D: databases were
+not overwritten. The C: rollback was not deleted.
 
 ## Frontend state
 
@@ -703,7 +727,7 @@ Context inspection confirmed that the full transcript was not retained.
 
 The refactored local Jarvis page was rendered and visually inspected from:
 
-`D:\dev\runtime\openjarvis\visual-smoke\20260809-orchestrator\jarvis-local-clean.png`
+`F:\OpenJarvis\runtime\visual-smoke\20260809-orchestrator\jarvis-local-clean.png`
 
 A delayed browser DOM smoke also verified the rendered provider panel and its
 truthful states for Gmail OAuth/IMAP, WhatsApp Baileys/Meta/Export and Codex.

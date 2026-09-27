@@ -3,7 +3,7 @@ param(
     [ValidateSet('Install', 'Start', 'Stop', 'Status', 'Uninstall')]
     [string]$Action = 'Status',
     [string]$TaskName = 'OpenJarvis Edge Worker',
-    [string]$Repository = 'D:\dev\workspaces\openjarvis'
+    [string]$Repository = 'F:\OpenJarvis'
 )
 
 $ErrorActionPreference = 'Stop'

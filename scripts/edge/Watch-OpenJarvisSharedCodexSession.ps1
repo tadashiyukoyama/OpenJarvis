@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Repository = 'D:\dev\workspaces\openjarvis',
+    [string]$Repository = 'F:\OpenJarvis',
     [int]$Port = 8131,
     [Parameter(Mandatory)][int]$ExpectedOwnerProcessId,
     [Parameter(Mandatory)][string]$ExpectedDesktopProcessIds,
@@ -26,9 +26,9 @@ $logPath = if ($LogPathOverride) {
 else { Join-Path $config.LogDirectory 'shared-session-guardian.log' }
 foreach ($artifactPath in @($statePath, $logPath)) {
     if (-not $artifactPath.StartsWith(
-        'D:\', [System.StringComparison]::OrdinalIgnoreCase
+        'F:\', [System.StringComparison]::OrdinalIgnoreCase
     )) {
-        throw "Guardian artifacts must remain on disk D: $artifactPath"
+        throw "Guardian artifacts must remain on disk F: $artifactPath"
     }
 }
 $desktopProcessIds = @(

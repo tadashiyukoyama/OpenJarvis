@@ -138,6 +138,36 @@ def _serve_codex(config, bind_host: str, bind_port: int, console: Console) -> No
         system.close()
 
 
+def _serve_agent_host(config, bind_host: str, bind_port: int, console: Console) -> None:
+    """Run OpenJarvis as the authenticated Agent Host transport/UI server.
+
+    This mode deliberately creates no OpenJarvis inference engine or agent. The
+    Agent Host owns the Codex native session; OpenJarvis only serves its UI and
+    the thin authenticated bridge to that host.
+    """
+    from openjarvis.server.app import create_app
+
+    app = create_app(
+        None,
+        "agent-host",
+        bus=EventBus(record_history=False),
+        engine_name="agent_host_bridge",
+        agent_name="none",
+        config=config,
+        api_key=_load_server_api_key(),
+        cors_origins=config.server.cors_origins,
+    )
+    console.print(
+        f"[green]Starting OpenJarvis Agent Host interface[/green]\n"
+        f"  Engine: [cyan]Agent Host bridge[/cyan]\n"
+        f"  Agent:  [cyan]none (Codex owned by Agent Host)[/cyan]\n"
+        f"  URL:    [cyan]http://{bind_host}:{bind_port}[/cyan]"
+    )
+    import uvicorn
+
+    uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")
+
+
 @click.command()
 @click.option("--host", default=None, help="Bind address (default: config).")
 @click.option(
@@ -153,7 +183,10 @@ def _serve_codex(config, bind_host: str, bind_port: int, console: Console) -> No
     "--agent",
     "agent_name",
     default=None,
-    help="Agent for non-streaming requests (simple, orchestrator, react, openhands).",
+    help=(
+        "Agent for non-streaming requests (simple, orchestrator, react, "
+        "openhands, agent-host)."
+    ),
 )
 @click.pass_context
 def serve(
@@ -189,6 +222,9 @@ def serve(
     agent_key = agent_name or config.server.agent
     if agent_key == "codex":
         _serve_codex(config, bind_host, bind_port, console)
+        return
+    if agent_key == "agent-host":
+        _serve_agent_host(config, bind_host, bind_port, console)
         return
 
     # Set up engine

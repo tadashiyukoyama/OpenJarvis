@@ -254,6 +254,78 @@ class TestSend:
         event_types = [e.event_type for e in bus.history]
         assert EventType.CHANNEL_MESSAGE_SENT in event_types
 
+
+class TestSendMedia:
+    @pytest.mark.parametrize(
+        ("mime_type", "expected_kind", "voice_note"),
+        [
+            ("application/pdf", "document", False),
+            (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "document",
+                False,
+            ),
+            ("image/png", "image", False),
+            ("image/jpeg", "image", False),
+            ("audio/ogg", "audio", True),
+        ],
+    )
+    def test_media_maps_mime_to_baileys_kind_and_preserves_metadata(
+        self, tmp_path, mime_type, expected_kind, voice_note, monkeypatch
+    ):
+        root = tmp_path / "registry"
+        root.mkdir()
+        artifact = root / "sample.bin"
+        artifact.write_bytes(b"media fixture")
+        monkeypatch.setenv("OPENJARVIS_ARTIFACT_ROOT", str(root))
+
+        ch = WhatsAppBaileysChannel()
+        ch._status = ChannelStatus.CONNECTED
+        ch._process = MagicMock()
+        captured = {}
+
+        def _send(command, *, timeout):
+            captured.update(command)
+            return {"message_id": "provider-1"}
+
+        ch.execute_action_and_wait = _send
+        result = ch.send_media_and_wait(
+            "5511999999999@s.whatsapp.net",
+            str(artifact),
+            mime_type=mime_type,
+            filename="documento original.bin",
+            voice_note=voice_note,
+        )
+
+        assert result["message_id"] == "provider-1"
+        assert captured["mediaType"] == expected_kind
+        assert captured["mimetype"] == mime_type
+        assert captured["fileName"] == "documento original.bin"
+        assert captured["filePath"] == str(artifact.resolve())
+        assert captured["voiceNote"] is voice_note
+
+    def test_media_rejects_unknown_mime_before_bridge_call(self, tmp_path, monkeypatch):
+        root = tmp_path / "registry"
+        root.mkdir()
+        artifact = root / "sample.bin"
+        artifact.write_bytes(b"media fixture")
+        monkeypatch.setenv("OPENJARVIS_ARTIFACT_ROOT", str(root))
+
+        ch = WhatsAppBaileysChannel()
+        ch._status = ChannelStatus.CONNECTED
+        ch._process = MagicMock()
+        ch.execute_action_and_wait = MagicMock()
+
+        with pytest.raises(ValueError, match="não suportado"):
+            ch.send_media_and_wait(
+                "5511999999999@s.whatsapp.net",
+                str(artifact),
+                mime_type="application/x-unknown",
+                filename="sample.bin",
+            )
+
+        ch.execute_action_and_wait.assert_not_called()
+
     def test_reaction_resolves_the_complete_group_message_key(self):
         ch = WhatsAppBaileysChannel()
         ch._store.upsert_message(

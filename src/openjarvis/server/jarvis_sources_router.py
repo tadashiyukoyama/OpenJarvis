@@ -220,6 +220,9 @@ def _whatsapp(request: Request) -> Any:
             raise HTTPException(
                 status_code=503, detail="WhatsApp QR indisponível"
             ) from exc
+    from openjarvis.server.whatsapp_agent_host import configure_whatsapp_agent_host
+
+    configure_whatsapp_agent_host(request.app, channel)
     return channel
 
 

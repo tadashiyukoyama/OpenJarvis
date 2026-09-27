@@ -84,7 +84,7 @@ export function JarvisTargetPanel({
       )}
       {!liveStatus?.configured && (
         <div className="jarvis-config-note">
-          Configure as chaves em <code>.private/env/gemini-live.env</code> e reinicie pelo launcher.
+          Configure as chaves em <code>credenciais/workspace/env/gemini-live.env</code> e reinicie pelo launcher.
         </div>
       )}
       {codexDelegate?.unavailable_reason === 'external_mutations_disabled' && (

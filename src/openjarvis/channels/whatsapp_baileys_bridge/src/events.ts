@@ -42,6 +42,26 @@ function extractMessage(message: any): { text: string; type: string } {
   return { text: "", type: "unknown" };
 }
 
+function mediaDetails(message: any): { type: string; mimeType: string; filename: string } | null {
+  const content = unwrapMessage(message);
+  const entries: Array<[string, string]> = [
+    ["imageMessage", "image"],
+    ["documentMessage", "document"],
+    ["audioMessage", "audio"],
+  ];
+  for (const [key, type] of entries) {
+    const value = content?.[key];
+    if (value) {
+      return {
+        type,
+        mimeType: String(value.mimetype || ""),
+        filename: String(value.fileName || value.file_name || ""),
+      };
+    }
+  }
+  return null;
+}
+
 export function normalizeContact(contact: any): Record<string, unknown> | null {
   const jid = String(contact?.id || contact?.jid || "");
   if (!jid) return null;
@@ -80,6 +100,7 @@ export function normalizeMessage(message: any): Record<string, unknown> | null {
   const messageId = String(message?.key?.id || message?.message_id || "");
   if (!jid || !messageId) return null;
   const extracted = extractMessage(message?.message || message);
+  const media = mediaDetails(message?.message || message);
   const participant = String(message?.key?.participant || "");
   const participantAlt = String(message?.key?.participantAlt || "");
   return {
@@ -91,6 +112,13 @@ export function normalizeMessage(message: any): Record<string, unknown> | null {
     sender: participant || participantAlt || jid,
     text: extracted.text,
     message_type: extracted.type,
+    ...(media
+      ? {
+          media_type: media.type,
+          media_mime_type: media.mimeType,
+          media_filename: media.filename,
+        }
+      : {}),
     message_id: messageId,
     from_me: Boolean(message?.key?.fromMe),
     message_at: timestampMs(message?.messageTimestamp),

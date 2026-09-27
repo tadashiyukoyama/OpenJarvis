@@ -2,7 +2,7 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-18 06:34:36 -03:00
+Last verified: 2026-09-13
 Working tree base: `ec5e22e360943eb77560be3b9e5ea8ab7300b5eb`
 Preparation branch: `codex/acelerachat-native-adapter`
 Remote repository: `https://github.com/cesaryukoyama28-eng/openjarvis-codex` (private)
@@ -48,7 +48,7 @@ Regras sem exceção:
 - não apagar nem substituir uma pasta existente;
 - não inicializar Git sobre um `.git` não auditado;
 - não copiar segredos da máquina antiga;
-- não imprimir o conteúdo de `.private`;
+- não imprimir o conteúdo de `credenciais`;
 - não instalar Ollama, modelos locais ou o grupo `desktop-native`;
 - não tratar o Codex como API OpenAI ou como modelo comum;
 - não iniciar dois backends, frontends ou app-servers nas mesmas portas;
@@ -69,15 +69,15 @@ sistema.
 | Codex app-server | `ws://127.0.0.1:8131` | fronteira compartilhada do Codex Desktop |
 | Gateway autenticado | `http://127.0.0.1:8140` | proteção do acesso remoto |
 | Quick Tunnel | URL aleatória HTTPS | teste remoto no computador/tablet |
-| Workspace | `D:\dev\workspaces\openjarvis` | código Git |
-| Runtime | `D:\dev\runtime\openjarvis` | estado, logs e processos |
-| Estado ativo | `D:\dev\runtime\openjarvis\state` | bancos e contexto local |
-| Cache | `D:\dev\caches\openjarvis` | cache uv/npm |
-| Toolchains | `D:\dev\toolchains` | Python gerenciado e ferramentas uv |
-| Artefatos | `D:\dev\artifacts\openjarvis` | evidências e saídas locais |
-| Codex home | `D:\dev\codex-home\.codex` | estado da instância Codex integrada |
+| Workspace | `F:\OpenJarvis` | código Git |
+| Runtime | `F:\OpenJarvis\runtime` | estado, logs e processos |
+| Estado ativo | `F:\OpenJarvis\runtime\state` | bancos e contexto local |
+| Cache | `F:\OpenJarvis\cache` | cache uv/npm |
+| Toolchains | `F:\OpenJarvis\toolchains` | Python gerenciado e ferramentas uv |
+| Artefatos | `F:\OpenJarvis\artifacts` | evidências e saídas locais |
+| Codex home | `F:\OpenJarvis\codex-home\.codex` | estado da instância Codex integrada |
 
-Todo estado administrado pelo projeto fica em D:. Aplicativos externos instalados
+Todo estado administrado pelo projeto fica abaixo de `F:\OpenJarvis`. Aplicativos externos instalados
 pelo Windows, como Git, Node, `cloudflared` e Codex Desktop, continuam sob gestão
 do sistema operacional.
 
@@ -149,7 +149,7 @@ integração completa descrita neste runbook.
 Use como destino exato:
 
 ```powershell
-$Target = 'D:\dev\workspaces\openjarvis'
+$Target = 'F:\OpenJarvis'
 ```
 
 Se `$Target` já existir, não clone, não mova e não apague. Audite primeiro:
@@ -165,15 +165,15 @@ git -C $Target worktree list --porcelain
 Se a pasta não existir, clone a origem oficial:
 
 ```powershell
-git clone https://github.com/cesaryukoyama28-eng/openjarvis-codex.git D:\dev\workspaces\openjarvis
-Set-Location D:\dev\workspaces\openjarvis
+git clone https://github.com/cesaryukoyama28-eng/openjarvis-codex.git F:\OpenJarvis
+Set-Location F:\OpenJarvis
 git rev-parse --show-toplevel
 git branch --show-current
 git rev-parse HEAD
 git status --short
 ```
 
-O resultado deve apontar para um único Git root em D:. O repositório de
+O resultado deve apontar para um único Git root em F:. O repositório de
 distribuição foi criado a partir de um snapshot rastreado e verificado, com um
 commit-raiz e sem a linhagem do ambiente de desenvolvimento. A origem OpenJarvis,
 a licença Apache 2.0 e o SHA-base continuam registrados. Essa é a interpretação
@@ -183,7 +183,7 @@ aprovada de “repositório limpo”.
 
 O script de bootstrap não clona, não instala aplicativos de sistema, não baixa
 modelos e não toca em credenciais existentes. Ele se recusa a trabalhar fora de
-D: ou sobre uma configuração local divergente.
+F: ou sobre uma configuração local divergente.
 
 Primeiro faça o preflight não mutável:
 
@@ -212,7 +212,7 @@ O script executa exatamente:
 - criação, sem sobrescrita, dos templates privados Gemini, gateway e
   AceleraChat.
 
-Ele direciona caches uv/npm e Python gerenciado para D:. Não execute o instalador
+Ele direciona caches uv/npm e Python gerenciado para F:. Não execute o instalador
 Windows herdado em `deploy/windows/install.ps1`: ele representa a distribuição
 upstream com Ollama/modelo local e não reproduz esta edição Codex + Gemini.
 
@@ -220,12 +220,12 @@ Repita `-ValidateOnly`; o estado agora deve ser `VALIDATED`.
 
 ## 8. Configuração privada
 
-O bootstrap cria templates ignorados pelo Git em `.private\env`. Edite-os
+O bootstrap cria templates ignorados pelo Git em `credenciais\workspace\env`. Edite-os
 localmente sem mostrar valores ao agente ou aos logs.
 
 ### Gemini Live
 
-Arquivo: `.private\env\gemini-live.env`
+Arquivo: `credenciais\workspace\env\gemini-live.env`
 
 ```dotenv
 GEMINI_LIVE_API_KEY_PRIMARY=<CHAVE_PRINCIPAL>
@@ -241,7 +241,7 @@ contornar limites, cotas ou políticas do provedor.
 
 ### AceleraChat
 
-Arquivo: `.private\env\acelerachat.env`
+Arquivo: `credenciais\workspace\env\acelerachat.env`
 
 ```dotenv
 ACELERACHAT_BASE_URL=https://atendimento.meugerenciador.pro/api/v1/openjarvis
@@ -269,7 +269,7 @@ não coloque segredo na URL.
 
 ### Gateway remoto
 
-Arquivo: `.private\env\cloudflare-quick-tunnel.env`
+Arquivo: `credenciais\workspace\env\cloudflare-quick-tunnel.env`
 
 ```dotenv
 OJ_GATEWAY_USER=<USUARIO_LOCAL>
@@ -284,7 +284,7 @@ encaminha a autenticação ao backend.
 
 Não copie cookies ou tokens de outra máquina. Abra a instância iniciada pelo
 launcher e autentique-se normalmente quando solicitado. Essa instância usa
-`D:\dev\codex-home\.codex`, separado do perfil padrão. O Codex permanece um
+`F:\OpenJarvis\codex-home\.codex`, separado do perfil padrão. O Codex permanece um
 agente externo selecionável e usa o app-server oficial, não uma chave OpenAI.
 
 ## 9. Primeira inicialização local
@@ -329,7 +329,7 @@ Get-NetTCPConnection -State Listen |
   Select-Object LocalAddress,LocalPort,OwningProcess
 ```
 
-No Codex Desktop, abra o projeto `D:\dev\workspaces\openjarvis`. No OpenJarvis,
+No Codex Desktop, abra o projeto `F:\OpenJarvis`. No OpenJarvis,
 selecione o projeto e uma tarefa existente. Chat deve carregar o histórico e a
 aba Jarvis deve mostrar a sincronização Codex conectada.
 
@@ -412,9 +412,9 @@ O segundo comando retorna JSON com:
 Os arquivos operacionais ficam em:
 
 ```text
-D:\dev\runtime\openjarvis\cloudflare\public-url.txt
-D:\dev\runtime\openjarvis\cloudflare\openjarvis-url-qr.png
-D:\dev\runtime\openjarvis\cloudflare\remote-access.processes.json
+F:\OpenJarvis\runtime\cloudflare\public-url.txt
+F:\OpenJarvis\runtime\cloudflare\openjarvis-url-qr.png
+F:\OpenJarvis\runtime\cloudflare\remote-access.processes.json
 ```
 
 Abra a URL, faça login com a credencial privada e instale a PWA no tablet se

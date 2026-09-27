@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -94,6 +95,7 @@ class TestEnsureRunner:
         with (
             patch("shutil.which", return_value="/usr/bin/node"),
             patch("pathlib.Path.home", return_value=home_dir),
+            patch.dict(os.environ, {"OPENJARVIS_HOME": ""}),
             patch("subprocess.run") as mock_run,
         ):
             mock_run.return_value = _mock_proc()
@@ -117,6 +119,7 @@ class TestEnsureRunner:
         with (
             patch("shutil.which", return_value="/usr/bin/node"),
             patch("pathlib.Path.home", return_value=home_dir),
+            patch.dict(os.environ, {"OPENJARVIS_HOME": ""}),
             patch("subprocess.run") as mock_run,
         ):
             agent._ensure_runner()

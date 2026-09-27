@@ -2,10 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to SHA: `28744c74ff30278a658e0606f378c1c15f5f93ad`
+Last verified: 2026-09-13
+Applies to SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Implementation baseline: `393031e9eec9e8583d0b8958ae399c40dd5148d3`
-Branch: `codex/edge-codex-live-relay`
+Branch: `codex/local-f-relocation`
 Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 Supersedes: none
 Superseded by: none
@@ -25,7 +25,7 @@ flowchart LR
     UI --> API["Jarvis Agent API"]
     API --> ORCH["Server-side orchestrator"]
     CAT["Canonical catalog"] --> ORCH
-    MEM["Structured context on D:"] --> ORCH
+    MEM["Structured context on F:"] --> ORCH
     ORCH --> POL["Policy and validation"]
     POL -->|read| EXE["Typed executor"]
     POL -->|mutation or delegation| APP["Visual approval"]
@@ -73,8 +73,8 @@ flowchart LR
 | Backend | `127.0.0.1:8127` | OpenJarvis API and Jarvis Agent Core |
 | Codex app-server | `127.0.0.1:8131` | local Codex Desktop boundary |
 | Authenticated gateway | `127.0.0.1:8140` | tracked loopback reverse proxy; the currently running legacy process remains preserved until an intentional restart |
-| Active managed state | `D:\dev\runtime\openjarvis\state` | framework, knowledge and Jarvis Agent SQLite state |
-| Runtime root | `D:\dev\runtime\openjarvis` | logs, backups and visual evidence; legacy direct-provider state remains preserved but inactive |
+| Active managed state | `F:\OpenJarvis\runtime\state` | framework, knowledge and Jarvis Agent SQLite state |
+| Runtime root | `F:\OpenJarvis\runtime` | logs, backups and visual evidence; legacy direct-provider state remains preserved but inactive |
 | Rollback source | `C:\Users\Cesar\.openjarvis` | preserved and inactive after the controlled copy |
 
 The table above records configured addresses, not proof that a process is
@@ -148,7 +148,7 @@ Desktop state remain owned by Codex.
 
 The Cloudflare Quick Tunnel is an optional transport outside the Agent Core. It
 terminates at the authenticated loopback gateway, never directly at the backend.
-Its public URL and QR Code are runtime artifacts on D: and are never source
+Its public URL and QR Code are runtime artifacts on F: and are never source
 files. Quick Tunnels are a test surface with a random URL and no SSE support;
 the remote frontend therefore uses bounded reconciliation instead of treating
 the tunnel as a production event transport.

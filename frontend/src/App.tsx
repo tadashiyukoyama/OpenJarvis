@@ -9,6 +9,8 @@ import { AgentsPage } from './pages/AgentsPage';
 import { DataSourcesPage } from './pages/DataSourcesPage';
 import { LogsPage } from './pages/LogsPage';
 import { JarvisPage } from './pages/JarvisPage';
+import { AgentCorePage } from './pages/AgentCorePage';
+import { WhatsAppInboxPage } from './pages/WhatsAppInboxPage';
 import { CommandPalette } from './components/CommandPalette';
 import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
@@ -186,14 +188,23 @@ export default function App() {
       <UpdateChecker />
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<ChatPage />} />
+          {/* The application opens in the owner voice surface.  The Codex
+              project/chat workspace remains available at /chat. */}
+          <Route index element={<JarvisPage />} />
+          <Route path="chat" element={<ChatPage />} />
+          <Route path="whatsapp" element={<WhatsAppInboxPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="get-started" element={<GetStartedPage />} />
           <Route path="data-sources" element={<DataSourcesPage />} />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="logs" element={<LogsPage />} />
+          {/* Jarvis is the owner-facing Gemini Live voice page.  Keep the
+              former URL as an alias and expose the text/control surface
+              separately so Codex chat and realtime voice remain distinct. */}
           <Route path="jarvis" element={<JarvisPage />} />
+          <Route path="agent-core" element={<AgentCorePage />} />
+          <Route path="jarvis-legacy" element={<JarvisPage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" />

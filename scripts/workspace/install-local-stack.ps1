@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DevelopmentRoot = 'D:\dev',
+    [string]$DevelopmentRoot = 'F:\OpenJarvis',
     [switch]$InstallDependencies,
     [switch]$ValidateOnly
 )
@@ -11,8 +11,8 @@ $ErrorActionPreference = 'Stop'
 function Resolve-ManagedPath {
     param([Parameter(Mandatory)][string]$PathValue)
     $Resolved = [System.IO.Path]::GetFullPath($PathValue).TrimEnd('\')
-    if (-not $Resolved.StartsWith('D:\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Every managed OpenJarvis path must remain on disk D: $Resolved"
+    if (-not $Resolved.StartsWith('F:\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Every managed OpenJarvis path must remain on disk F: $Resolved"
     }
     return $Resolved
 }
@@ -70,10 +70,10 @@ if ($GitRoot -ne $WorkspaceRoot) {
     throw "Unexpected Git root: $GitRoot"
 }
 
-$Drive = Get-PSDrive -Name D -ErrorAction Stop
+$Drive = Get-PSDrive -Name F -ErrorAction Stop
 $MinimumFreeBytes = 5GB
 if ([UInt64]$Drive.Free -lt [UInt64]$MinimumFreeBytes) {
-    throw 'Disk D: must have at least 5 GiB free for the source-only stack.'
+    throw 'Disk F: must have at least 5 GiB free for the source-only stack.'
 }
 
 $NodeExe = Resolve-RequiredCommand -Name 'node.exe'
@@ -110,11 +110,11 @@ $WorkspaceName = Split-Path -Leaf $WorkspaceRoot
 $Paths = [ordered]@{
     schemaVersion = 2
     workspaceRoot = $WorkspaceRoot
-    worktreesRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot "worktrees\$WorkspaceName")
-    runtimeRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot "runtime\$WorkspaceName")
-    cacheRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot "caches\$WorkspaceName")
-    modelsRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot "models\$WorkspaceName")
-    artifactsRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot "artifacts\$WorkspaceName")
+    worktreesRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'worktrees')
+    runtimeRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'runtime')
+    cacheRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'cache')
+    modelsRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'models')
+    artifactsRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'artifacts')
     toolchainsRoot = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'toolchains')
     codexHome = Resolve-ManagedPath (Join-Path $DevelopmentRoot 'codex-home\.codex')
 }
@@ -163,7 +163,7 @@ if (-not $ValidateOnly) {
     )
     $env:OPENJARVIS_WORKSPACE_ROOT = $WorkspaceRoot
 
-    $PrivateEnvRoot = Join-Path $WorkspaceRoot '.private\env'
+    $PrivateEnvRoot = Join-Path $WorkspaceRoot 'credenciais\workspace\env'
     [System.IO.Directory]::CreateDirectory($PrivateEnvRoot) | Out-Null
     $PrivateTemplates = @{
         (Join-Path $WorkspaceRoot '.workspace\templates\gemini-live.env.example') =

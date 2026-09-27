@@ -74,13 +74,13 @@ class EdgeWorkerConfig:
     ) -> "EdgeWorkerConfig":
         values = os.environ if environment is None else environment
         runtime_root = Path(
-            values.get("OPENJARVIS_RUNTIME_ROOT", r"D:\dev\runtime\openjarvis")
+            values.get("OPENJARVIS_RUNTIME_ROOT", r"F:\OpenJarvis\runtime")
         ).expanduser()
         edge_root = runtime_root / "edge-worker"
         roots = tuple(
             str(PureWindowsPath(item.strip()))
             for item in values.get(
-                "OPENJARVIS_EDGE_PROJECT_ROOTS", r"D:\dev\workspaces"
+                "OPENJARVIS_EDGE_PROJECT_ROOTS", r"F:\OpenJarvis"
             ).split(";")
             if item.strip()
         )

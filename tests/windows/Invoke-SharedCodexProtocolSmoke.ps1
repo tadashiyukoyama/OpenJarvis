@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [int]$Port = 18131,
-    [string]$OpenJarvisRepository = 'D:\dev\workspaces\openjarvis',
+    [string]$OpenJarvisRepository = 'F:\OpenJarvis',
     [switch]$KeepArtifacts,
     [switch]$CleanupArtifactsOnly
 )
@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 $repository = [System.IO.Path]::GetFullPath(
     (Join-Path $PSScriptRoot '..\..')
 )
-$validationRoot = 'D:\dev\runtime\openjarvis\validation'
+$validationRoot = 'F:\OpenJarvis\runtime\validation'
 $validationPrefix = "$validationRoot\"
 
 

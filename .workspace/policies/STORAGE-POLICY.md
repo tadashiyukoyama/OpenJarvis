@@ -2,12 +2,13 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-07-17
-Applies to SHA: 3000116d181eb69737241c09eaa70d4c65eb80a0
+Last verified: 2026-09-13
+Applies to SHA: codex/local-f-relocation
 Supersedes: none
 Superseded by: none
 
-All project-managed paths for this workstation must remain on disk D. The
+All project-managed paths for this workstation must remain below `F:\OpenJarvis`.
+The
 concrete values are local configuration, not portable policy. Read them from
 `.workspace/local/project.local.json` using these keys:
 

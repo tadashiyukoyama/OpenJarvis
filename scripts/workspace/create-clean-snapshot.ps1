@@ -24,8 +24,8 @@ if ($SnapshotBranch -notmatch '^codex/[A-Za-z0-9._/-]+$') {
 }
 
 $WorkspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..')).TrimEnd('\')
-if (-not $WorkspaceRoot.StartsWith('D:\', [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Snapshot creation must run from the managed D: workspace: $WorkspaceRoot"
+if (-not $WorkspaceRoot.StartsWith('F:\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Snapshot creation must run from the managed F: workspace: $WorkspaceRoot"
 }
 $GitExe = (Get-Command git.exe -ErrorAction Stop).Source
 $GitOutput = & $GitExe -C $WorkspaceRoot rev-parse --show-toplevel

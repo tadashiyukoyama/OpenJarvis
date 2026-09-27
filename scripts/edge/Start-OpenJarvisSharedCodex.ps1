@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Repository = 'D:\dev\workspaces\openjarvis',
+    [string]$Repository = 'F:\OpenJarvis',
     [int]$Port = 8131,
     [ValidateSet('untrusted', 'on-request', 'never')]
     [string]$ApprovalPolicy = 'on-request',

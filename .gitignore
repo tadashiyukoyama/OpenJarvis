@@ -134,6 +134,16 @@ oj-debug.*.json
 # BEGIN CESAR OPENJARVIS LOCAL BOUNDARIES
 .workspace/local/
 .private/
+/credenciais/
+/runtime/
+/cache/
+/artifacts/
+/codex-home/
+/external/
+/models/
+/toolchains/
+/worktrees/
+/node_modules/
 deploy/vps/private/
 .runtime/
 .artifacts/

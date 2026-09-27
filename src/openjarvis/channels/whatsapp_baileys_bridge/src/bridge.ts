@@ -20,7 +20,11 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestWaWebVersion,
   WASocket,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import * as readline from "readline";
 import {
   normalizeChat,
@@ -68,6 +72,73 @@ function parseArgs(): { authDir: string } {
     }
   }
   return { authDir };
+}
+
+const MAX_INCOMING_MEDIA_BYTES = 12 * 1024 * 1024;
+const INCOMING_MEDIA_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+  "text/csv",
+  "text/plain",
+  "audio/ogg",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/webm",
+]);
+
+function incomingMediaRoot(): string {
+  return resolve(
+    String(process.env.OPENJARVIS_INCOMING_MEDIA_ROOT || "F:/agente/runtime/incoming-media"),
+  );
+}
+
+function safeMediaFilename(value: string, mimeType: string): string {
+  const clean = value.replace(/[^A-Za-z0-9._ -]+/g, "_").trim().slice(0, 96);
+  if (clean && !/[\\/]\.\.?$/.test(clean)) return clean;
+  const extension: Record<string, string> = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "application/pdf": ".pdf",
+    "text/csv": ".csv",
+    "text/plain": ".txt",
+    "audio/ogg": ".ogg",
+    "audio/mpeg": ".mp3",
+    "audio/mp4": ".m4a",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/webm": ".webm",
+  };
+  return `received-${Date.now()}${extension[mimeType] || ".bin"}`;
+}
+
+async function persistIncomingMedia(message: any, event: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const mimeType = String(event.media_mime_type || "").split(";", 1)[0].trim().toLowerCase();
+  if (!INCOMING_MEDIA_MIME.has(mimeType)) {
+    return { media_error: "MEDIA_MIME_NOT_ALLOWED" };
+  }
+  const content = await downloadMediaMessage(message, "buffer", {} as any);
+  if (!Buffer.isBuffer(content) || content.length > MAX_INCOMING_MEDIA_BYTES) {
+    return { media_error: "MEDIA_TOO_LARGE" };
+  }
+  const root = incomingMediaRoot();
+  await mkdir(root, { recursive: true });
+  const artifactId = `incoming-${randomUUID()}`;
+  const filename = safeMediaFilename(String(event.media_filename || ""), mimeType);
+  const target = resolve(root, `${artifactId}-${filename}`);
+  const digest = createHash("sha256").update(content).digest("hex");
+  await writeFile(target, content, { flag: "wx" });
+  return {
+    media_path: target,
+    media_size: content.length,
+    media_sha256: digest,
+    media_filename: filename,
+    media_mime_type: mimeType,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -206,8 +277,18 @@ async function main(): Promise<void> {
     activeSocket.ev.on("messages.upsert", (m) => {
       for (const msg of m.messages) {
         if (msg.message) {
-          const event = normalizeMessage(msg);
-          if (event) emit(event);
+          void (async () => {
+            const event = normalizeMessage(msg);
+            if (!event) return;
+            if (event.media_type && !msg.key.fromMe) {
+              try {
+                Object.assign(event, await persistIncomingMedia(msg, event));
+              } catch {
+                event.media_error = "MEDIA_DOWNLOAD_FAILED";
+              }
+            }
+            emit(event);
+          })();
         }
       }
     });

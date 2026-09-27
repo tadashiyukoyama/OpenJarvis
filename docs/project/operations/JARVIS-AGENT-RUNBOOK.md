@@ -2,9 +2,9 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-20
-Applies to integrated code SHA: `6d5b964178f28319081b5ff057616a4979a5efba`
-Branch: `codex/edge-live-relay-release`
+Last verified: 2026-09-13
+Applies to integrated code SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
+Branch: `codex/local-f-relocation`
 
 ## 1. Scope and safety
 
@@ -21,7 +21,7 @@ Before any operation:
 
 - verify the repository branch and status;
 - preserve unknown files;
-- never print `.private` content, bearer/HMAC values, cookies or provider
+- never print `credenciais` content, bearer/HMAC values, cookies or provider
   credentials;
 - use a read-only smoke unless Cesar separately names the external target and
   authorizes that mutation;
@@ -31,15 +31,15 @@ Before any operation:
 
 | Purpose | Path |
 |---|---|
-| Repository | `D:\dev\workspaces\openjarvis` |
-| Active framework state | `D:\dev\runtime\openjarvis\state` |
+| Repository | `F:\OpenJarvis` |
+| Active framework state | `F:\OpenJarvis\runtime\state` |
 | Jarvis Agent database | under active state as `jarvis-agent.sqlite3` |
-| Runtime logs and process files | `D:\dev\runtime\openjarvis` |
-| AceleraChat private environment | `.private\env\acelerachat.env` (ignored; never print or commit) |
-| Legacy direct-provider state | under `D:\dev\runtime\openjarvis`; preserved and inactive |
-| Baseline backup | `D:\dev\runtime\openjarvis\backups\jarvis-agent-baseline-20260808-233113` |
-| State migration evidence | `D:\dev\runtime\openjarvis\backups\state-migration-20260809-000321` |
-| Visual smoke evidence | `D:\dev\runtime\openjarvis\visual-smoke\20260809-orchestrator` |
+| Runtime logs and process files | `F:\OpenJarvis\runtime` |
+| AceleraChat local environment | `F:\OpenJarvis\credenciais\workspace\env\acelerachat.env` (ignored; never print or commit) |
+| Legacy direct-provider state | under `F:\OpenJarvis\runtime`; preserved and inactive |
+| Baseline backup | `F:\OpenJarvis\runtime\backups\jarvis-agent-baseline-20260808-233113` |
+| State migration evidence | `F:\OpenJarvis\runtime\backups\state-migration-20260809-000321` |
+| Visual smoke evidence | `F:\OpenJarvis\runtime\visual-smoke\20260809-orchestrator` |
 | Preserved rollback | `C:\Users\Cesar\.openjarvis` |
 
 The C: rollback copy is inactive and must not be deleted. State movement is a
@@ -55,12 +55,12 @@ local filesystem migration, not an external data migration.
 | authenticated gateway | `http://127.0.0.1:8140` | tracked remote-access proxy; one owner only |
 
 The normal launcher is `scripts/workspace/start-codex-live.ps1`. It sets
-`OPENJARVIS_HOME` and `OPENJARVIS_RUNTIME_ROOT` to D: and binds
+`OPENJARVIS_HOME` and `OPENJARVIS_RUNTIME_ROOT` below F: and binds
 `VITE_API_URL` to its selected backend port. Do not start a second backend,
 frontend, app-server or bridge on the same ports.
 
 The launcher imports only the six allowlisted `ACELERACHAT_*` names from the
-ignored private file. The installer may copy the empty template from
+ignored credentials file. The installer may copy the empty template from
 `.workspace\templates\acelerachat.env.example`; it never supplies real values.
 
 Remote test access has a separate lifecycle:
@@ -74,7 +74,7 @@ scripts\workspace\stop-remote-access.ps1
 The start script requires a healthy backend and compiled frontend, validates
 the private gateway file without printing it, starts the tracked gateway from
 `src/openjarvis/server/remote_access`, then starts a Cloudflare Quick Tunnel.
-It writes the public URL, QR Code and process ledger only under the D: runtime.
+It writes the public URL, QR Code and process ledger only under the F: runtime.
 The stop script verifies both PID and command line and preserves logs. Never
 use either script to replace or stop an unknown owner on port 8140.
 

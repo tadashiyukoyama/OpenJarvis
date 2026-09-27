@@ -70,7 +70,11 @@ class GatewayConfig:
         workspace_raw = os.environ.get("OPENJARVIS_WORKSPACE_ROOT", "").strip()
         runtime_raw = os.environ.get("OPENJARVIS_RUNTIME_ROOT", "").strip()
         credential_fallback = (
-            Path(workspace_raw) / ".private" / "env" / "cloudflare-quick-tunnel.env"
+            Path(workspace_raw)
+            / "credenciais"
+            / "workspace"
+            / "env"
+            / "cloudflare-quick-tunnel.env"
             if workspace_raw
             else None
         )

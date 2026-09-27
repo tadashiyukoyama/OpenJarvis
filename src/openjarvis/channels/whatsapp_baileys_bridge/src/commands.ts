@@ -1,4 +1,6 @@
 import type { WASocket } from "@whiskeysockets/baileys";
+import { lstatSync } from "node:fs";
+import { isAbsolute, relative, resolve } from "node:path";
 
 type Command = Record<string, unknown>;
 type Emit = (event: Record<string, unknown>) => void;
@@ -8,6 +10,20 @@ const MAX_PARTICIPANTS = 100;
 
 function stringValue(value: unknown, limit = 256): string {
   return String(value || "").trim().slice(0, limit);
+}
+
+function hasSymlinkComponent(value: string): boolean {
+  let current = resolve(value);
+  while (true) {
+    try {
+      if (lstatSync(current).isSymbolicLink()) return true;
+    } catch {
+      // The regular-file check below reports a missing component uniformly.
+    }
+    const parent = resolve(current, "..");
+    if (parent === current) return false;
+    current = parent;
+  }
 }
 
 function messageKey(command: Command): Record<string, unknown> {
@@ -36,13 +52,35 @@ function quotedMessage(command: Command): Record<string, unknown> {
 
 function mediaContent(command: Command): Record<string, unknown> {
   const kind = stringValue(command.mediaType, 16);
-  const url = stringValue(command.url, 2_000);
-  if (!url.startsWith("https://")) {
-    throw new Error("Media URL must use HTTPS");
-  }
-  const media = { url };
   if (!["image", "video", "audio", "document"].includes(kind)) {
     throw new Error("Unsupported media type");
+  }
+  const filePath = stringValue(command.filePath, 4_096);
+  const url = stringValue(command.url, 2_000);
+  let media: Record<string, unknown>;
+  if (filePath) {
+    if (hasSymlinkComponent(filePath)) {
+      throw new Error("Media file cannot contain a symlink");
+    }
+    const root = resolve(
+      String(process.env.OPENJARVIS_ARTIFACT_ROOT || "F:/agente/artifacts/registry"),
+    );
+    const candidate = resolve(filePath);
+    const escaped = relative(root, candidate);
+    if (!isAbsolute(candidate) || escaped === ".." || escaped.startsWith("../") || escaped.startsWith("..\\")) {
+      throw new Error("Media file is outside the controlled artifact root");
+    }
+    try {
+      if (!lstatSync(candidate).isFile()) throw new Error("Media file is not a regular file");
+    } catch {
+      throw new Error("Media file is unavailable");
+    }
+    media = { url: candidate };
+  } else {
+    if (!url.startsWith("https://")) {
+      throw new Error("Media URL must use HTTPS");
+    }
+    media = { url };
   }
   const content: Record<string, unknown> = { [kind]: media };
   const caption = stringValue(command.caption, MAX_TEXT);

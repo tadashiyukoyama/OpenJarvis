@@ -2,10 +2,10 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-20
-Applies to integrated code SHA: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
+Last verified: 2026-09-13
+Applies to integrated code SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
-Branch: `fix/codex-event-driven-contact-reconcile`
+Branch: `codex/local-f-relocation`
 Remote publication: private `https://github.com/cesaryukoyama28-eng/openjarvis-codex`
 Supersedes: none
 Superseded by: none
@@ -20,25 +20,27 @@ documentation; the completion report must record both SHAs and prove that diff.
 
 | Document | Status | Responsibility | Last verified | Applicable implementation |
 |---|---|---|---|---|
-| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-08-20 | `262f7b4` |
-| `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-08-19 | `28744c7` |
-| `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-08-20 | `33a12d4` |
-| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-08-19 | `1ecb90a` |
-| `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-08-20 | `6d5b964` |
-| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, dedicated image runner, rotation, revocation, VPS/Windows gates and rollback | 2026-08-20 | `14d026f` |
+| `CURRENT-PROJECT-STATE.md` | CANONICAL | concise factual local state and acceptance evidence | 2026-09-13 | `6a07d0f` |
+| `operations/OPENJARVIS-F-RELOCATION-2026-09-13.md` | CANONICAL EVIDENCE | F: local relocation, preserved runtime, credentials, hashes, junctions and rollback | 2026-09-13 | `6a07d0f` |
+| `ARCHITECTURE-MAP.md` | CANONICAL | current AceleraChat/Codex boundaries and state placement | 2026-09-13 | `6a07d0f` |
+| `JARVIS-AGENT-CONTRACT.md` | CANONICAL | entities, states, APIs, AceleraChat tools, policy, errors and context | 2026-09-13 | `6a07d0f` |
+| `JARVIS-EDGE-MCP-CONTRACT.md` | CANONICAL | VPS Core, outbound Edge WSS, local Codex and filtered MCP boundaries | 2026-09-13 | `6a07d0f` |
+| `operations/JARVIS-AGENT-RUNBOOK.md` | CANONICAL | operation, AceleraChat diagnosis, webhook/backfill, rollback, tests and smoke | 2026-09-13 | `6a07d0f` |
+| `operations/JARVIS-EDGE-MCP-RUNBOOK.md` | CANONICAL | hybrid installation, dedicated image runner, rotation, revocation, VPS/Windows gates and rollback | 2026-09-13 | `6a07d0f` |
 | `operations/OPENJARVIS-CONTROLLED-RELEASE-2026-08-19.md` | CANONICAL EVIDENCE | exact Core/local SHAs, backups, digest, read-only smokes and rollback | 2026-08-19 | `1ecb90a` |
 | `operations/OPENJARVIS-DELEGATION-HISTORY-RELEASE-2026-08-20.md` | CANONICAL EVIDENCE | deterministic delegation, durable history, production image, backups, smoke and rollback | 2026-08-20 | `846127c` |
 | `operations/OPENJARVIS-WHATSAPP-CONTACT-SAVE-2026-08-20.md` | CANONICAL EVIDENCE | approved contact persistence, production image, backups, denied smoke and rollback | 2026-08-20 | `33a12d4` |
 | `operations/OPENJARVIS-CONTACT-CODEX-RECONCILIATION-2026-08-20.md` | CANONICAL EVIDENCE | contact response reconciliation, bounded Codex completion, production identities and rollback | 2026-08-20 | `262f7b4` + AceleraChat `1febefe` |
-| `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, private reconnection, remote tunnel and publication gate | 2026-08-10 | distribution snapshot |
-| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-08-19 | `1ecb90a` |
-| `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-08-20 | `6d5b964` |
+| `operations/FRESH-WINDOWS-INSTALL.md` | CANONICAL | clean Windows installation, local credential reconnection, remote tunnel and publication gate | 2026-09-13 | `6a07d0f` |
+| `CODEX-AGENT-INTEGRATION.md` | CANONICAL | Codex external-agent job, busy, thread and response contract | 2026-09-13 | `6a07d0f` |
+| `AGENT-HOST-OWNER-INTERFACE.md` | CANONICAL FOR INTEGRATION SLICE | OpenJarvis owner UI, authenticated Agent Host bridge, lifecycle controls and voice transport boundary | 2026-09-17 | current integration branch |
+| `DECISIONS.md` | CANONICAL | approved architectural decisions | 2026-09-13 | `6a07d0f` |
 | `KNOWN-ISSUES.md` | CANONICAL | proven current risks and scoped acceptance status | 2026-08-18 | AceleraChat working tree |
 | `REPOSITORY-MAP.md` | CANONICAL | Git roots, remotes and synchronization history | 2026-07-17 | historical foundation |
 | `MOBILE-STRATEGY.md` | CANONICAL | mobile evidence and future decision gate | 2026-07-17 | historical foundation |
 | `VPS-READINESS.md` | CANONICAL | future VPS preparation | 2026-07-17 | historical foundation |
 | `ROADMAP.md` | CANONICAL | prior phase map and dependencies | 2026-07-17 | historical foundation |
-| `CHANGE-HISTORY.md` | CANONICAL | product and operational release history | 2026-08-20 | `33a12d4` |
+| `CHANGE-HISTORY.md` | CANONICAL | product and operational release history | 2026-09-13 | `6a07d0f` |
 | `research/OJ2-CODEX-RUNTIME-AUDIT.md` | CANONICAL EVIDENCE | original installed Codex app-server and no-Ollama audit | 2026-07-17 | OJ2/OJ2-V |
 | `operations/OJ-CODEX-LOCAL-RUNTIME-2026-08-05.md` | HISTORICAL EVIDENCE | chronological local runtime/Jarvis debugging evidence; frozen | 2026-08-09 | superseded operationally by the new runbook |
 

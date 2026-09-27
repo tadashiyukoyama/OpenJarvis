@@ -2,8 +2,8 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-20
-Applies through integrated code SHA `6d5b964178f28319081b5ff057616a4979a5efba`
+Last verified: 2026-09-13
+Applies through integrated code SHA `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Supersedes: none
 Superseded by: none
 
@@ -295,7 +295,7 @@ Superseded by: none
 - Evidence: live denial smoke, missing-header/wrong-hash rejection and
   idempotency/approval tests.
 
-## OJ-JARVIS-D24 - Durable context is structured, bounded and stored on D:
+## OJ-JARVIS-D24 - Durable context is structured, bounded and stored on F:
 
 - Decision: Jarvis persists only bounded objectives, decisions, pending action
   metadata, result summaries and opaque references for 30 days, partitioned by
@@ -305,8 +305,9 @@ Superseded by: none
   conversation creates privacy, prompt-injection and context-budget risk.
 - Consequence: optional context never blocks Live startup; provider content is
   untrusted data; explicit context deletion does not delete external history.
-  Active managed state lives under `D:\dev\runtime\openjarvis\state`; the C:
-  source remains a preserved rollback.
+  Active managed state lives under `F:\OpenJarvis\runtime\state`; the D:
+  source/runtime remain preserved rollback copies until the relocation gate is
+  released.
 - Evidence: context security/TTL tests, migration hashes and SQLite integrity
   checks.
 
@@ -596,3 +597,19 @@ Superseded by: none
   media candidate, but those additions require their own deployment gate.
 - Evidence: one denied production proposal, zero Edge jobs and zero real Codex,
   e-mail or WhatsApp mutations during the release smoke.
+
+## OJ-LOCAL-D45 - F is the canonical local storage root
+
+- Decision: the active OpenJarvis repository, runtime state, databases, logs,
+  caches, artifacts, Codex home and local credential directory are maintained
+  below `F:\OpenJarvis`. Credentials are stored in the plain local folder
+  `F:\OpenJarvis\credenciais` by Cesar's explicit choice and remain ignored.
+- Reason: the D: volume is scheduled for formatting and must no longer be a
+  runtime dependency.
+- Consequence: launchers, scheduled Edge Worker task, local configuration,
+  boundary checks and operational runbooks use F:. The D: source/runtime copy
+  remains an intact rollback until Cesar explicitly releases it. Historical
+  records that mention D: are evidence, not current paths.
+- Evidence: `operations/OPENJARVIS-F-RELOCATION-2026-09-13.md`, database
+  hash comparison, SQLite quick checks and the 15-case workspace foundation
+  suite.

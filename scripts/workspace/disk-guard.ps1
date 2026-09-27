@@ -23,18 +23,19 @@ if ($workspaceRoot -ne $expectedRoot) {
     throw "Wrong workspace: expected $expectedRoot but resolved $workspaceRoot."
 }
 
-$drive = Get-PSDrive -Name D -ErrorAction Stop
+$driveLetter = $workspaceRoot.Substring(0, 1)
+$drive = Get-PSDrive -Name $driveLetter -ErrorAction Stop
 $freeBytes = [UInt64]$drive.Free
 $usedBytes = [UInt64]$drive.Used
 $totalBytes = $freeBytes + $usedBytes
 if ($freeBytes -lt $MinimumFreeBytes) {
-    throw "Disk guard failed: D: has $freeBytes free bytes; minimum is $MinimumFreeBytes."
+    throw "Disk guard failed: $($drive.Name): has $freeBytes free bytes; minimum is $MinimumFreeBytes."
 }
 
 [pscustomobject]@{
     readOnly = $true
     workspaceRoot = $workspaceRoot
-    drive = 'D:'
+    drive = "$($drive.Name):"
     totalBytes = $totalBytes
     freeBytes = $freeBytes
     minimumFreeBytes = $MinimumFreeBytes

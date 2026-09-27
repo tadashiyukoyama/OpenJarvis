@@ -25,8 +25,8 @@ $RuntimeRoot = [System.IO.Path]::GetFullPath([string]$LocalConfig.runtimeRoot)
 $StateRoot = [System.IO.Path]::GetFullPath((Join-Path $RuntimeRoot 'state'))
 $CodexHome = [System.IO.Path]::GetFullPath([string]$LocalConfig.codexHome)
 foreach ($ManagedPath in @($WorkspaceRoot, $RuntimeRoot, $StateRoot, $CodexHome)) {
-    if (-not $ManagedPath.StartsWith('D:\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Managed project path must remain on disk D: $ManagedPath"
+    if (-not $ManagedPath.StartsWith('F:\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Managed project path must remain on disk F: $ManagedPath"
     }
 }
 
@@ -38,8 +38,8 @@ $FrontendHealth = "http://127.0.0.1:$FrontendPort/"
 $PythonExe = Join-Path $WorkspaceRoot '.venv\Scripts\python.exe'
 $JarvisExe = Join-Path $WorkspaceRoot '.venv\Scripts\jarvis.exe'
 $ViteScript = Join-Path $WorkspaceRoot 'frontend\node_modules\vite\bin\vite.js'
-$GeminiEnvironmentPath = Join-Path $WorkspaceRoot '.private\env\gemini-live.env'
-$AceleraChatEnvironmentPath = Join-Path $WorkspaceRoot '.private\env\acelerachat.env'
+$GeminiEnvironmentPath = Join-Path $WorkspaceRoot 'credenciais\workspace\env\gemini-live.env'
+$AceleraChatEnvironmentPath = Join-Path $WorkspaceRoot 'credenciais\workspace\env\acelerachat.env'
 
 function Import-GeminiPrivateEnvironment {
     param([Parameter(Mandatory)][string]$Path)

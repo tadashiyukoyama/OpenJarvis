@@ -2,8 +2,8 @@
 
 Status: CANONICAL
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-20
-Current integrated implementation: `262f7b4f3487c22f7c5d4ca098844c27277b2d3f`
+Last verified: 2026-09-13
+Current integrated implementation: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Current publication target: private `cesaryukoyama28-eng/openjarvis-codex`, branch `main`
 Exact published documentation HEAD: recorded by the completion output after the one final push.
 Supersedes: none
@@ -85,7 +85,7 @@ Superseded by: none
 - Normalized portable policies and canonical documentation metadata against
   the upstream foundation baseline.
 - Removed versioned machine-specific paths and retained all project-managed
-  storage on disk D through ignored local configuration.
+  storage below the canonical F:\\OpenJarvis root through ignored local configuration.
 - Kept all four lifecycle scripts disabled as neutral safe stubs and added
   explicit lifecycle policy and state records.
 - CI diagnosis was read-only and classified as `INSUFFICIENT_EVIDENCE`:
@@ -93,6 +93,20 @@ Superseded by: none
   exposes no workflow inventory or run for this fork branch.
 - No upstream functional code or workflow was changed, and no installation,
   model, service, VPS or CodexAgent work was performed.
+
+## 2026-09-13 - Local OpenJarvis relocation to F:
+
+- Copied the repository, runtime state, databases, logs, caches, artifacts,
+  Codex home and local credentials into `F:\OpenJarvis` without mirroring or
+  deleting the D: rollback copies.
+- Repointed local configuration, launchers and the scheduled Edge Worker task
+  to F:, and recorded copy hashes, SQLite checks and boundary validation.
+- Kept the credentials in the user-requested ignored directory
+  `F:\OpenJarvis\credenciais`; no values were printed or rotated.
+- Copied the small external `ana-crm` Codex skill into the F: self-contained
+  profile and restored its junction so the profile no longer depends on D:.
+- The local application was not started by this relocation, and no VPS,
+  GitHub, deploy, tunnel, migration or real provider mutation was performed.
 
 ## 2026-07-17 - OJ2 Codex runtime audit (DRAFT)
 

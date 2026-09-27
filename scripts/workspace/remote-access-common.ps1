@@ -4,8 +4,8 @@ $ErrorActionPreference = 'Stop'
 function Resolve-OpenJarvisManagedPath {
     param([Parameter(Mandatory)][string]$PathValue)
     $Resolved = [System.IO.Path]::GetFullPath($PathValue).TrimEnd('\')
-    if (-not $Resolved.StartsWith('D:\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Managed remote-access path must remain on disk D: $Resolved"
+    if (-not $Resolved.StartsWith('F:\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Managed remote-access path must remain on disk F: $Resolved"
     }
     return $Resolved
 }
@@ -27,7 +27,7 @@ function Get-OpenJarvisRemoteContext {
         WorkspaceRoot = $WorkspaceRoot
         RuntimeRoot = $RuntimeRoot
         PythonExe = Join-Path $WorkspaceRoot '.venv\Scripts\python.exe'
-        CredentialFile = Join-Path $WorkspaceRoot '.private\env\cloudflare-quick-tunnel.env'
+        CredentialFile = Join-Path $WorkspaceRoot 'credenciais\workspace\env\cloudflare-quick-tunnel.env'
         CloudflareRoot = Join-Path $RuntimeRoot 'cloudflare'
         StateFile = Join-Path $RuntimeRoot 'cloudflare\remote-access.processes.json'
         PublicUrlFile = Join-Path $RuntimeRoot 'cloudflare\public-url.txt'

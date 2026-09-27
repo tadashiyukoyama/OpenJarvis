@@ -2,8 +2,8 @@
 
 Status: CANONICAL — CONTROLLED RELEASE ACTIVE; MUTATIONS DISABLED
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to code SHA: `b03a029ea0964ce3cd1e450b2499343de5fc0564`
+Last verified: 2026-09-13
+Applies to code SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Release-candidate base: `07d8680bdd73dab7c4f4ea4882ecd029ec44bcd6`
 Branch: `codex/acelerachat-granular-whatsapp`
 Supersedes: none
@@ -27,15 +27,15 @@ redacted paths.
 
 Required repositories and contracts:
 
-- current release worktree: `D:\dev\workspaces\openjarvis-edge-release`;
-- reusable local Python environment: `D:\dev\workspaces\openjarvis\.venv`;
+- current release worktree: `F:\OpenJarvis`;
+- reusable local Python environment: `F:\OpenJarvis\.venv`;
 - AceleraChat release contract: `2026-08-19.2`;
 - Edge schemas: `contracts/edge/v1`;
 - Agent OpenAPI: `contracts/jarvis-agent.openapi.json`;
 - Core container: `deploy/vps/Dockerfile` and `compose.yaml`;
 - OpenResty sample: `deploy/vps/openresty-openjarvis.conf.example`;
 - Edge Windows scripts: `scripts/edge`;
-- private files: only under `D:\dev\runtime\openjarvis\private` on Windows
+- credential files: only under `F:\OpenJarvis\credenciais\runtime` on Windows
   and `/opt/openjarvis/private` on the VPS.
 
 The release report must record a clean final OpenJarvis SHA and immutable image
@@ -46,7 +46,7 @@ digest. Never deploy from a working tree, archive or copied `node_modules`.
 Run read-only checks:
 
 ```powershell
-Set-Location -LiteralPath D:\dev\workspaces\openjarvis-edge-release
+Set-Location -LiteralPath F:\OpenJarvis
 git status --short --branch
 git rev-parse HEAD
 git worktree list --porcelain
@@ -59,7 +59,7 @@ Confirm:
 - no unknown tracked change;
 - `.manus-audit/`, root `node_modules/` and `frontend/pnpm-lock.yaml` are not
   part of the release;
-- `.private`, runtime databases, logs, QR values and key files are ignored;
+- `credenciais`, runtime databases, logs, QR values and key files are ignored;
 - no secret appears in staged diff or generated contracts;
 - no second worktree or process is mistaken for the release source.
 
@@ -71,8 +71,8 @@ Use the existing locked environments; do not install a missing dependency just
 to make the gate green without approval.
 
 ```powershell
-$sourceRoot = 'D:\dev\workspaces\openjarvis-edge-release'
-$python = 'D:\dev\workspaces\openjarvis\.venv\Scripts\python.exe'
+$sourceRoot = 'F:\OpenJarvis'
+$python = 'F:\OpenJarvis\.venv\Scripts\python.exe'
 $env:PYTHONPATH = Join-Path $sourceRoot 'src'
 Set-Location -LiteralPath $sourceRoot
 
@@ -153,9 +153,9 @@ Copy templates without values in source:
 
 ```powershell
 Copy-Item deploy\windows\edge-worker.env.example `
-  D:\dev\runtime\openjarvis\private\edge-worker.env
+  F:\OpenJarvis\credenciais\runtime\edge-worker.env
 Copy-Item deploy\windows\agent-mcp.env.example `
-  D:\dev\runtime\openjarvis\private\agent-mcp.env
+  F:\OpenJarvis\credenciais\runtime\agent-mcp.env
 ```
 
 On the VPS, copy `deploy/vps/core.env.example` to
@@ -231,7 +231,7 @@ pwsh -NoProfile -File scripts\edge\Manage-OpenJarvisEdgeTask.ps1 -Action Start
 
 The task runs as the current interactive user with limited privileges, ignores
 duplicate instances and restarts after failure. Logs rotate at 10 MiB with five
-backups by default under `D:\dev\runtime\openjarvis\logs`.
+backups by default under `F:\OpenJarvis\runtime\logs`.
 
 Acceptance:
 

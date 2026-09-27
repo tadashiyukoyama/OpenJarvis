@@ -50,6 +50,18 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
     updated_at INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (jid, message_id)
 );
+CREATE TABLE IF NOT EXISTS agent_host_conversations (
+    conversation_id TEXT PRIMARY KEY,
+    jid TEXT NOT NULL,
+    principal_id TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS agent_host_outbound (
+    idempotency_key TEXT PRIMARY KEY,
+    operation_id TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -70,6 +82,8 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_text
     ON whatsapp_messages(text);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_messages_ref
     ON whatsapp_messages(message_ref) WHERE message_ref <> '';
+CREATE INDEX IF NOT EXISTS idx_agent_host_conversations_jid
+    ON agent_host_conversations(jid);
 """
 
 

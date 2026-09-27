@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -348,6 +350,108 @@ class WhatsAppStore(WhatsAppStoreQueries):
     def close(self) -> None:
         with self._lock:
             self._connection.close()
+
+    # -- Agent Host opaque conversation/outbound state -----------------------
+
+    def bind_agent_host_conversation(
+        self, conversation_id: str, jid: str, principal_id: str
+    ) -> None:
+        with self._lock:
+            self._connection.execute(
+                """
+                INSERT INTO agent_host_conversations
+                    (conversation_id, jid, principal_id, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(conversation_id) DO UPDATE SET
+                    jid = excluded.jid,
+                    principal_id = excluded.principal_id,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    str(conversation_id),
+                    clean_text(jid, 160),
+                    clean_text(principal_id, 128),
+                    int(time.time()),
+                ),
+            )
+            self._connection.commit()
+
+    def resolve_agent_host_conversation(
+        self, conversation_id: str
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT conversation_id, jid, principal_id, updated_at
+                FROM agent_host_conversations
+                WHERE conversation_id = ?
+                """,
+                (str(conversation_id),),
+            ).fetchone()
+        return _row_dict(row) or None
+
+    def get_agent_host_outbound(self, idempotency_key: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT operation_id, result_json "
+                "FROM agent_host_outbound WHERE idempotency_key = ?",
+                (str(idempotency_key),),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            value = json.loads(str(row["result_json"]))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+        if not isinstance(value, dict):
+            return None
+        value.setdefault("operation_id", str(row["operation_id"]))
+        return value
+
+    def get_agent_host_outbound_by_operation(
+        self, operation_id: str
+    ) -> dict[str, Any] | None:
+        """Return one durable outbound result without invoking the provider.
+
+        The operation index is intentionally read-only.  It is used after an
+        Agent Host timeout to reconcile a result already persisted by this
+        process; it never retries or reconstructs a send operation.
+        """
+
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT operation_id, result_json FROM agent_host_outbound "
+                "WHERE operation_id = ? ORDER BY created_at DESC LIMIT 1",
+                (str(operation_id),),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            value = json.loads(str(row["result_json"]))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+        if not isinstance(value, dict):
+            return None
+        value.setdefault("operation_id", str(row["operation_id"]))
+        return value
+
+    def save_agent_host_outbound(
+        self, idempotency_key: str, operation_id: str, result: dict[str, Any]
+    ) -> None:
+        encoded = json.dumps(
+            result, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        with self._lock:
+            self._connection.execute(
+                """
+                INSERT INTO agent_host_outbound
+                    (idempotency_key, operation_id, result_json, created_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(idempotency_key) DO NOTHING
+                """,
+                (str(idempotency_key), str(operation_id), encoded, int(time.time())),
+            )
+            self._connection.commit()
 
 
 __all__ = ["WhatsAppStore", "default_database_path"]

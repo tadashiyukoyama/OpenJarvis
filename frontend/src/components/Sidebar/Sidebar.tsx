@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import {
   MessageSquare,
+  MessageCircle,
   Plus,
   BarChart3,
   Settings,
@@ -50,16 +51,17 @@ export function Sidebar() {
   const handleNewChat = () => {
     // An existing Codex thread must still be able to fork into a new local target.
     if (messages.length === 0 && !activeConversation?.codexThreadId) {
-      navigate('/');
+      navigate('/chat');
       return;
     }
     createConversation(selectedModel, activeConversation?.codexProjectCwd || null, null);
-    navigate('/');
+    navigate('/chat');
   };
 
   const navItems = [
-    { path: '/', icon: MessageSquare, label: 'Chat' },
-    { path: '/jarvis', icon: Orbit, label: 'Jarvis' },
+    { path: '/chat', icon: MessageSquare, label: 'Chat / Codex' },
+    { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp · Inbox' },
+    { path: '/jarvis', icon: Orbit, label: 'Jarvis · Voz' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
     { path: '/data-sources', icon: Database, label: 'Data Sources' },
     { path: '/agents', icon: Bot, label: 'Agents' },

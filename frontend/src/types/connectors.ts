@@ -465,7 +465,7 @@ export const SOURCE_CATALOG: ConnectorMeta[] = [
       },
     ],
     inputFields: [
-      { name: 'path', placeholder: 'D:\\dados\\whatsapp-export', type: 'text' },
+      { name: 'path', placeholder: 'F:\\OpenJarvis\\runtime\\whatsapp-export', type: 'text' },
     ],
   },
   {
@@ -480,6 +480,21 @@ export const SOURCE_CATALOG: ConnectorMeta[] = [
     steps: [
       {
         label: 'Use o botão abaixo para iniciar uma sessão local e gerar o QR Code.',
+      },
+    ],
+  },
+  {
+    connector_id: 'whatsapp_evolution',
+    display_name: 'WhatsApp Evolution API',
+    auth_type: 'bridge',
+    category: 'communication',
+    icon: 'MessageSquare',
+    color: 'text-green-400',
+    description: 'Transporte oficial do Agent Host com QR Code na própria aplicação',
+    unitLabel: 'messages',
+    steps: [
+      {
+        label: 'A API Evolution é configurada somente no backend. Depois que uma instância for criada explicitamente, o QR Code aparecerá aqui.',
       },
     ],
   },

@@ -83,7 +83,7 @@ function Resolve-OpenJarvisCodexRuntime {
 function Get-OpenJarvisSharedCodexConfig {
     [CmdletBinding()]
     param(
-        [string]$Repository = 'D:\dev\workspaces\openjarvis',
+        [string]$Repository = 'F:\OpenJarvis',
         [int]$Port = 8131
     )
 
@@ -98,9 +98,9 @@ function Get-OpenJarvisSharedCodexConfig {
     $codexHome = [System.IO.Path]::GetFullPath([string]$localConfig.codexHome)
     foreach ($managedPath in @($repositoryRoot, $runtimeRoot, $codexHome)) {
         if (-not $managedPath.StartsWith(
-            'D:\', [System.StringComparison]::OrdinalIgnoreCase
+            'F:\', [System.StringComparison]::OrdinalIgnoreCase
         )) {
-            throw "OpenJarvis managed paths must remain on disk D: $managedPath"
+            throw "OpenJarvis managed paths must remain on disk F: $managedPath"
         }
     }
 

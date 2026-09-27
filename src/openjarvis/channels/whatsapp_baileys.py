@@ -67,6 +67,72 @@ _BAILEYS_STATUS_LOGGED_OUT = "logged_out"
 _BAILEYS_STATUS_AUTH_INCONSISTENT = "auth_inconsistent"
 _BAILEYS_STATUS_FAILED = "failed"
 
+# Keep the provider payload kind separate from the artifact MIME.  In
+# particular, ``application/pdf`` is a Baileys ``document`` (not the string
+# before the slash, ``application``).  The explicit table is deliberately
+# closed so an unknown artifact cannot silently become a different payload.
+_WHATSAPP_MEDIA_KIND_BY_MIME = {
+    "image/png": "image",
+    "image/jpeg": "image",
+    "image/webp": "image",
+    "application/pdf": "document",
+    "application/msword": "document",
+    "application/vnd.ms-word.document.macroenabled.12": "document",
+    (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ): "document",
+    "application/vnd.ms-excel": "document",
+    "application/vnd.ms-excel.sheet.macroenabled.12": "document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
+    "application/vnd.ms-powerpoint": "document",
+    "application/vnd.ms-powerpoint.presentation.macroenabled.12": "document",
+    (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ): "document",
+    "application/rtf": "document",
+    "text/rtf": "document",
+    "text/csv": "document",
+    "text/plain": "document",
+    "application/zip": "document",
+    "audio/ogg": "audio",
+    "audio/mpeg": "audio",
+    "audio/mp4": "audio",
+    "audio/wav": "audio",
+    "audio/x-wav": "audio",
+    "audio/webm": "audio",
+}
+
+
+def _whatsapp_media_kind(mime_type: str) -> tuple[str, str]:
+    """Return the closed Baileys payload kind and canonical MIME.
+
+    The provider needs a semantic payload key (``document``, ``image`` or
+    ``audio``), while the original MIME remains metadata on the document.
+    Never derive the payload key by splitting at ``/``: that maps PDF to the
+    invalid Baileys kind ``application``.
+    """
+
+    canonical = str(mime_type or "").split(";", 1)[0].strip().lower()
+    kind = _WHATSAPP_MEDIA_KIND_BY_MIME.get(canonical)
+    if kind is None:
+        raise ValueError(
+            f"Tipo de mídia WhatsApp não suportado: {canonical or '<vazio>'}"
+        )
+    return kind, canonical
+
+
+def _path_has_symlink(path: Path) -> bool:
+    """Check every path component before resolving a provider path."""
+
+    current = path.absolute()
+    while True:
+        if current.is_symlink():
+            return True
+        parent = current.parent
+        if parent == current:
+            return False
+        current = parent
+
 
 def _find_node_tool(name: str) -> Optional[str]:
     """Resolve Node.js tools even when the service inherited a reduced PATH."""
@@ -474,6 +540,70 @@ class WhatsAppBaileysChannel(BaseChannel):
             timeout=timeout,
         )
         self._publish_sent(channel, content, conversation_id)
+        return result
+
+    def send_media_and_wait(
+        self,
+        channel: str,
+        file_path: str,
+        *,
+        mime_type: str,
+        filename: str,
+        caption: str = "",
+        voice_note: bool = False,
+        conversation_id: str = "",
+        timeout: float = 30.0,
+    ) -> Dict[str, Any]:
+        """Send one already-validated local artifact through Baileys."""
+
+        if not is_supported_jid(channel):
+            raise ValueError("JID WhatsApp invalido")
+        raw_path = Path(file_path).expanduser()
+        if _path_has_symlink(raw_path):
+            raise ValueError("Artefato contem symlink")
+        path = raw_path.resolve()
+        root = (
+            Path(
+                os.environ.get(
+                    "OPENJARVIS_ARTIFACT_ROOT", r"F:\agente\artifacts\registry"
+                )
+            )
+            .expanduser()
+            .resolve()
+        )
+        try:
+            path.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("Artefato fora da raiz controlada") from exc
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("Artefato indisponivel")
+        media_kind, canonical_mime = _whatsapp_media_kind(mime_type)
+        result = self.execute_action_and_wait(
+            {
+                "type": "send",
+                "kind": "media",
+                "jid": channel,
+                "filePath": str(path),
+                "mediaType": media_kind,
+                "mimetype": canonical_mime,
+                "fileName": filename,
+                "caption": str(caption or "")[:4000],
+                "voiceNote": bool(voice_note),
+            },
+            timeout=timeout,
+        )
+        if self._bus is not None:
+            self._bus.publish(
+                EventType.CHANNEL_MESSAGE_SENT,
+                {
+                    "channel": channel,
+                    "conversation_id": conversation_id,
+                    "message_type": "media",
+                    "mime_type": mime_type,
+                    "filename": filename,
+                    "voice_note": bool(voice_note),
+                },
+            )
         return result
 
     def status(self) -> ChannelStatus:
@@ -910,6 +1040,20 @@ class WhatsAppBaileysChannel(BaseChannel):
                 content=event.get("text", ""),
                 message_id=event.get("message_id", ""),
                 conversation_id=event.get("jid", ""),
+                metadata={
+                    key: event.get(key)
+                    for key in (
+                        "message_type",
+                        "media_type",
+                        "media_mime_type",
+                        "media_filename",
+                        "media_path",
+                        "media_size",
+                        "media_sha256",
+                        "media_error",
+                    )
+                    if event.get(key) not in {None, ""}
+                },
             )
             for handler in self._handlers:
                 try:

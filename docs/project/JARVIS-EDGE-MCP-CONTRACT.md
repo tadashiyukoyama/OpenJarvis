@@ -2,8 +2,8 @@
 
 Status: CANONICAL — CONTROLLED CORE AND EDGE ACTIVE; MUTATIONS DISABLED
 Owner: Cesar Yukoyama / Codex
-Last verified: 2026-08-19
-Applies to code SHA: `1ecb90ac6191c27501c2ca497c2deecdf5bad8e0`
+Last verified: 2026-09-13
+Applies to code SHA: `6a07d0ffa0ea233c218aa646b2647158ea90a607`
 Production-source baseline: `9874381c9df924e9d439ecb958761a6df27586b1`
 Branch: `codex/edge-live-relay-release`
 Supersedes: none
@@ -192,7 +192,7 @@ APPROVED -> OFFERED -> ACCEPTED -> RUNNING
 
 The Edge Worker reuses the existing local app-server protocol:
 
-- project roots are allowlisted on D:;
+- project roots are allowlisted on F:;
 - a mapped task is resumed only when valid;
 - a new task is created only when no valid mapping exists;
 - work begins with `turn/start` and may be interrupted with `turn/interrupt`;

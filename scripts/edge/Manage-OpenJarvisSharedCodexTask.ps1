@@ -3,7 +3,7 @@ param(
     [ValidateSet('Status', 'Validate', 'RemoveLegacy')]
     [string]$Action = 'Status',
     [string]$TaskName = 'OpenJarvis Shared Codex',
-    [string]$Repository = 'D:\dev\workspaces\openjarvis',
+    [string]$Repository = 'F:\OpenJarvis',
     [int]$Port = 8131
 )
 

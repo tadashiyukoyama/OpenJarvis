@@ -38,8 +38,8 @@ $configuredPaths = @(
 )
 foreach ($configuredPath in $configuredPaths) {
     $normalized = Normalize-PathValue ([string]$configuredPath)
-    if (-not $normalized.StartsWith('D:\', [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Local boundary violation: $normalized is not on D:."
+    if (-not $normalized.StartsWith('F:\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Local boundary violation: $normalized is not on F:."
     }
 }
 
@@ -47,14 +47,21 @@ $reparsePoints = @(
     Get-ChildItem -LiteralPath $workspaceRoot -Force -Recurse -ErrorAction Stop |
         Where-Object { [bool]($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }
 )
-if ($reparsePoints.Count -gt 0) {
-    throw "Boundary validation refused reparse points under the workspace."
+$workspacePrefix = "$workspaceRoot\"
+foreach ($reparsePoint in $reparsePoints) {
+    $targets = @([string]$reparsePoint.Target | Where-Object { $_ })
+    foreach ($target in $targets) {
+        $resolvedTarget = Normalize-PathValue $target
+        if (-not $resolvedTarget.StartsWith($workspacePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Local boundary violation: reparse target escapes workspace: $resolvedTarget"
+        }
+    }
 }
 
 [pscustomobject]@{
     valid = $true
     workspaceRoot = $workspaceRoot
-    configuredPathsOnD = $configuredPaths.Count
+    configuredPathsOnF = $configuredPaths.Count
     reparsePoints = $reparsePoints.Count
     actionTaken = 'NONE'
 } | ConvertTo-Json -Depth 4

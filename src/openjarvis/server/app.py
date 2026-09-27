@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from openjarvis.server.agent_host_bridge import router as agent_host_router
 from openjarvis.server.analytics_routes import router as analytics_router
 from openjarvis.server.api_routes import include_all_routes
 from openjarvis.server.channel_authority import ChannelAuthorityPolicy
@@ -17,6 +18,7 @@ from openjarvis.server.comparison import comparison_router
 from openjarvis.server.connectors_router import create_connectors_router
 from openjarvis.server.dashboard import dashboard_router
 from openjarvis.server.digest_routes import create_digest_router
+from openjarvis.server.evolution_router import router as evolution_router
 from openjarvis.server.jarvis_agent import router as jarvis_agent_router
 from openjarvis.server.research_router import router as research_router
 from openjarvis.server.routes import router
@@ -336,6 +338,11 @@ def create_app(
         )
     )
     app.include_router(create_digest_router())
+    # Evolution is the opt-in WhatsApp transport surface.  Status/QR,
+    # explicit owner provisioning, and the authenticated inbound webhook are
+    # mounted independently of the legacy Baileys customer-source router;
+    # no instance is created at startup.
+    app.include_router(evolution_router)
     app.include_router(upload_router)
     app.include_router(research_router)
     app.include_router(analytics_router)
@@ -346,6 +353,10 @@ def create_app(
 
         app.include_router(jarvis_sources_router)
     app.include_router(jarvis_agent_router)
+    # The owner-facing path to the Agent Host.  The existing Jarvis
+    # orchestrator remains mounted as a compatibility/fallback route, but it
+    # is not the cognitive authority for this integration.
+    app.include_router(agent_host_router)
 
     from openjarvis.server.jarvis_agent.api.container import (
         configure_vps_codex_runtime,

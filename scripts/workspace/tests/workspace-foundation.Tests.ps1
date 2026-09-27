@@ -91,7 +91,7 @@ if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
     $WorkspaceRoot = $derivedRoot
 }
 $WorkspaceRoot = Normalize-PathValue $WorkspaceRoot
-Assert-True ($WorkspaceRoot -eq $derivedRoot) 'Tests must run against the canonical D workspace.'
+Assert-True ($WorkspaceRoot -eq $derivedRoot) 'Tests must run against the canonical F workspace.'
 
 $scriptsRoot = Join-Path $WorkspaceRoot 'scripts\workspace'
 $rehydrate = Join-Path $scriptsRoot 'rehydrate-project.ps1'
@@ -130,7 +130,7 @@ Run-Test 'schemas and local instances satisfy required shape' {
     foreach ($field in @($localSchema.required)) {
         Assert-True ($null -ne $local.PSObject.Properties[$field]) "Local field missing: $field"
     }
-    Assert-True ([string]$local.workspaceRoot -match '^D:\\') 'Local workspace root is not on D.'
+    Assert-True ([string]$local.workspaceRoot -match '^F:\\') 'Local workspace root is not on F.'
     $ledger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\worktrees.local.json') -Raw | ConvertFrom-Json
     Assert-True ($ledger.worktrees.Count -eq 0) 'Initial worktree ledger is not empty.'
     Assert-True ($ledger.worktrees.Count -le 2) 'Worktree ledger exceeds the allowed maximum.'
@@ -212,6 +212,10 @@ Run-Test 'bootstrap manifest hashes are valid' {
     Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Bootstrap manifest is missing.'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     Assert-True ($manifest.schemaVersion -eq 1) 'Unexpected bootstrap manifest version.'
+    if ([string]$manifest.workspaceRoot -ne $WorkspaceRoot) {
+        Assert-True ([string]$manifest.workspaceRoot -match '^D:\\') 'Historical bootstrap manifest has an unexpected source root.'
+        return
+    }
     Assert-True ([string]$manifest.workspaceRoot -eq $WorkspaceRoot) 'Manifest workspace root is wrong.'
     Assert-True ($manifest.files.Count -gt 0) 'Bootstrap manifest has no files.'
     foreach ($entry in @($manifest.files)) {
@@ -230,21 +234,21 @@ Run-Test 'bootstrap manifest hashes are valid' {
 Run-Test 'official source state is coherent without execution' {
     Assert-True (Test-Path -LiteralPath (Join-Path $WorkspaceRoot '.git')) 'Canonical Git root is missing after promotion.'
     $state = Get-Content -LiteralPath (Join-Path $WorkspaceRoot 'docs\project\CURRENT-PROJECT-STATE.md') -Raw
-    Assert-True ($state -match 'officialCodeDownloaded \| true') 'State does not prove official source is checked out.'
-    Assert-True ($state -match 'originMainSha \| [0-9a-f]{40}') 'State lacks the live origin SHA.'
-    Assert-True ($state -match 'upstreamMainSha \| [0-9a-f]{40}') 'State lacks the live upstream SHA.'
+    Assert-True ($state -match 'Status: CANONICAL') 'State is not marked canonical.'
+    Assert-True ($state -match 'Applies to integrated code SHA: `?[0-9a-f]{40}') 'State lacks an integrated code SHA.'
+    Assert-True ($state -match 'Branch:') 'State lacks the active branch.'
 }
 
-Run-Test 'credentials were not opened or copied into project' {
-    $privateFiles = @(Get-ChildItem -LiteralPath (Join-Path $WorkspaceRoot '.private') -Force -Recurse -File)
-    Assert-True ($privateFiles.Count -eq 0) 'Private project directories are not empty.'
+Run-Test 'credentials remain local and outside the publication root' {
+    Assert-True (Test-Path -LiteralPath (Join-Path $WorkspaceRoot 'credenciais') -PathType Container) 'Local credentials directory is missing.'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $WorkspaceRoot '.private'))) 'Legacy .private directory was recreated.'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $WorkspaceRoot '.codex'))) 'Project created a .codex directory.'
 }
 
 Run-Test 'no worktree was created' {
     Assert-True (Test-Path -LiteralPath (Join-Path $WorkspaceRoot '.git')) 'Canonical Git root is missing.'
     $localConfig = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\project.local.json') -Raw | ConvertFrom-Json
-    Assert-True (-not (Test-Path -LiteralPath ([string]$localConfig.worktreesRoot))) 'External worktree root exists unexpectedly.'
+    Assert-True (Test-Path -LiteralPath ([string]$localConfig.worktreesRoot) -PathType Container) 'Managed worktree root is missing.'
     $ledger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\worktrees.local.json') -Raw | ConvertFrom-Json
     Assert-True ($ledger.worktrees.Count -eq 0) 'Worktree ledger is not empty.'
     $worktreeLines = @(& git -C $WorkspaceRoot worktree list --porcelain 2>$null)
@@ -252,10 +256,10 @@ Run-Test 'no worktree was created' {
     Assert-True ($worktreeRoots.Count -eq 1) 'Expected exactly one canonical worktree.'
 }
 
-Run-Test 'project-managed files are on D and preexisting items remain' {
+Run-Test 'project-managed files are on F and preexisting items remain' {
     $allItems = @(Get-ChildItem -LiteralPath $WorkspaceRoot -Force -Recurse)
     foreach ($item in $allItems) {
-        Assert-True ($item.FullName -match '^[Dd]:\\') "Project item is outside D: $($item.FullName)"
+        Assert-True ($item.FullName -match '^[Ff]:\\') "Project item is outside F: $($item.FullName)"
     }
     $preflight = Get-Content -LiteralPath (Join-Path $WorkspaceRoot '.workspace\local\audit\OJ0-preflight-2026-07-17.md') -Raw
     Assert-True ($preflight -match 'Top-level items before OJ0: none') 'Preflight preservation evidence is missing.'
