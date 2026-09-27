@@ -615,6 +615,8 @@ export function InputArea() {
     deepResearch,
     temperature,
     maxTokens,
+    codexCatalog,
+    selectCodexThread,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
