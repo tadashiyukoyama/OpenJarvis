@@ -142,3 +142,29 @@ describe('resolveEnvironmentApiUrl', () => {
     ).toBe('https://api.example.test');
   });
 });
+
+describe('getBase with persisted settings', () => {
+  it('ignores a persisted loopback API URL on an HTTPS deployment', async () => {
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ apiUrl: 'http://127.0.0.1:8180' }),
+    );
+    vi.stubGlobal('window', {
+      location: { href: 'https://openjarvis.example.test/jarvis' },
+    });
+    const { getBase } = await freshApi();
+    expect(getBase()).toBe('');
+  });
+
+  it('keeps the persisted loopback API URL during local HTTP development', async () => {
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ apiUrl: 'http://127.0.0.1:8180/' }),
+    );
+    vi.stubGlobal('window', {
+      location: { href: 'http://127.0.0.1:5173/jarvis' },
+    });
+    const { getBase } = await freshApi();
+    expect(getBase()).toBe('http://127.0.0.1:8180');
+  });
+});

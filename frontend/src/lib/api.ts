@@ -65,10 +65,19 @@ const DESKTOP_API_FALLBACK = 'http://127.0.0.1:8000';
 const getSettingsApiUrl = (): string => {
   try {
     const raw = localStorage.getItem('openjarvis-settings');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.apiUrl) return parsed.apiUrl.replace(/\/+$/, '');
-    }
+    if (!raw) return '';
+    const parsed = JSON.parse(raw);
+    if (!parsed.apiUrl) return '';
+    // A desktop session may have persisted its loopback API URL.  Reusing
+    // that value from the public HTTPS deployment silently sends requests to
+    // the visitor's own machine, producing 404/connection failures for the
+    // catalog, chat and Jarvis operational memory.  Apply the same
+    // containment rule used for build-time configuration to persisted
+    // settings as well; local HTTP development and Tauri keep working.
+    return resolveEnvironmentApiUrl(
+      String(parsed.apiUrl).replace(/\/+$/, ''),
+      typeof window === 'undefined' ? undefined : window.location.href,
+    );
   } catch {}
   return '';
 };
