@@ -33,6 +33,19 @@ export function CodexTargetSelector() {
     () => selectedProject?.threads || [],
     [selectedProject],
   );
+
+  // The web deployment has one cognitive authority: Codex.  Select the
+  // first resumable thread automatically so a new browser session can send
+  // its first message without exposing a model picker or requiring a manual
+  // project/conversation choice.  The explicit selectors remain available
+  // for switching to another already-existing Codex thread.
+  useEffect(() => {
+    if (activeThreadId || loading || !catalog) return;
+    const fallback = catalog.projects
+      .flatMap((project) => project.threads)
+      .find((thread) => thread.thread_id && thread.project_cwd);
+    if (fallback) selectCodexThread(fallback);
+  }, [activeThreadId, catalog, loading, selectCodexThread]);
   const syncLabel = activeThreadId && historyLoading !== activeId
     ? {
         live: 'Synced with Codex',

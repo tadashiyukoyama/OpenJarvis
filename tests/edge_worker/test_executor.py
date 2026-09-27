@@ -227,3 +227,48 @@ def test_history_is_paginated_and_bounded_by_utf8_bytes() -> None:
     assert content_bytes <= 128 * 1024
     assert any(item["content_truncated"] for item in messages)
     assert result["data"]["next_cursor"] == "next-page"
+
+
+def test_catalog_contains_only_threads_inside_configured_project_roots(
+    tmp_path,
+) -> None:
+    root = tmp_path / "openjarvis"
+    root.mkdir()
+
+    class Runtime:
+        @staticmethod
+        def thread_list(*, cursor=None, limit=None):
+            del cursor, limit
+            return SimpleNamespace(
+                threads=(
+                    SimpleNamespace(
+                        thread_id="allowed",
+                        cwd=str(root),
+                        status="idle",
+                        metadata={},
+                    ),
+                    SimpleNamespace(
+                        thread_id="nested",
+                        cwd=str(root / "subproject"),
+                        status="idle",
+                        metadata={},
+                    ),
+                    SimpleNamespace(
+                        thread_id="outside",
+                        cwd=str(tmp_path / "other"),
+                        status="idle",
+                        metadata={},
+                    ),
+                ),
+                next_cursor=None,
+            )
+
+    executor = object.__new__(CodexEdgeExecutor)
+    executor._config = SimpleNamespace(project_roots=(str(root),))
+
+    result = executor._catalog(Runtime())
+
+    assert [item["thread_id"] for item in result["data"]["threads"]] == [
+        "allowed",
+        "nested",
+    ]

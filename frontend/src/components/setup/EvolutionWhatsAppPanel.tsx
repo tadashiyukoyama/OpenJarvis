@@ -25,6 +25,35 @@ export function EvolutionWhatsAppPanel() {
   const [provisioning, setProvisioning] = useState(false);
   const [error, setError] = useState('');
   const renderToken = useRef(0);
+  const lastAutomaticQrAttempt = useRef(0);
+
+  const loadQr = useCallback(async (showErrors: boolean) => {
+    try {
+      const current = await fetchEvolutionQr();
+      setQr(current);
+      if (!current.available) {
+        setQrDataUrl('');
+        if (showErrors) setError(current.error_code || 'QR ainda não disponível.');
+        return;
+      }
+      if (current.base64) {
+        setQrDataUrl(current.base64.startsWith('data:') ? current.base64 : `data:image/png;base64,${current.base64}`);
+        setError('');
+        return;
+      }
+      if (current.qr) {
+        const token = ++renderToken.current;
+        const image = await QRCode.toDataURL(current.qr, { errorCorrectionLevel: 'M', margin: 2, width: 280 });
+        if (token === renderToken.current) setQrDataUrl(image);
+        setError('');
+      }
+    } catch (cause) {
+      if (showErrors) {
+        setQrDataUrl('');
+        setError(cause instanceof Error ? cause.message : 'Falha ao carregar QR da Evolution API.');
+      }
+    }
+  }, []);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -32,14 +61,25 @@ export function EvolutionWhatsAppPanel() {
       setStatus(current);
       if (current.connected) {
         renderToken.current += 1;
+        lastAutomaticQrAttempt.current = 0;
         setQrDataUrl('');
         setQr(null);
+      } else if (current.instance_exists) {
+        // A disconnected instance already has a server-side QR endpoint. Fetch
+        // it automatically so pairing is visible on the integration page
+        // without requiring a second, easy-to-miss button click. Throttle the
+        // refresh to avoid polling Evolution more often than the status call.
+        const now = Date.now();
+        if (now - lastAutomaticQrAttempt.current >= 8_000) {
+          lastAutomaticQrAttempt.current = now;
+          void loadQr(false);
+        }
       }
       setError(current.error_code || '');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao consultar Evolution API.');
     }
-  }, []);
+  }, [loadQr]);
 
   useEffect(() => {
     void refreshStatus();
@@ -51,25 +91,7 @@ export function EvolutionWhatsAppPanel() {
     setBusy(true);
     setError('');
     try {
-      const current = await fetchEvolutionQr();
-      setQr(current);
-      if (!current.available) {
-        setQrDataUrl('');
-        setError(current.error_code || 'QR ainda não disponível.');
-        return;
-      }
-      if (current.base64) {
-        setQrDataUrl(current.base64.startsWith('data:') ? current.base64 : `data:image/png;base64,${current.base64}`);
-        return;
-      }
-      if (current.qr) {
-        const token = ++renderToken.current;
-        const image = await QRCode.toDataURL(current.qr, { errorCorrectionLevel: 'M', margin: 2, width: 280 });
-        if (token === renderToken.current) setQrDataUrl(image);
-      }
-    } catch (cause) {
-      setQrDataUrl('');
-      setError(cause instanceof Error ? cause.message : 'Falha ao carregar QR da Evolution API.');
+      await loadQr(true);
     } finally {
       setBusy(false);
     }

@@ -92,6 +92,8 @@ export function InputArea() {
   const maxTokens = useAppStore((s) => s.settings.maxTokens);
   const temperature = useAppStore((s) => s.settings.temperature);
   const createConversation = useAppStore((s) => s.createConversation);
+  const selectCodexThread = useAppStore((s) => s.selectCodexThread);
+  const codexCatalog = useAppStore((s) => s.codexCatalog);
   const addMessage = useAppStore((s) => s.addMessage);
   const updateLastAssistant = useAppStore((s) => s.updateLastAssistant);
   const setStreamState = useAppStore((s) => s.setStreamState);
@@ -199,9 +201,26 @@ export function InputArea() {
     if (!convId) {
       convId = createConversation(selectedModel);
     }
-    const targetConversation = useAppStore
+    let targetConversation = useAppStore
       .getState()
       .conversations.find((conversation) => conversation.id === convId);
+
+    // A first message can race the catalog refresh on a cold browser load.
+    // Bind it to the first allowed Codex thread instead of falling through to
+    // the legacy engine endpoint (which is intentionally absent on the VPS).
+    if (!deepResearch && (!targetConversation?.codexThreadId || !targetConversation.codexProjectCwd)) {
+      const fallback = codexCatalog?.projects
+        .flatMap((project) => project.threads)
+        .find((thread) => thread.thread_id && thread.project_cwd);
+      if (fallback) {
+        selectCodexThread(fallback);
+        const latest = useAppStore.getState();
+        convId = latest.activeId || convId;
+        targetConversation = latest.conversations.find(
+          (conversation) => conversation.id === convId,
+        );
+      }
+    }
 
     if (
       !deepResearch

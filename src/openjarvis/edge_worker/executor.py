@@ -253,8 +253,7 @@ class CodexEdgeExecutor:
             "references": {"thread_id": thread_id},
         }
 
-    @staticmethod
-    def _catalog(runtime: CodexConversationRuntime) -> dict[str, Any]:
+    def _catalog(self, runtime: CodexConversationRuntime) -> dict[str, Any]:
         threads: list[Any] = []
         cursor: str | None = None
         for _ in range(20):
@@ -272,6 +271,7 @@ class CodexEdgeExecutor:
             }
             for item in threads
             if item.cwd
+            and self._project_is_allowed(item.cwd, self._config.project_roots)
         ]
         return {
             "status": "completed",
@@ -279,6 +279,28 @@ class CodexEdgeExecutor:
             "data": {"threads": data},
             "references": {},
         }
+
+    @staticmethod
+    def _project_is_allowed(project: str, roots: tuple[str, ...]) -> bool:
+        """Keep the browser catalog inside the worker's configured roots.
+
+        ``thread/list`` is account-wide on the local Codex app-server.  The
+        Edge worker must therefore apply the same containment rule used by
+        ``codex.delegate`` before returning threads to the VPS UI; otherwise
+        unrelated desktop projects leak into the public catalog and the UI can
+        select a thread the worker is not allowed to execute.
+        """
+
+        value = str(project).strip()
+        configured = roots
+        normalized = ntpath.normcase(ntpath.normpath(value))
+        return any(
+            normalized == ntpath.normcase(ntpath.normpath(root))
+            or normalized.startswith(
+                ntpath.normcase(ntpath.normpath(root)).rstrip("\\") + "\\"
+            )
+            for root in configured
+        )
 
     @staticmethod
     def _subscribe(

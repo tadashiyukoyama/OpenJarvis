@@ -233,6 +233,89 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         )
         return response
 
+    # The VPS image deliberately has no local Ollama/engine.  A browser that
+    # races the Codex target bootstrap must still use the authenticated Edge
+    # bridge rather than falling through to ``engine.generate(None, ...)`` and
+    # surfacing the opaque ``NoneType.stream`` error.  Keep this compatibility
+    # path explicit and target-bound; requests without a Codex thread fail
+    # closed with an actionable status instead of selecting another model.
+    codex_runtime = getattr(request.app.state, "codex_runtime", None)
+    if engine is None and agent is None and codex_runtime is not None:
+        if request_body.tools:
+            raise HTTPException(
+                status_code=400,
+                detail="The VPS Codex bridge does not accept request tools",
+            )
+        thread_id = (request_body.codex_thread_id or "").strip()
+        project_cwd = (request_body.codex_project_cwd or "").strip()
+        message = next(
+            (
+                item.content.strip()
+                for item in reversed(request_body.messages)
+                if item.role == "user" and item.content and item.content.strip()
+            ),
+            "",
+        )
+        if not thread_id or not project_cwd or not message:
+            raise HTTPException(
+                status_code=503,
+                detail="CODEX_TARGET_REQUIRED",
+            )
+        request_id = (
+            (request_body.codex_client_user_message_id or "").strip()
+            or f"web_{uuid.uuid4().hex}"
+        )
+        conversation_id = (
+            (request_body.conversation_id or "").strip() or f"web_{uuid.uuid4().hex}"
+        )
+        if request_body.stream:
+            from openjarvis.server.codex_turn_dispatch import (
+                CodexTurnRequest,
+                _stream_turn,
+            )
+
+            payload = CodexTurnRequest(
+                project_cwd=project_cwd,
+                message=message,
+                client_user_message_id=request_id,
+                conversation_id=conversation_id,
+            )
+            return StreamingResponse(
+                _stream_turn(codex_runtime, thread_id, payload),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+        try:
+            result = await asyncio.to_thread(
+                codex_runtime.start_turn,
+                thread_id,
+                project_cwd=project_cwd,
+                command=message,
+                request_id=request_id,
+                conversation_id=conversation_id,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502, detail="CODEX_DISPATCH_FAILED"
+            ) from exc
+        return ChatCompletionResponse(
+            model="codex",
+            choices=[
+                Choice(
+                    message=ChoiceMessage(
+                        role="assistant",
+                        content=str(result.get("summary") or ""),
+                    ),
+                    finish_reason="stop",
+                )
+            ],
+            complexity=complexity_info,
+        )
+
     if request_body.stream:
         # When the client passes `tools`, stream the model's raw
         # OpenAI-compat function-calling decision directly from the engine
